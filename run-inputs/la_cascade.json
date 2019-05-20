@@ -1,0 +1,28 @@
+{
+    "run": {
+        "data dirpath": "./Datasets/la_cascade/hdf5.original",
+        "unit walltime": 0.3,
+        "num nodes": [1,2], 
+        "num tasks per node": [2,4],
+        "num threads per task": [1,2],
+        "num repeats": 2,
+        "mg cycles": 100,
+        "partitioners": ["inertial", "parmetis"],
+        "validate solution": false
+    },
+
+    "compile": {
+        "mpi": true,
+        "cuda": false,
+        "openmp": false,
+        "openacc": false,
+        "compiler": "intel"
+    },
+
+    "setup": {
+        "jobs dir": "./run-jobs.la_cascade",
+        "job scheduler": "", 
+        "partition": "",
+        "project code": ""
+    }
+}

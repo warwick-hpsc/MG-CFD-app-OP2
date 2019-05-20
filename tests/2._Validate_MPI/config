@@ -1,0 +1,4 @@
+input_file = input.dat
+input_file_directory = ../input_data/m6wing/hdf5.original
+output_file_prefix = ./data/
+cycles = 25
