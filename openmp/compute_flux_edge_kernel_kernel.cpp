@@ -35,6 +35,7 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
+  double inner_cpu_t1, inner_cpu_t2, inner_wall_t1, inner_wall_t2;
   op_timing_realloc(nk);
   op_timers_core(&cpu_t1, &wall_t1);
 
@@ -57,15 +58,14 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   if (set->size >0) {
 
     op_plan *Plan = op_plan_get_stage_upload(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_ALL,0);
-
     // execute plan
+
+    // Independent compute:
     int block_offset = 0;
-    for ( int col=0; col<Plan->ncolors; col++ ){
-      if (col==Plan->ncolors_core) {
-        op_mpi_wait_all(nargs, args);
-      }
+    for ( int col=0; col<Plan->ncolors_core; col++ ){
       int nblocks = Plan->ncolblk[col];
 
+      op_timers_core(&inner_cpu_t1, &inner_wall_t1);
       #pragma omp parallel for
       for ( int blockIdx=0; blockIdx<nblocks; blockIdx++ ){
         int blockId  = Plan->blkmap[blockIdx + block_offset];
@@ -75,7 +75,6 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
           int map0idx = arg0.map_data[n * arg0.map->dim + 0];
           int map1idx = arg0.map_data[n * arg0.map->dim + 1];
 
-
           compute_flux_edge_kernel(
             &((double*)arg0.data)[5 * map0idx],
             &((double*)arg0.data)[5 * map1idx],
@@ -84,18 +83,59 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
             &((double*)arg3.data)[5 * map1idx]);
         }
       }
+      op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+      *compute_indep_time += inner_wall_t2 - inner_wall_t1;
 
       block_offset += nblocks;
     }
+
+    if (Plan->ncolors > Plan->ncolors_core) {
+      // Dependent compute:
+      op_timers_core(&inner_cpu_t1, &inner_wall_t1);
+      op_mpi_wait_all(nargs, args);
+      op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+      *sync_time += inner_wall_t2 - inner_wall_t1;
+
+      for (int col=Plan->ncolors_core; col<Plan->ncolors; col++ ) {
+        int nblocks = Plan->ncolblk[col];
+
+        op_timers_core(&inner_cpu_t1, &inner_wall_t1);
+        #pragma omp parallel for
+        for ( int blockIdx=0; blockIdx<nblocks; blockIdx++ ) {
+          int blockId  = Plan->blkmap[blockIdx + block_offset];
+          int nelem    = Plan->nelems[blockId];
+          int offset_b = Plan->offset[blockId];
+          for ( int n=offset_b; n<offset_b+nelem; n++ ) {
+            int map0idx = arg0.map_data[n * arg0.map->dim + 0];
+            int map1idx = arg0.map_data[n * arg0.map->dim + 1];
+
+            compute_flux_edge_kernel(
+              &((double*)arg0.data)[5 * map0idx],
+              &((double*)arg0.data)[5 * map1idx],
+              &((double*)arg2.data)[3 * n],
+              &((double*)arg3.data)[5 * map0idx],
+              &((double*)arg3.data)[5 * map1idx]);
+          }
+        }
+        op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+        *compute_dep_time += inner_wall_t2 - inner_wall_t1;
+
+        block_offset += nblocks;
+      }
+    }
+
     OP_kernels[nk].transfer  += Plan->transfer;
     OP_kernels[nk].transfer2 += Plan->transfer2;
   }
 
+  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   if (set_size == 0 || set_size == set->core_size) {
     op_mpi_wait_all(nargs, args);
   }
   // combine reduction data
   op_mpi_set_dirtybit(nargs, args);
+  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+  *sync_time += inner_wall_t2 - inner_wall_t1;
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);

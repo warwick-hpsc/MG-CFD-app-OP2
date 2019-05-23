@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=<RUN_ID>.MG-CFD.run.sbatch
+#SBATCH --job-name=MG-CFD.<RUN ID>
 #SBATCH --output=sbatch.stdout
 #SBATCH --error=sbatch.stderr
 

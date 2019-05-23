@@ -8,8 +8,8 @@
 
 
 ifdef OP2_INSTALL_PATH
-  OP2_INC		= -I$(OP2_INSTALL_PATH)/c/include
-  OP2_LIB		= -L$(OP2_INSTALL_PATH)/c/lib
+  OP2_INC = -I$(OP2_INSTALL_PATH)/c/include
+  OP2_LIB = -L$(OP2_INSTALL_PATH)/c/lib
 endif
 
 ifdef CUDA_INSTALL_PATH
@@ -50,40 +50,42 @@ BIN_DIR = bin
 OBJ_DIR = obj
 SRC_DIR = src
 
-MF_HOME=$(shell pwd)
-
-ifeq ($(OP2_COMPILER),gnu)
-  CPP		= g++
-  CPPFLAGS	= -fPIC -DUNIX -Wall -Wextra
-  # CPPFLAGS += -Wfatal-errors
-  OMPFLAGS	= -fopenmp
-  MPICPP	= $(MPI_INSTALL_PATH)/bin/mpiCC
-  MPIFLAGS	= $(CCFLAGS)
-else
-ifeq ($(OP2_COMPILER),intel)
-  CPP		= icpc
-  CCFLAGS	= -DMPICH_IGNORE_CXX_SEEK -restrict -fno-alias -inline-forceinline -parallel -DVECTORIZE #-parallel #-DCOMM_PERF #-DDEBUG #-qopt-report=5
-  CCFLAGS  += -fmax-errors=1
-  CPPFLAGS 	= $(CCFLAGS)
-  OMPFLAGS	= -qopenmp 
-  OMPOFFLOAD = -qopenmp
+ifeq ($(COMPILER),gnu)
+  CPP := g++
   ifneq ("$(wildcard $(MPI_INSTALL_PATH)/bin/mpicxx)","")
-    MPICPP	= $(MPI_INSTALL_PATH)/bin/mpicxx
+    MPICPP := $(MPI_INSTALL_PATH)/bin/mpiCC
+  else
+    MPICPP := mpiCC
+  endif
+  CFLAGS	= -fPIC -DUNIX -Wall -Wextra
+  CPPFLAGS 	= $(CFLAGS)
+  OMPFLAGS 	= -fopenmp
+  MPIFLAGS 	= $(CPPFLAGS)
+else
+ifeq ($(COMPILER),intel)
+  CPP = icpc
+  ifneq ("$(wildcard $(MPI_INSTALL_PATH)/bin/mpicxx)","")
+    MPICPP = $(MPI_INSTALL_PATH)/bin/mpicxx
   else
     MPICPP = mpicxx
   endif
-  NVCCFLAGS += #-ccbin=$(MPICPP)
+  CFLAGS = -DMPICH_IGNORE_CXX_SEEK -restrict -fno-alias -inline-forceinline -parallel -DVECTORIZE #-parallel #-DCOMM_PERF #-DDEBUG #-qopt-report=5
+  CFLAGS += -fmax-errors=1
+  CPPFLAGS = $(CFLAGS)
+  OMPFLAGS = -qopenmp 
+  OMPOFFLOAD = -qopenmp
+  # NVCCFLAGS += -ccbin=$(MPICPP)
   MPIFLAGS	= $(CPPFLAGS)
   ifdef ISET
-    MH_FLAGS += -x$(ISET)
+    OPTIMISE += -x$(ISET)
   else
-    MH_FLAGS += -xHost
+    OPTIMISE += -xHost
   endif
 else
-ifeq ($(OP2_COMPILER),xl)
+ifeq ($(COMPILER),xl)
   CPP		= xlc++
-  CCFLAGS	= -O5 -qarch=pwr8 -qtune=pwr8 -qhot
-  CPPFLAGS 	= $(CCFLAGS)
+  CFLAGS	= -O5 -qarch=pwr8 -qtune=pwr8 -qhot
+  CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS	= -qsmp=omp -qthreaded
   OMPOFFLOAD    = -qsmp=omp -qoffload -Xptxas -v -g1
   ifneq ("$(wildcard $(MPI_INSTALL_PATH)/bin/mpicxx)","")
@@ -93,10 +95,10 @@ ifeq ($(OP2_COMPILER),xl)
   endif
   MPIFLAGS	= $(CPPFLAGS)
 else
-ifeq ($(OP2_COMPILER),pgi)
+ifeq ($(COMPILER),pgi)
   CPP       	= pgc++
-  CCFLAGS  	= -O3
-  CPPFLAGS 	= $(CCFLAGS)
+  CFLAGS  	= -O3
+  CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -mp
   ifneq ("$(wildcard $(MPI_INSTALL_PATH)/bin/mpicc)","")
     MPICC	= $(MPI_INSTALL_PATH)/bin/mpicc
@@ -114,22 +116,28 @@ ifeq ($(OP2_COMPILER),pgi)
   # ACCFLAGS      = -acc -DOPENACC -Minfo=acc
   ACCFLAGS      = -v -acc -DOPENACC -Minfo=acc
 else
-ifeq ($(OP2_COMPILER),cray)
+ifeq ($(COMPILER),cray)
   CPP           = CC
-  CCFLAGS       = -O3 -h fp3 -h ipa5
-  CPPFLAGS      = $(CCFLAGS)
+  CFLAGS       = -O3 -h fp3 -h ipa5
+  CPPFLAGS      = $(CFLAGS)
   OMPFLAGS      = -h omp
   MPICPP        = CC
   MPIFLAGS      = $(CPPFLAGS)
 else
 print:
-	@echo "unrecognised value for OP2_COMPILER"
+	@echo "unrecognised value for COMPILER"
 endif
 endif
 endif
 endif
 endif
 
+ifdef CPP_WRAPPER
+  CPP := $(CPP_WRAPPER)
+endif
+ifdef MPICPP_WRAPPER
+  MPICPP := $(MPICPP_WRAPPER)
+endif
 
 #
 # set flags for NVCC compilation and linking
@@ -154,10 +162,10 @@ endif
 endif
 endif
 
-NVCCFLAGS       := $(NVCCFLAGS) $(CODE_GEN_CUDA) -m64 -Xptxas -dlcm=ca -Xptxas=-v -use_fast_math -O3 #-g -G -O0
+NVCCFLAGS += $(CODE_GEN_CUDA) -m64 -Xptxas -dlcm=ca -Xptxas=-v -use_fast_math -O3
 
 
-MH_INCS := -Isrc -Isrc/Kernels
+MGCFD_INCS := -Isrc -Isrc/Kernels
 
 
 OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
@@ -189,7 +197,7 @@ OP2_OMP4_SOURCES := $(OBJ_DIR)/mgcfd_omp4_main.o \
 ## SEQUENTIAL
 mgcfd_seq: $(OP2_SEQ_SOURCES)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $^ $(OPTIMISE) $(MH_FLAGS) $(MH_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CPPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 		$(PARMETIS_INC) $(PTSCOTCH_INC) \
 		-lm $(OP2_LIB) -lop2_seq -lop2_hdf5 \
 		$(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB)  -o $(BIN_DIR)/mgcfd_seq
@@ -197,7 +205,7 @@ mgcfd_seq: $(OP2_SEQ_SOURCES)
 ## OPENMP
 mgcfd_openmp: $(OP2_OMP_SOURCES)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MH_FLAGS) $(MH_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 		$(PARMETIS_INC) $(PTSCOTCH_INC) \
 		-lm $(OP2_LIB) -lop2_openmp -lop2_hdf5 \
 		$(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB)  -o $(BIN_DIR)/mgcfd_openmp
@@ -205,14 +213,15 @@ mgcfd_openmp: $(OP2_OMP_SOURCES)
 ## MPI
 mgcfd_mpi_genseq: $(OP2_SEQ_SOURCES)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $^ $(OPTIMISE) $(MH_FLAGS) $(MH_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CPPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 		$(PARMETIS_INC) $(PTSCOTCH_INC) \
 		-lm $(OP2_LIB) -lop2_mpi -DMPI_ON \
 		$(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB)  -o $(BIN_DIR)/mgcfd_mpi_genseq
 
 ## MPI + OPENMP
 mgcfd_mpi_openmp: $(OP2_OMP_SOURCES)
-	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MH_FLAGS) $(MH_INCS) $(OP2_INC) $(HDF5_INC) \
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 		$(PARMETIS_INC) $(PTSCOTCH_INC) \
 		-lm $(OP2_LIB) -lop2_mpi -DMPI_ON \
 		$(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB)  -o $(BIN_DIR)/mgcfd_mpi_openmp
@@ -220,11 +229,11 @@ mgcfd_mpi_openmp: $(OP2_OMP_SOURCES)
 ## CUDA
 $(OBJ_DIR)/mgcfd_kernels_cu.o:
 	mkdir -p $(OBJ_DIR)
-	nvcc $(NVCCFLAGS) $(MH_INCS) $(OP2_INC) \
+	nvcc $(NVCCFLAGS) $(MGCFD_INCS) $(OP2_INC) \
 		 -c -o $(OBJ_DIR)/mgcfd_kernels_cu.o $(SRC_DIR)/../cuda/_kernels.cu
 mgcfd_cuda: $(OP2_CUDA_SOURCES)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CCFLAGS) $^ $(OPTIMISE) $(MH_FLAGS) $(MH_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	    $(CUDA_LIB) -lcudart \
 	    $(OP2_LIB) -lop2_cuda -DCUDA_ON \
 	    $(HDF5_LIB) -lop2_hdf5 \
@@ -233,19 +242,19 @@ mgcfd_cuda: $(OP2_CUDA_SOURCES)
 ## OPENMP4
 $(OBJ_DIR)/mgcfd_omp4_kernel_funcs.o:
 	mkdir -p $(OBJ_DIR)
-	$(CPP) $(CPPFLAGS) $(OMPOFFLOAD) $(OPTIMISE) $(MH_FLAGS) $(MH_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(CPP) $(CPPFLAGS) $(OMPOFFLOAD) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	    -Iopenmp4/ -c $(SRC_DIR)/../openmp4/_omp4kernel_funcs.cpp -o $@
 $(OBJ_DIR)/mgcfd_omp4_kernels.o:
 	mkdir -p $(OBJ_DIR)
-	$(CPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MH_FLAGS) $(MH_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(CPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	    -Iopenmp4/ -c $(SRC_DIR)/../openmp4/_omp4kernels.cpp -o $@
 $(OBJ_DIR)/mgcfd_omp4_main.o:
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MH_FLAGS) $(MH_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	    -Iopenmp4/ -c $(OP2_MAIN_SRC) -o $@
 mgcfd_openmp4: $(OP2_OMP4_SOURCES)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPOFFLOAD) $^ $(OPTIMISE) $(MH_FLAGS) $(MH_INCS) \
+	$(MPICPP) $(CPPFLAGS) $(OMPOFFLOAD) $^ $(OPTIMISE) $(MGCFD_INCS) \
 	    $(OP2_INC) $(OP2_LIB) -lop2_openmp4 \
 		$(PARMETIS_INC) $(PTSCOTCH_INC) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
 		$(HDF5_INC) $(HDF5_LIB) -lop2_hdf5 \
@@ -257,7 +266,7 @@ mgcfd_openmp4: $(OP2_OMP4_SOURCES)
 # Compile failing: nvlink unable to link _acckernels.o to extern variable definitions
 mgcfd_openacc: $(OP2_OPENACC_SOURCES)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(ACCFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MH_FLAGS) $(MH_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CPPFLAGS) $(ACCFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	    -Iopenacc $(CUDA_LIB) -lcudart \
 	    $(OP2_LIB) -lop2_cuda \
 	    $(HDF5_LIB) -lop2_hdf5 \
@@ -266,12 +275,12 @@ mgcfd_openacc: $(OP2_OPENACC_SOURCES)
 
 ## MPI CUDA
 $(OBJ_DIR)/mgcfd_mpi_kernels_cu.o:
-	kdir -p $(OBJ_DIR)
-	nvcc $(NVCCFLAGS) $(MH_INCS) $(OP2_INC) -I $(MPI_INSTALL_PATH)/include \
+	mkdir -p $(OBJ_DIR)
+	nvcc $(NVCCFLAGS) $(MGCFD_INCS) $(OP2_INC) -I $(MPI_INSTALL_PATH)/include \
                  -c -o $(OBJ_DIR)/mgcfd_mpi_kernels_cu.o $(SRC_DIR)/../cuda/_kernels.cu
 mgcfd_mpi_cuda: $(OP2_CUDA_SOURCES)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CCFLAGS) $^ $(OPTIMISE) $(MH_FLAGS) $(MH_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	    $(CUDA_LIB) -lcudart \
             $(OP2_LIB) -lop2_mpi_cuda -DCUDA_ON \
 	    $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \

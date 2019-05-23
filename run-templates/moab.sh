@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#MSUB -N <RUN_ID>.MG-CFD.run.sbatch
-#MSUB -o sbatch.stdout
-#MSUB -e sbatch.stderr
+#MSUB -N MG-CFD.<RUN ID>
+#MSUB -o moab.stdout
+#MSUB -e moab.stderr
 
 #MSUB -l nodes=<NODES>
 #MSUB -l ttc=<TPN>

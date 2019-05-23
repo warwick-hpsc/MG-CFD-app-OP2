@@ -1,21 +1,34 @@
 set -e
 set -u
 
-run_outdir="<RUN_OUTDIR>"
-app_dirpath="<APP_DIRPATH>"
-data_dirpath="<DATA_DIRPATH>"
-mg_cycles=<MG_CYCLES>
-ntasks=<NTASKS>
-nthreads=<NTHREADS>
-partitioner=<PARTITIONER>
-validate_solution=<VALIDATE_SOLUTION>
-
-_cc=<COMPILER>
+# Compilation variables:
+compiler=<COMPILER>
+cpp_wrapper="<CPP_WRAPPER>"
+mpicpp_wrapper="<MPICPP_WRAPPER>"
 mpi=<MPI>
 cuda=<CUDA>
 openmp=<OPENMP>
 openmp4=<OPENMP4>
 openacc=<OPENACC>
+
+# File/dir paths:
+run_outdir="<RUN_OUTDIR>"
+app_dirpath="<APP_DIRPATH>"
+data_dirpath="<DATA_DIRPATH>"
+
+# MG-CFD run variables:
+nthreads=<NTHREADS>
+ntasks=<NTASKS>
+mg_cycles=<MG_CYCLES>
+partitioner=<PARTITIONER>
+validate_solution=<VALIDATE_SOLUTION>
+
+
+## Exit early if output csv files already exist.
+if ls ${run_outdir}/*.csv 1> /dev/null 2>&1; then
+  echo "Output CSV files already present, no need to execute."
+  exit 0
+fi
 
 if $mpi ; then
   if $cuda ; then
@@ -38,25 +51,37 @@ else
   	bin_filename=mgcfd_seq
   fi
 fi
+bin_filepath="${app_dirpath}/bin/${bin_filename}"
 
-
-## Exit early if output csv files already exist.
-if ls ${run_outdir}/*.csv 1> /dev/null 2>&1; then
-  echo "Output CSV files already present, no need to execute."
-  exit 0
-fi
 
 
 # Run:
 
-bin_filepath="${app_dirpath}/bin/${bin_filename}"
+# if [ ! -f "$bin_filepath" ]; then
+  ## Try compiling anyway, source files may have changed
+  # if [[ `hostname` == *"login"* ]]; then
+    echo "Attempting to compile ..."
+    cd "$app_dirpath"
+    make_cmd="COMPILER=${compiler} "
+    if [ "$cpp_wrapper" != "" ]; then
+      make_cmd+="CPP_WRAPPER=$cpp_wrapper "
+    fi
+    if [ "$mpicpp_wrapper" != "" ]; then
+      make_cmd+="MPICPP_WRAPPER=$mpicpp_wrapper "
+    fi
+    make_cmd+="make -j4 $bin_filename"
+    echo "$make_cmd"
+    eval "$make_cmd"
+  # else
+  #   echo "ERROR: Binary does not exist: $bin_filepath"
+  #   exit 1
+  # fi
+# fi
 
-if [ ! -f "$bin_filepath" ]; then
-  echo "ERROR: Binary does not exist: $bin_filepath"
-  # exit 1
-  echo "Attempting to compile ..."
-  cd "$app_dirpath"
-  OP2_COMPILER="$_cc" make -j4 "$bin_filename"
+if [[ `hostname` == *"login"* ]]; then
+  ## Assume on a login node, do not execute the code.
+  echo "Detected presence on login node, aborting before app execution."
+  exit 0
 fi
 
 if [ ! -z ${RUN_CMD+x} ]; then

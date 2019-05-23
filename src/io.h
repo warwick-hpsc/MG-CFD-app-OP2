@@ -292,8 +292,8 @@ inline void dump_iter_counts_to_file(
     std::ostringstream header;
 
     if (write_header) {
-        header << "Rank";
-        header << ",Partitioner";
+        header << "rank";
+        header << ",partitioner";
         for (int l=0; l<num_levels; l++) {
             header << "," << "flux" << l ;
         }
@@ -397,8 +397,8 @@ inline void dump_sync_times_to_file(
     std::ostringstream header;
 
     if (write_header) {
-        header << "Rank";
-        header << ",Partitioner";
+        header << "rank";
+        header << ",rartitioner";
         for (int l=0; l<num_levels; l++) {
             header << "," << "flux" << l ;
         }
