@@ -1,6 +1,11 @@
 set -e
 set -u
 
+touch job-is-running.txt
+if [ -f job-in-queue.txt ]; then
+    rm job-in-queue.txt
+fi
+
 # Compilation variables:
 compiler=<COMPILER>
 cpp_wrapper="<CPP_WRAPPER>"
@@ -26,10 +31,12 @@ validate_solution=<VALIDATE_SOLUTION>
 
 ## Exit early if output csv files already exist.
 if ls ${run_outdir}/*.csv 1> /dev/null 2>&1; then
-  echo "Output CSV files already present, no need to execute."
+  echo "Output CSV files already present, meaning this job has already run."
+    rm "${run_outdir}"/job-is-running.txt
   exit 0
 fi
 
+# Compile:
 if $mpi ; then
   if $cuda ; then
     bin_filename=mgcfd_mpi_cuda
@@ -53,15 +60,11 @@ else
 fi
 bin_filepath="${app_dirpath}/bin/${bin_filename}"
 
-
-
-# Run:
-
 # if [ ! -f "$bin_filepath" ]; then
   ## Try compiling anyway, source files may have changed
-  # if [[ `hostname` == *"login"* ]]; then
-    echo "Attempting to compile ..."
-    cd "$app_dirpath"
+  if [[ `hostname` == *"login"* ]]; then
+    ## On login node, compile
+    cd "${app_dirpath}"
     make_cmd="COMPILER=${compiler} "
     if [ "$cpp_wrapper" != "" ]; then
       make_cmd+="CPP_WRAPPER=$cpp_wrapper "
@@ -72,10 +75,12 @@ bin_filepath="${app_dirpath}/bin/${bin_filename}"
     make_cmd+="make -j4 $bin_filename"
     echo "$make_cmd"
     eval "$make_cmd"
-  # else
-  #   echo "ERROR: Binary does not exist: $bin_filepath"
-  #   exit 1
-  # fi
+    chmod a+x "$bin_filepath"
+  elif [ ! -f "$bin_filepath" ]; then
+    echo "ERROR: Cannot find binary: $bin_filepath"
+    rm "${run_outdir}"/job-is-running.txt
+    exit 1
+  fi
 # fi
 
 if [[ `hostname` == *"login"* ]]; then
@@ -83,6 +88,8 @@ if [[ `hostname` == *"login"* ]]; then
   echo "Detected presence on login node, aborting before app execution."
   exit 0
 fi
+
+# Run:
 
 if [ ! -z ${RUN_CMD+x} ]; then
   exec_command="$RUN_CMD"
@@ -102,3 +109,4 @@ export OMP_NUM_THREADS=$nthreads
 cd "${data_dirpath}"
 echo "$exec_command"
 eval "$exec_command"
+rm "${run_outdir}"/job-is-running.txt

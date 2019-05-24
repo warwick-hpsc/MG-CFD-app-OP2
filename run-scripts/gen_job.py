@@ -1,7 +1,8 @@
-import os, shutil, stat
+import os, shutil, stat, sys
 import json, argparse, re
 import itertools
 import math
+from tempfile import NamedTemporaryFile
 
 script_dirpath = os.path.dirname(os.path.realpath(__file__))
 template_dirpath = os.path.join(os.path.dirname(script_dirpath), "run-templates")
@@ -35,6 +36,7 @@ defaults["openmp4"] = False
 defaults["unit walltime"] = 0.0
 defaults["project code"] = "NotSpecified"
 # MG-CFD execution:
+defaults["num threads"] = [1]
 defaults["num repeats"] = 1
 defaults["mg cycles"] = 50
 
@@ -76,6 +78,7 @@ if __name__=="__main__":
     with open(args.json, 'r') as f:
         profile = json.load(f)
 
+    ## Read file/folder paths and prepare folders:
     jobs_dir = profile["setup"]["jobs dir"]
     if jobs_dir[0] != '/':
         jobs_dir = os.path.join(app_dirpath, jobs_dir)
@@ -88,28 +91,11 @@ if __name__=="__main__":
     if data_dirpath[0] != '/':
         data_dirpath = os.path.join(app_dirpath, data_dirpath)
 
-    submit_all_filepath = os.path.join(jobs_dir, "submit_all.sh")
-    submit_all_file = open(submit_all_filepath, "w")
-    submit_all_file.write("#!/bin/bash\n\n")
-
-    js = profile["setup"]["job scheduler"]
-    js_filename = js_to_filename[js]
-    submit_all_file.write("# {0}:\n".format(js))
-    submit_all_file.write("submit_cmd={0}\n\n".format(js_to_submit_cmd[js]))
-
+    ## Read parameters from json:
     job_queue = get_key_value(profile, "setup", "partition")
     project_code = get_key_value(profile, "setup", "project code")
+    js = get_key_value(profile, "setup", "job scheduler")
 
-    with open(os.path.join(jobs_dir, "papi.conf"), "w") as f:
-        f.write("PAPI_TOT_INS\n")
-        f.write("PAPI_TOT_CYC\n")
-
-    num_repeats = get_key_value(profile, "run", "num repeats")
-    mg_cycles = get_key_value(profile, "run", "mg cycles")
-    partitioners = get_key_value(profile, "run", "partitioners")
-    validate_solution = get_key_value(profile, "run", "validate solution")
-    mgcfd_unit_runtime_secs = get_key_value(profile, "run", "unit walltime")
-    
     compiler = get_key_value(profile, "compile", "compiler")
     cpp_wrapper = get_key_value(profile, "compile", "cpp wrapper")
     mpicpp_wrapper = get_key_value(profile, "compile", "mpicpp wrapper")
@@ -139,12 +125,53 @@ if __name__=="__main__":
         if use_mpi:
             raise Exception("Cannot combine OpenACC and MPI")
 
+    if use_mpi:
+        if use_cuda:
+            bin_filename = "mgcfd_mpi_cuda"
+        elif use_openmp:
+            bin_filename = "mgcfd_mpi_cuda"
+        else:
+            bin_filename = "mgcfd_mpi_cuda"
+
+    else:
+        if use_cuda:
+            bin_filename = "mgcfd_mpi_cuda"
+        elif use_openmp:
+            bin_filename = "mgcfd_mpi_cuda"
+        elif use_openmp4:
+            bin_filename = "mgcfd_mpi_cuda"
+        elif use_openacc:
+            bin_filename = "mgcfd_mpi_cuda"
+        else:
+            bin_filename = "mgcfd_seq"
+    bin_filepath = os.path.join(app_dirpath, "bin", "bin_filename")
+
+    num_repeats = get_key_value(profile, "run", "num repeats")
+    mg_cycles = get_key_value(profile, "run", "mg cycles")
+    validate_solution = get_key_value(profile, "run", "validate solution")
+    mgcfd_unit_runtime_secs = get_key_value(profile, "run", "unit walltime")
+    partitioners = get_key_value(profile, "run", "partitioners")
+    
     num_nodes_range = get_key_value(profile, "run", "num nodes")
     num_tpn_range = get_key_value(profile, "run", "num tasks per node")
     num_threads_range = get_key_value(profile, "run", "num threads per task")
 
-    num_jobs = len(num_nodes_range) * len(num_tpn_range) * len(num_threads_range) * num_repeats
-    num_jobs *= len(partitioners)
+    num_jobs = len(num_nodes_range) * len(num_tpn_range) * len(num_threads_range) * num_repeats * len(partitioners)
+
+    submit_all_filepath = os.path.join(jobs_dir, "submit_all.sh")
+    submit_all_file = open(submit_all_filepath, "w")
+    submit_all_file.write("#!/bin/bash\n")
+    submit_all_file.write("set -e\n")
+    submit_all_file.write("set -u\n")
+    submit_all_file.write("\n")
+    js_filename = js_to_filename[js]
+    submit_all_file.write("# {0}:\n".format(js))
+    submit_all_file.write("submit_cmd={0}\n\n".format(js_to_submit_cmd[js]))
+    submit_all_file.write("num_jobs={0}\n\n".format(num_jobs))
+
+    with open(os.path.join(jobs_dir, "papi.conf"), "w") as f:
+        f.write("PAPI_TOT_INS\n")
+        f.write("PAPI_TOT_CYC\n")
 
     n = 0
     for num_nodes in num_nodes_range:
@@ -163,10 +190,10 @@ if __name__=="__main__":
                             os.mkdir(job_dir)
 
                         ## Link to papi config file:
-                        dest_filepath = os.path.join(job_dir, "papi.conf")
-                        if os.path.isfile(dest_filepath):
-                            os.remove(dest_filepath)
-                        os.symlink(os.path.join(jobs_dir, "papi.conf"), dest_filepath)
+                        papi_dest_filepath = os.path.join(job_dir, "papi.conf")
+                        if os.path.isfile(papi_dest_filepath):
+                            os.remove(papi_dest_filepath)
+                        os.symlink(os.path.join(jobs_dir, "papi.conf"), papi_dest_filepath)
 
                         ## Instantiate MG-CFD run script:
                         job_run_filepath = os.path.join(job_dir, "run-mgcfd.sh")
@@ -241,7 +268,8 @@ if __name__=="__main__":
                             est_runtime_minutes = 30
                         else:
                             est_runtime_secs = float(mgcfd_unit_runtime_secs*mg_cycles) / math.sqrt(float(nt*num_thr))
-                            est_runtime_secs = 1.2*est_runtime_secs + 10.0 ## Add a small buffer
+                            est_runtime_secs *= 1.2 ## Allow for estimation error
+                            est_runtime_secs += 20  ## Add time for file load
                             est_runtime_secs = int(round(est_runtime_secs))
                             est_runtime_hours = est_runtime_secs/60/60
                             est_runtime_secs -= est_runtime_hours*60*60
@@ -258,18 +286,49 @@ if __name__=="__main__":
                         os.chmod(batch_filepath, 0755)
 
                         ## Add an entry to submit_all.sh:
+                        # submit_all_file.write("\n\n")
+                        # submit_all_file.write('if [ ! -f "{0}"/Times.csv ]; then\n'.format(job_dir))
+                        # submit_all_file.write("  basedir=`pwd`\n")
+                        # submit_all_file.write("  cd {0}\n".format(job_dir))
+                        # if js == "":
+                        #     ## Without a job scheduler to log STDOUT, need to do this manually:
+                        #     submit_all_file.write('  echo "Executing job {0}/{1}"\n'.format(n, num_jobs))
+                        #     submit_all_file.write('  eval "$submit_cmd" ./{0} > submit.log\n'.format(batch_filename))
+                        # else:
+                        #     submit_all_file.write('  eval "$submit_cmd" ./{0}\n'.format(batch_filename))
+                        # submit_all_file.write('  cd "$basedir"\n')
+                        # submit_all_file.write('fi')
+
+                        # Copy template 'submit.sh' to a temp file:
+                        submit_tmp = NamedTemporaryFile(prefix='myprefix')
+                        if not os.path.isfile(submit_tmp.name):
+                            print("NamedTemporaryFile() failed to actually create the file")
+                            sys.exit(-1)
+                        submit_tmp_filepath = submit_tmp.name
+                        with open(os.path.join(template_dirpath, "submit.sh"), 'r+b') as f:
+                            shutil.copyfileobj(f, submit_tmp)
+                        submit_tmp.seek(0)
+                        # Instantiate and append to submit_all.sh: 
+                        py_sed(submit_tmp_filepath, "<RUN_DIRPATH>",    job_dir)
+                        py_sed(submit_tmp_filepath, "<BATCH_FILENAME>", batch_filename)
+                        py_sed(submit_tmp_filepath, "<BIN_FILEPATH>",   bin_filepath)
                         submit_all_file.write("\n\n")
-                        submit_all_file.write('if [ ! -f "{0}"/Times.csv ]; then\n'.format(job_dir))
-                        submit_all_file.write("  basedir=`pwd`\n")
-                        submit_all_file.write("  cd {0}\n".format(job_dir))
-                        if js == "":
-                            ## Without a job scheduler to log STDOUT, need to do this manually:
-                            submit_all_file.write('  echo "Executing job {0}/{1}"\n'.format(n, num_jobs))
-                            submit_all_file.write('  eval "$submit_cmd" ./{0} > submit.log\n'.format(batch_filename))
-                        else:
-                            submit_all_file.write('  eval "$submit_cmd" ./{0}\n'.format(batch_filename))
-                        submit_all_file.write('  cd "$basedir"\n')
-                        submit_all_file.write('fi')
+                        with open(submit_tmp_filepath, 'r') as f:
+                            for line in f:
+                                # if not re.match(r''+"^[\s]*#", line):
+                                submit_all_file.write(line)
+
+                        ## Now close (and delete) submit_tmp file
+                        submit_tmp.close()
+                        if os.path.isfile(submit_tmp_filepath):
+                            os.unlink(submit_tmp_filepath)
+
+                        break
+                    break
+                break
+            break
+        break
+
 
     submit_all_file.close()
     st = os.stat(submit_all_filepath)
