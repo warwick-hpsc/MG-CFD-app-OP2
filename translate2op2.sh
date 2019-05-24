@@ -21,13 +21,6 @@ function _main {
 	files+=" ${src_dir}/Kernels"
 
 	python "${OP2_INSTALL_PATH}"/../translator/c/python/op2.py $files
-
-	## Now apply hacks to get around OP2 compilations issues:
-	# 1. Disable op_reductions in cuda kernels:
-	# echo "WARNING: Disabling op_reduction() calls in CUDA code."
-	# ls "${_dir}"/cuda | while read F ; do
-	# 	sed -i "s|op_reduction|// op_reduction|g" cuda/"$F"
-	# done
 } 
 
 _main
