@@ -614,8 +614,6 @@ int main(int argc, char** argv)
 
             #ifdef OPENACC
               // count_bad_vals() invokes isnan(), unsupported with OpenACC.
-            #elif defined CUDA_ON
-              // OP2-CUDA is breaking on the global argument.
             #else
                 op_par_loop_count_bad_vals("count_bad_vals",op_nodes[level],
                             op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_READ),
