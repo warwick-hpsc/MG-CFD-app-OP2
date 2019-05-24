@@ -50,13 +50,37 @@ BIN_DIR = bin
 OBJ_DIR = obj
 SRC_DIR = src
 
+
+#
+# Locate MPI compilers:
+#
+ifdef MPI_INSTALL_PATH
+  ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/bin/mpic++)")
+    MPICPP := $(MPI_INSTALL_PATH)/bin/mpic++
+  else
+  ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/intel64/bin/mpic++)")
+    MPICPP := $(MPI_INSTALL_PATH)/intel64/bin/mpic++
+  else
+    MPICPP := mpic++
+  endif
+  endif
+
+  ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/bin/mpicc)")
+    MPICC := $(MPI_INSTALL_PATH)/bin/mpicc
+  else
+  ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/intel64/bin/mpicc)")
+    MPICC := $(MPI_INSTALL_PATH)/intel64/bin/mpicc
+  else
+    MPICC := mpicc
+  endif
+  endif
+else
+  MPICPP := mpic++
+  MPICC  := mpicc
+endif
+
 ifeq ($(COMPILER),gnu)
   CPP := g++
-  ifneq ("$(wildcard $(MPI_INSTALL_PATH)/bin/mpicxx)","")
-    MPICPP := $(MPI_INSTALL_PATH)/bin/mpiCC
-  else
-    MPICPP := mpiCC
-  endif
   CFLAGS	= -fPIC -DUNIX -Wall -Wextra
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -fopenmp
@@ -64,11 +88,6 @@ ifeq ($(COMPILER),gnu)
 else
 ifeq ($(COMPILER),intel)
   CPP = icpc
-  ifneq ("$(wildcard $(MPI_INSTALL_PATH)/bin/mpicxx)","")
-    MPICPP = $(MPI_INSTALL_PATH)/bin/mpicxx
-  else
-    MPICPP = mpicxx
-  endif
   CFLAGS = -DMPICH_IGNORE_CXX_SEEK -restrict -fno-alias -inline-forceinline -parallel -DVECTORIZE #-parallel #-DCOMM_PERF #-DDEBUG #-qopt-report=5
   CFLAGS += -fmax-errors=1
   CPPFLAGS = $(CFLAGS)
@@ -88,11 +107,6 @@ ifeq ($(COMPILER),xl)
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS	= -qsmp=omp -qthreaded
   OMPOFFLOAD    = -qsmp=omp -qoffload -Xptxas -v -g1
-  ifneq ("$(wildcard $(MPI_INSTALL_PATH)/bin/mpicxx)","")
-    MPICPP	= $(MPI_INSTALL_PATH)/bin/mpicxx
-  else
-    MPICPP = mpicxx
-  endif
   MPIFLAGS	= $(CPPFLAGS)
 else
 ifeq ($(COMPILER),pgi)
@@ -100,18 +114,8 @@ ifeq ($(COMPILER),pgi)
   CFLAGS  	= -O3
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -mp
-  ifneq ("$(wildcard $(MPI_INSTALL_PATH)/bin/mpicc)","")
-    MPICC	= $(MPI_INSTALL_PATH)/bin/mpicc
-  else
-    MPICC = mpicxx
-  endif
-  ifneq ("$(wildcard $(MPI_INSTALL_PATH)/bin/mpicxx)","")
-    MPICPP	= $(MPI_INSTALL_PATH)/bin/mpicxx
-  else
-    MPICPP = mpicxx
-  endif
   MPIFLAGS 	= $(CPPFLAGS)
-  NVCCFLAGS	= #-ccbin=$(MPICPP)
+  # NVCCFLAGS	+= -ccbin=$(MPICPP)
   # ACCFLAGS      = -acc -Minfo=acc -ta=tesla:cc35 -DOPENACC
   # ACCFLAGS      = -acc -DOPENACC -Minfo=acc
   ACCFLAGS      = -v -acc -DOPENACC -Minfo=acc
@@ -124,8 +128,9 @@ ifeq ($(COMPILER),cray)
   MPICPP        = CC
   MPIFLAGS      = $(CPPFLAGS)
 else
-print:
-	@echo "unrecognised value for COMPILER"
+# print:
+# 	@echo "unrecognised value for COMPILER"
+$(error unrecognised value for COMPILER)
 endif
 endif
 endif
