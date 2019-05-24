@@ -14,7 +14,7 @@
 
         "num threads per task comment": "Iterable: Number of OpenMP threads to assign to each MPI tasks (count includes the master thread/task)",
         "num threads per task": [1],
-        "final comment": "Python job generator will iterate through permutations of the above three arrays. For more info see main 'for loop' at line 150 of gen_job.py",
+        "final comment": "Python job generator iterates over the cartesian product of the above three arrays. For more info see main 'for loop' at line 150 of gen_job.py",
 
         "num repeats comment": "Number of runs at each distinct job configuration",
         "num repeats": 1,
@@ -32,6 +32,7 @@
     "compile": {
         "compiler comment": "Which compiler to use. Supported are 'intel', 'gnu', 'clang', 'pgi', 'xl'",
         "compiler": "intel",
+        
         "cpp wrapper comment": "If target system requires use of a wrapper around compiler (eg Archer), state that here",
         "cpp wrapper": "",
         "mpicpp wrapper": "",
