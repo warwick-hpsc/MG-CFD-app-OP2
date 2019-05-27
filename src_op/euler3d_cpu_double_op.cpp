@@ -746,13 +746,9 @@ int main(int argc, char** argv)
                             op_arg_dat(variables_difference,-1,OP_ID,5,"double",OP_WRITE));
 
                 int count = 0;
-                #ifdef CUDA_ON
-                    // OP2-CUDA is breaking on the global argument.
-                #else
-                    op_par_loop_count_non_zeros("count_non_zeros",op_nodes[l],
-                                op_arg_dat(variables_difference,-1,OP_ID,5,"double",OP_READ),
-                                op_arg_gbl(&count,1,"int",OP_INC));
-                #endif
+                op_par_loop_count_non_zeros("count_non_zeros",op_nodes[l],
+                            op_arg_dat(variables_difference,-1,OP_ID,5,"double",OP_READ),
+                            op_arg_gbl(&count,1,"int",OP_INC));
                 if (count > 0) {
                     validation_failed = true;
                     op_printf("\n");

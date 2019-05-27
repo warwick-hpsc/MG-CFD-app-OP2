@@ -36,7 +36,7 @@ __global__ void op_cuda_calc_rms_kernel(
   //global reductions
 
   for ( int d=0; d<1; d++ ){
-    op_reduction<OP_INC>(&arg1[d+blockIdx.x*1],arg1_l[d]);
+    // op_reduction<OP_INC>(&arg1[d+blockIdx.x*1],arg1_l[d]);
   }
 }
 
