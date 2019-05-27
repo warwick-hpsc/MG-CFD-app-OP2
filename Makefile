@@ -55,13 +55,13 @@ SRC_DIR = src
 # Locate MPI compilers:
 #
 ifdef MPI_INSTALL_PATH
-  ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/bin/mpic++)")
-    MPICPP := $(MPI_INSTALL_PATH)/bin/mpic++
+  ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/bin/mpicxx)")
+    MPICPP := $(MPI_INSTALL_PATH)/bin/mpicxx
   else
-  ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/intel64/bin/mpic++)")
-    MPICPP := $(MPI_INSTALL_PATH)/intel64/bin/mpic++
+  ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/intel64/bin/mpicxx)")
+    MPICPP := $(MPI_INSTALL_PATH)/intel64/bin/mpicxx
   else
-    MPICPP := mpic++
+    MPICPP := mpicxx
   endif
   endif
 
@@ -75,7 +75,7 @@ ifdef MPI_INSTALL_PATH
   endif
   endif
 else
-  MPICPP := mpic++
+  MPICPP := mpicxx
   MPICC  := mpicc
 endif
 
@@ -180,116 +180,186 @@ OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
 
 all: mgcfd_seq mgcfd_openmp mgcfd_mpi_genseq mgcfd_mpi_openmp mgcfd_cuda
 
-OP2_SEQ_SOURCES := $(OP2_MAIN_SRC) \
-                   $(SRC_DIR)/../seq/_seqkernels.cpp
+OP2_SEQ_OBJECTS := $(OBJ_DIR)/mgcfd_seq_main.o \
+                   $(OBJ_DIR)/mgcfd_seq_kernels.o
 
-OP2_OMP_SOURCES := $(OP2_MAIN_SRC) \
-                   $(SRC_DIR)/../openmp/_kernels.cpp
+OP2_MPI_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_main.o \
+                   $(OBJ_DIR)/mgcfd_mpi_kernels.o
 
-OP2_CUDA_SOURCES := $(OP2_MAIN_SRC) \
+OP2_OMP_OBJECTS := $(OBJ_DIR)/mgcfd_openmp_main.o \
+                   $(OBJ_DIR)/mgcfd_openmp_kernels.o
+
+OP2_MPI_OMP_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_openmp_main.o \
+                       $(OBJ_DIR)/mgcfd_mpi_openmp_kernels.o
+
+OP2_CUDA_OBJECTS := $(OBJ_DIR)/mgcfd_cuda_main.o \
                     $(OBJ_DIR)/mgcfd_kernels_cu.o
 
-OP2_OPENACC_SOURCES := $(OP2_MAIN_SRC) \
-                       $(SRC_DIR)/../openacc/_acckernels.c
+OP2_MPI_CUDA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_cuda_main.o \
+                        $(OBJ_DIR)/mgcfd_mpi_kernels_cu.o
 
-# OP2_OMP4_SOURCES := $(OP2_MAIN_SRC) \
-#                     $(OBJ_DIR)/mgcfd_omp4_kernel_funcs.o \
-#                     $(OBJ_DIR)/mgcfd_omp4_kernels.o
-OP2_OMP4_SOURCES := $(OBJ_DIR)/mgcfd_omp4_main.o \
+OP2_OMP4_OBJECTS := $(OBJ_DIR)/mgcfd_omp4_main.o \
                     $(OBJ_DIR)/mgcfd_omp4_kernel_funcs.o \
                     $(OBJ_DIR)/mgcfd_omp4_kernels.o
 
+OP2_OPENACC_OBJECTS := $(OBJ_DIR)/mgcfd_openacc_main.o \
+                       $(OBJ_DIR)/mgcfd_openacc_kernels.o
+
+
+## User-friendly wrappers around actual targets:
+mgcfd_seq: $(BIN_DIR)/mgcfd_seq
+mgcfd_openmp: $(BIN_DIR)/mgcfd_openmp
+mgcfd_mpi_genseq: $(BIN_DIR)/mgcfd_mpi_genseq
+mgcfd_mpi_openmp: $(BIN_DIR)/mgcfd_mpi_openmp
+mgcfd_cuda: $(BIN_DIR)/mgcfd_cuda
+mgcfd_openmp4: $(BIN_DIR)/mgcfd_openmp4
+mgcfd_openacc: $(BIN_DIR)/mgcfd_openacc
+mgcfd_mpi_cuda: $(BIN_DIR)/mgcfd_mpi_cuda
+
+
 ## SEQUENTIAL
-mgcfd_seq: $(OP2_SEQ_SOURCES)
+$(OBJ_DIR)/mgcfd_seq_main.o:
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) \
+		-c -o $@ $(OP2_MAIN_SRC)
+$(OBJ_DIR)/mgcfd_seq_kernels.o:
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) \
+		-c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
+$(BIN_DIR)/mgcfd_seq: $(OP2_SEQ_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-		$(PARMETIS_INC) $(PTSCOTCH_INC) \
-		-lm $(OP2_LIB) -lop2_seq -lop2_hdf5 \
-		$(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB)  -o $(BIN_DIR)/mgcfd_seq
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ \
+		-lm $(OP2_LIB) -lop2_seq -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
+		-o $@
+
 
 ## OPENMP
-mgcfd_openmp: $(OP2_OMP_SOURCES)
+$(OBJ_DIR)/mgcfd_openmp_main.o:
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+		$(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) \
+		-c -o $@ $(OP2_MAIN_SRC)
+$(OBJ_DIR)/mgcfd_openmp_kernels.o:
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+		$(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) \
+		-c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
+$(BIN_DIR)/mgcfd_openmp: $(OP2_OMP_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-		$(PARMETIS_INC) $(PTSCOTCH_INC) \
-		-lm $(OP2_LIB) -lop2_openmp -lop2_hdf5 \
-		$(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB)  -o $(BIN_DIR)/mgcfd_openmp
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) \
+		-lm $(OP2_LIB) -lop2_openmp -lop2_hdf5 $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+		-o $@
+
 
 ## MPI
-mgcfd_mpi_genseq: $(OP2_SEQ_SOURCES)
-	mkdir -p $(BIN_DIR)
+$(OBJ_DIR)/mgcfd_mpi_kernels.o:
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	     -DMPI_ON \
+	    -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
+$(OBJ_DIR)/mgcfd_mpi_main.o:
+	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-		$(PARMETIS_INC) $(PTSCOTCH_INC) \
-		-lm $(OP2_LIB) -lop2_mpi -DMPI_ON \
-		$(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB)  -o $(BIN_DIR)/mgcfd_mpi_genseq
+	     -DMPI_ON \
+	    -c -o $@ $(OP2_MAIN_SRC)
+$(BIN_DIR)/mgcfd_mpi_genseq: $(OP2_MPI_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CPPFLAGS) $^ $(OPTIMISE) \
+		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+		-o $@
+
 
 ## MPI + OPENMP
-mgcfd_mpi_openmp: $(OP2_OMP_SOURCES)
-	mkdir -p $(BIN_DIR)
+$(OBJ_DIR)/mgcfd_mpi_openmp_kernels.o:
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	    -DMPI_ON \
+	    -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
+$(OBJ_DIR)/mgcfd_mpi_openmp_main.o:
+	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-		$(PARMETIS_INC) $(PTSCOTCH_INC) \
-		-lm $(OP2_LIB) -lop2_mpi -DMPI_ON \
-		$(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB)  -o $(BIN_DIR)/mgcfd_mpi_openmp
+	    -DMPI_ON \
+	    -c -o $@ $(OP2_MAIN_SRC)
+$(BIN_DIR)/mgcfd_mpi_openmp: $(OP2_MPI_OMP_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) \
+		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+		-o $@
 
 ## CUDA
 $(OBJ_DIR)/mgcfd_kernels_cu.o:
 	mkdir -p $(OBJ_DIR)
 	nvcc $(NVCCFLAGS) $(MGCFD_INCS) $(OP2_INC) \
-		 -c -o $(OBJ_DIR)/mgcfd_kernels_cu.o $(SRC_DIR)/../cuda/_kernels.cu
-mgcfd_cuda: $(OP2_CUDA_SOURCES)
-	mkdir -p $(BIN_DIR)
+		-c -o $@ $(SRC_DIR)/../cuda/_kernels.cu
+$(OBJ_DIR)/mgcfd_cuda_main.o:
+	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-	    $(CUDA_LIB) -lcudart \
-	    $(OP2_LIB) -lop2_cuda -DCUDA_ON \
-	    $(HDF5_LIB) -lop2_hdf5 \
-	    -o $(BIN_DIR)/mgcfd_cuda
+	    -DCUDA_ON \
+	    -c -o $@ $(OP2_MAIN_SRC)
+$(BIN_DIR)/mgcfd_cuda: $(OP2_CUDA_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CFLAGS) $^ $(OPTIMISE) \
+	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_cuda $(HDF5_LIB) -lop2_hdf5 \
+	    -o $@
+
 
 ## OPENMP4
 $(OBJ_DIR)/mgcfd_omp4_kernel_funcs.o:
 	mkdir -p $(OBJ_DIR)
 	$(CPP) $(CPPFLAGS) $(OMPOFFLOAD) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-	    -Iopenmp4/ -c $(SRC_DIR)/../openmp4/_omp4kernel_funcs.cpp -o $@
+	    -Iopenmp4/ -c -o $@ $(SRC_DIR)/../openmp4/_omp4kernel_funcs.cpp
 $(OBJ_DIR)/mgcfd_omp4_kernels.o:
 	mkdir -p $(OBJ_DIR)
 	$(CPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-	    -Iopenmp4/ -c $(SRC_DIR)/../openmp4/_omp4kernels.cpp -o $@
+	    -Iopenmp4/ -c -o $@ $(SRC_DIR)/../openmp4/_omp4kernels.cpp
 $(OBJ_DIR)/mgcfd_omp4_main.o:
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-	    -Iopenmp4/ -c $(OP2_MAIN_SRC) -o $@
-mgcfd_openmp4: $(OP2_OMP4_SOURCES)
+	    -Iopenmp4/ -c -o $@ $(OP2_MAIN_SRC)
+$(BIN_DIR)/mgcfd_openmp4: $(OP2_OMP4_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPOFFLOAD) $^ $(OPTIMISE) $(MGCFD_INCS) \
-	    $(OP2_INC) $(OP2_LIB) -lop2_openmp4 \
-		$(PARMETIS_INC) $(PTSCOTCH_INC) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
-		$(HDF5_INC) $(HDF5_LIB) -lop2_hdf5 \
-	    $(CUDA_LIB) -lcudart \
-	    -o $(BIN_DIR)/mgcfd_openmp4
+	$(MPICPP) $(CPPFLAGS) $(OMPOFFLOAD) $^ $(OPTIMISE) \
+	    $(OP2_LIB) -lop2_openmp4 $(CUDA_LIB) -lcudart \
+		$(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) -lop2_hdf5 \
+	    -o $@
 
 
 ## OPENACC
 # Compile failing: nvlink unable to link _acckernels.o to extern variable definitions
-mgcfd_openacc: $(OP2_OPENACC_SOURCES)
+$(OBJ_DIR)/mgcfd_openacc_kernels.o:
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(ACCFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ \
+	    $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -Iopenacc \
+	    -c -o $@ $(SRC_DIR)/../openacc/_acckernels.c
+$(OBJ_DIR)/mgcfd_openacc_main.o:
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(ACCFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ \
+	    $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -Iopenacc \
+	    -c -o $@ $(OP2_MAIN_SRC)
+$(BIN_DIR)/mgcfd_openacc: $(OP2_OPENACC_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(ACCFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-	    -Iopenacc $(CUDA_LIB) -lcudart \
-	    $(OP2_LIB) -lop2_cuda \
-	    $(HDF5_LIB) -lop2_hdf5 \
-	    -o $(BIN_DIR)/mgcfd_openacc
+	$(MPICPP) $(CPPFLAGS) $(ACCFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ \
+	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_cuda $(HDF5_LIB) -lop2_hdf5 \
+	    -o $@
 
 
 ## MPI CUDA
 $(OBJ_DIR)/mgcfd_mpi_kernels_cu.o:
 	mkdir -p $(OBJ_DIR)
 	nvcc $(NVCCFLAGS) $(MGCFD_INCS) $(OP2_INC) -I $(MPI_INSTALL_PATH)/include \
-                 -c -o $(OBJ_DIR)/mgcfd_mpi_kernels_cu.o $(SRC_DIR)/../cuda/_kernels.cu
-mgcfd_mpi_cuda: $(OP2_CUDA_SOURCES)
-	mkdir -p $(BIN_DIR)
+        -c -o $@ $(SRC_DIR)/../cuda/_kernels.cu
+$(OBJ_DIR)/mgcfd_mpi_cuda_main.o:
+	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-	    $(CUDA_LIB) -lcudart \
-            $(OP2_LIB) -lop2_mpi_cuda -DCUDA_ON \
-	    $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
-            -o $(BIN_DIR)/mgcfd_mpi_cuda
+        -DCUDA_ON \
+        -c -o $@ $(OP2_MAIN_SRC)
+$(BIN_DIR)/mgcfd_mpi_cuda: $(OP2_MPI_CUDA_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CFLAGS) $(OPTIMISE) $^ \
+	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+        -o $@
 
 
 clean:
