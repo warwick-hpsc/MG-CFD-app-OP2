@@ -1,3 +1,4 @@
+echo "Processing job <JOB_NUM>/<NUM_JOBS>"
 if [ ! -f <RUN_DIRPATH>/Times.csv ]; then
   basedir=`pwd`
   cd <RUN_DIRPATH>
