@@ -21,13 +21,18 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
   op_timing_realloc(7);
   op_timers_core(&cpu_t1, &wall_t1);
+  double inner_cpu_t1, inner_cpu_t2, inner_wall_t1, inner_wall_t2;
+  double compute_time=0.0, sync_time=0.0;
 
 
   if (OP_diags>2) {
     printf(" kernel routine w/o indirection:  get_min_dt_kernel");
   }
 
+  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   op_mpi_halo_exchanges(set, nargs, args);
+  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+  sync_time += inner_wall_t2 - inner_wall_t1;
   // set number of threads
   #ifdef _OPENMP
     int nthreads = omp_get_max_threads();
@@ -58,6 +63,7 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
     }
   }
 
+  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   // combine reduction data
   for ( int thr=0; thr<nthreads; thr++ ){
     for ( int d=0; d<1; d++ ){
@@ -66,6 +72,8 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
   }
   op_mpi_reduce(&arg1,arg1h);
   op_mpi_set_dirtybit(nargs, args);
+  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+  sync_time += inner_wall_t2 - inner_wall_t1;
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);

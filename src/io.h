@@ -320,8 +320,7 @@ inline void dump_iter_counts_to_file(
 inline void dump_compute_times_to_file(
     int rank, 
     int num_levels, 
-    double* flux_kernel_compute_indep_times, 
-    double* flux_kernel_compute_dep_times, 
+    double* flux_kernel_compute_times, 
     char* output_file_prefix)
 {
     std::string filepath = std::string(output_file_prefix);
@@ -343,7 +342,6 @@ inline void dump_compute_times_to_file(
     if (write_header) {
         header << "rank";
         header << ",partitioner";
-        header << ",mode";
         for (int l=0; l<num_levels; l++) {
             header << "," << "flux" << l ;
         }
@@ -353,23 +351,13 @@ inline void dump_compute_times_to_file(
     outfile.open(filepath.c_str(), std::ios_base::app);
     if (write_header) outfile << header.str() << std::endl;
 
-    std::ostringstream data_line1;
-    data_line1 << rank;
-    data_line1 << "," << conf.partitioner_string;
-    data_line1 << "," << "indep";
+    std::ostringstream data_line;
+    data_line << rank;
+    data_line << "," << conf.partitioner_string;
     for (int l=0; l<num_levels; l++) {
-        data_line1 << ',' << flux_kernel_compute_indep_times[l];
+        data_line << ',' << flux_kernel_compute_times[l];
     }
-    outfile << data_line1.str() << std::endl;
-
-    std::ostringstream data_line2;
-    data_line2 << rank;
-    data_line2 << "," << conf.partitioner_string;
-    data_line2 << "," << "dep";
-    for (int l=0; l<num_levels; l++) {
-        data_line2 << ',' << flux_kernel_compute_dep_times[l];
-    }
-    outfile << data_line2.str() << std::endl;
+    outfile << data_line.str() << std::endl;
 
     outfile.close();
 }

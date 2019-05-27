@@ -20,6 +20,8 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
   op_timing_realloc(15);
   op_timers_core(&cpu_t1, &wall_t1);
+  double inner_cpu_t1, inner_cpu_t2, inner_wall_t1, inner_wall_t2;
+  double compute_time=0.0, sync_time=0.0;
 
   int  ninds   = 2;
   int  inds[2] = {0,1};
@@ -35,7 +37,10 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
     int part_size = OP_part_size;
   #endif
 
+  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
+  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+  sync_time += inner_wall_t2 - inner_wall_t1;
 
   if (set->size >0) {
 
@@ -45,10 +50,14 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
     int block_offset = 0;
     for ( int col=0; col<Plan->ncolors; col++ ){
       if (col==Plan->ncolors_core) {
+        op_timers_core(&inner_cpu_t1, &inner_wall_t1);
         op_mpi_wait_all(nargs, args);
+        op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+        sync_time += inner_wall_t2 - inner_wall_t1;
       }
       int nblocks = Plan->ncolblk[col];
 
+      op_timers_core(&inner_cpu_t1, &inner_wall_t1);
       #pragma omp parallel for
       for ( int blockIdx=0; blockIdx<nblocks; blockIdx++ ){
         int blockId  = Plan->blkmap[blockIdx + block_offset];
@@ -63,6 +72,8 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
             &((int*)arg1.data)[1 * map0idx]);
         }
       }
+      op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+      compute_time += inner_wall_t2 - inner_wall_t1;
 
       block_offset += nblocks;
     }
@@ -70,11 +81,14 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
     OP_kernels[15].transfer2 += Plan->transfer2;
   }
 
+  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   if (set_size == 0 || set_size == set->core_size) {
     op_mpi_wait_all(nargs, args);
   }
   // combine reduction data
   op_mpi_set_dirtybit(nargs, args);
+  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+  sync_time += inner_wall_t2 - inner_wall_t1;
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);

@@ -26,10 +26,6 @@
 // OP2:
 #include  "op_lib_cpp.h"
 
-#ifdef PAPI
-#include "papi_funcs.h"
-#endif
-
 //
 // op_par_loop declarations
 //
@@ -77,16 +73,21 @@ void op_par_loop_compute_step_factor_kernel(char const *, op_set,
   op_arg,
   op_arg );
 
+// void op_par_loop_compute_flux_edge_kernel(char const *, op_set,
+//   op_arg,
+//   op_arg,
+//   op_arg,
+//   op_arg,
+//   op_arg );
 void op_par_loop_compute_flux_edge_kernel(char const *, op_set,
   op_arg,
   op_arg,
   op_arg,
   op_arg,
   op_arg
-  , double*
-  , double*
-  , double*
-  , long*
+  , double* // compute time
+  , double* // sync time
+  , long* // iterations
   #ifdef PAPI
    , long_long*, int, int
   #endif
@@ -245,11 +246,9 @@ int main(int argc, char** argv)
         }
     }
 
-    double flux_kernel_compute_indep_times[levels];
-    double flux_kernel_compute_dep_times[levels];
+    double flux_kernel_compute_times[levels];
     for (int i=0; i<levels; i++) {
-        flux_kernel_compute_indep_times[i] = 0.0;
-        flux_kernel_compute_dep_times[i] = 0.0;
+        flux_kernel_compute_times[i] = 0.0;
     }
     double flux_kernel_sync_times[levels];
     for (int i=0; i<levels; i++) {
@@ -572,8 +571,7 @@ int main(int argc, char** argv)
                         op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                         op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
                         op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
-                        , &flux_kernel_compute_indep_times[level]
-                        , &flux_kernel_compute_dep_times[level]
+                        , &flux_kernel_compute_times[level]
                         , &flux_kernel_sync_times[level]
                         , &flux_kernel_iter_counts[level]
                         #ifdef PAPI
@@ -593,11 +591,7 @@ int main(int argc, char** argv)
                         op_arg_dat(p_fluxes[level],-1,OP_ID,5,"double",OP_INC),
                         op_arg_dat(p_old_variables[level],-1,OP_ID,5,"double",OP_READ),
                         op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_WRITE));
-
-            // break;
         }
-
-        // break;
 
         op_par_loop_residual_kernel("residual_kernel",op_nodes[level],
                     op_arg_dat(p_old_variables[level],-1,OP_ID,5,"double",OP_READ),
@@ -702,7 +696,7 @@ int main(int argc, char** argv)
     op_timers(&cpu_t2, &wall_t2);
     op_printf("Max total runtime = %f\n", wall_t2 - wall_t1);
 
-    // op_timing_output();
+    op_timing_output();
     // std::string csv_out_filepath(conf.output_file_prefix);
     // csv_out_filepath += "op2_times.csv";
     // printf("Writing OP2 timings to file: %s\n", csv_out_filepath.c_str());
@@ -844,8 +838,7 @@ int main(int argc, char** argv)
     dump_compute_times_to_file(
         my_rank, 
         levels, 
-        flux_kernel_compute_indep_times, 
-        flux_kernel_compute_dep_times, 
+        flux_kernel_compute_times, 
         conf.output_file_prefix);
     dump_sync_times_to_file(
         my_rank, 

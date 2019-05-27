@@ -20,40 +20,48 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
   op_timing_realloc(15);
   op_timers_core(&cpu_t1, &wall_t1);
+  double inner_cpu_t1, inner_cpu_t2, inner_wall_t1, inner_wall_t2;
+  double compute_time=0.0, sync_time=0.0;
 
   if (OP_diags>2) {
     printf(" kernel routine with indirection: up_pre_kernel\n");
   }
 
+  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
+  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+  sync_time += inner_wall_t2 - inner_wall_t1;
 
   if (set->size >0) {
 
-    for ( int n=0; n<set->core_size; n++ ){
+    op_timers_core(&inner_cpu_t1, &inner_wall_t1);
+    for ( int n=0; n<set_size; n++ ){
+      if (n==set->core_size) {
+        op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+        compute_time += inner_wall_t2 - inner_wall_t1;
+        op_mpi_wait_all(nargs, args);
+        op_timers_core(&inner_cpu_t1, &inner_wall_t1);
+        sync_time += inner_wall_t1 - inner_wall_t2;
+      }
       int map0idx = arg0.map_data[n * arg0.map->dim + 0];
+
 
       up_pre_kernel(
         &((double*)arg0.data)[5 * map0idx],
         &((int*)arg1.data)[1 * map0idx]);
     }
-
-    if (set_size > set->core_size) {
-      op_mpi_wait_all(nargs, args);
-      for ( int n=set->core_size; n<set_size; n++ ){
-        int map0idx = arg0.map_data[n * arg0.map->dim + 0];
-
-        up_pre_kernel(
-          &((double*)arg0.data)[5 * map0idx],
-          &((int*)arg1.data)[1 * map0idx]);
-      }
-    }
+    op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+    compute_time += inner_wall_t2 - inner_wall_t1;
   }
 
+  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   if (set_size == 0 || set_size == set->core_size) {
     op_mpi_wait_all(nargs, args);
   }
   // combine reduction data
   op_mpi_set_dirtybit(nargs, args);
+  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+  sync_time += inner_wall_t2 - inner_wall_t1;
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);

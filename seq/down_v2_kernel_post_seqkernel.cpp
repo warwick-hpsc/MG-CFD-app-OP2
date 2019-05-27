@@ -24,16 +24,22 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
   op_timing_realloc(20);
   op_timers_core(&cpu_t1, &wall_t1);
+  double inner_cpu_t1, inner_cpu_t2, inner_wall_t1, inner_wall_t2;
+  double compute_time=0.0, sync_time=0.0;
 
 
   if (OP_diags>2) {
     printf(" kernel routine w/o indirection:  down_v2_kernel_post");
   }
 
+  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
+  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+  sync_time += inner_wall_t2 - inner_wall_t1;
 
   if (set->size >0) {
 
+    op_timers_core(&inner_cpu_t1, &inner_wall_t1);
     for ( int n=0; n<set_size; n++ ){
       down_v2_kernel_post(
         &((double*)arg0.data)[5*n],
@@ -41,10 +47,15 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
         &((double*)arg2.data)[5*n],
         &((double*)arg3.data)[5*n]);
     }
+    op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+    compute_time += inner_wall_t2 - inner_wall_t1;
   }
 
+  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   // combine reduction data
   op_mpi_set_dirtybit(nargs, args);
+  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+  sync_time += inner_wall_t2 - inner_wall_t1;
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);

@@ -92,11 +92,9 @@ int main(int argc, char** argv)
         }
     }
 
-    double flux_kernel_compute_indep_times[levels];
-    double flux_kernel_compute_dep_times[levels];
+    double flux_kernel_compute_times[levels];
     for (int i=0; i<levels; i++) {
-        flux_kernel_compute_indep_times[i] = 0.0;
-        flux_kernel_compute_dep_times[i] = 0.0;
+        flux_kernel_compute_times[i] = 0.0;
     }
     double flux_kernel_sync_times[levels];
     for (int i=0; i<levels; i++) {
@@ -685,8 +683,7 @@ int main(int argc, char** argv)
     dump_compute_times_to_file(
         my_rank, 
         levels, 
-        flux_kernel_compute_indep_times, 
-        flux_kernel_compute_dep_times, 
+        flux_kernel_compute_times, 
         conf.output_file_prefix);
     dump_sync_times_to_file(
         my_rank, 

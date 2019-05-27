@@ -24,17 +24,31 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
   op_timing_realloc(10);
   op_timers_core(&cpu_t1, &wall_t1);
+  double inner_cpu_t1, inner_cpu_t2, inner_wall_t1, inner_wall_t2;
+  double compute_time=0.0, sync_time=0.0;
 
   if (OP_diags>2) {
     printf(" kernel routine with indirection: compute_bnd_node_flux_kernel\n");
   }
 
+  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
+  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+  sync_time += inner_wall_t2 - inner_wall_t1;
 
   if (set->size >0) {
 
-    for ( int n=0; n<set->core_size; n++ ){
+    op_timers_core(&inner_cpu_t1, &inner_wall_t1);
+    for ( int n=0; n<set_size; n++ ){
+      if (n==set->core_size) {
+        op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+        compute_time += inner_wall_t2 - inner_wall_t1;
+        op_mpi_wait_all(nargs, args);
+        op_timers_core(&inner_cpu_t1, &inner_wall_t1);
+        sync_time += inner_wall_t1 - inner_wall_t2;
+      }
       int map2idx = arg2.map_data[n * arg2.map->dim + 0];
+
 
       compute_bnd_node_flux_kernel(
         &((int*)arg0.data)[1 * n],
@@ -42,26 +56,18 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
         &((double*)arg2.data)[5 * map2idx],
         &((double*)arg3.data)[5 * map2idx]);
     }
-
-    if (set_size > set->core_size) {
-      op_mpi_wait_all(nargs, args);
-      for ( int n=set->core_size; n<set_size; n++ ){
-        int map2idx = arg2.map_data[n * arg2.map->dim + 0];
-
-        compute_bnd_node_flux_kernel(
-          &((int*)arg0.data)[1 * n],
-          &((double*)arg1.data)[3 * n],
-          &((double*)arg2.data)[5 * map2idx],
-          &((double*)arg3.data)[5 * map2idx]);
-      }
-    }
+    op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+    compute_time += inner_wall_t2 - inner_wall_t1;
   }
 
+  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   if (set_size == 0 || set_size == set->core_size) {
     op_mpi_wait_all(nargs, args);
   }
   // combine reduction data
   op_mpi_set_dirtybit(nargs, args);
+  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+  sync_time += inner_wall_t2 - inner_wall_t1;
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
