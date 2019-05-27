@@ -28,9 +28,7 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   op_arg arg2,
   op_arg arg3,
   op_arg arg4
-  // , double* compute_time
-  , double* compute_indep_time
-  , double* compute_dep_time
+  , double* compute_time
   , double* sync_time
   , long* iter_counts
   #ifdef PAPI
