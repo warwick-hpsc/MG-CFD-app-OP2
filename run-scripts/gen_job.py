@@ -326,12 +326,6 @@ if __name__=="__main__":
                         if os.path.isfile(submit_tmp_filepath):
                             os.unlink(submit_tmp_filepath)
 
-                        break
-                    break
-                break
-            break
-        break
-
 
     submit_all_file.close()
     st = os.stat(submit_all_filepath)
