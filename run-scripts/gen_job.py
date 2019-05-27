@@ -35,6 +35,8 @@ defaults["openmp4"] = False
 # Job scheduling:
 defaults["unit walltime"] = 0.0
 defaults["project code"] = ""
+defaults["partition"] = ""
+defaults["job scheduler"] = ""
 # MG-CFD execution:
 defaults["num threads"] = [1]
 defaults["num repeats"] = 1
@@ -236,7 +238,7 @@ if __name__=="__main__":
 
                         ## - Scheduling:
                         py_sed(batch_filepath, "<RUN ID>", job_id)
-                        py_sed(batch_filepath, "<PARTITION>", job_queue)
+                        py_sed(batch_filepath, "<PARTITION>", job_queue, True)
                         py_sed(batch_filepath, "<PROJECT CODE>", project_code, True)
 
                         ## - Parallelism:
@@ -315,6 +317,8 @@ if __name__=="__main__":
                         py_sed(submit_tmp_filepath, "<RUN_DIRPATH>",    job_dir)
                         py_sed(submit_tmp_filepath, "<BATCH_FILENAME>", batch_filename)
                         py_sed(submit_tmp_filepath, "<BIN_FILEPATH>",   bin_filepath)
+                        py_sed(submit_tmp_filepath, "<JOB_NUM>", n)
+                        py_sed(submit_tmp_filepath, "<NUM_JOBS>", num_jobs)
                         submit_all_file.write("\n\n")
                         with open(submit_tmp_filepath, 'r') as f:
                             for line in f:
