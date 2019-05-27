@@ -386,7 +386,7 @@ inline void dump_sync_times_to_file(
 
     if (write_header) {
         header << "rank";
-        header << ",rartitioner";
+        header << ",partitioner";
         for (int l=0; l<num_levels; l++) {
             header << "," << "flux" << l ;
         }
