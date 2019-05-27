@@ -11,13 +11,12 @@ void op_par_loop_zero_1d_array_kernel(char const *name, op_set set,
 
   int nargs = 1;
   op_arg args[1];
-  const int nk = 2;
 
   args[0] = arg0;
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(nk);
+  op_timing_realloc(2);
   op_timers_core(&cpu_t1, &wall_t1);
 
 
@@ -40,8 +39,8 @@ void op_par_loop_zero_1d_array_kernel(char const *name, op_set set,
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[nk].name      = name;
-  OP_kernels[nk].count    += 1;
-  OP_kernels[nk].time     += wall_t2 - wall_t1;
-  OP_kernels[nk].transfer += (float)set->size * arg0.size * 2.0f;
+  OP_kernels[2].name      = name;
+  OP_kernels[2].count    += 1;
+  OP_kernels[2].time     += wall_t2 - wall_t1;
+  OP_kernels[2].transfer += (float)set->size * arg0.size * 2.0f;
 }

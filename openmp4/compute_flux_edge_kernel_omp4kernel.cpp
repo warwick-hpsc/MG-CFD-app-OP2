@@ -41,7 +41,6 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
 
   int nargs = 5;
   op_arg args[5];
-  const int nk = 9;
 
   args[0] = arg0;
   args[1] = arg1;
@@ -51,10 +50,10 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(nk);
+  op_timing_realloc(9);
   op_timers_core(&cpu_t1, &wall_t1);
-  OP_kernels[nk].name      = name;
-  OP_kernels[nk].count    += 1;
+  OP_kernels[9].name      = name;
+  OP_kernels[9].count    += 1;
 
   int  ninds   = 2;
   int  inds[5] = {0,0,-1,1,1};
@@ -123,8 +122,8 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
         nthread);
 
     }
-    OP_kernels[nk].transfer  += Plan->transfer;
-    OP_kernels[nk].transfer2 += Plan->transfer2;
+    OP_kernels[9].transfer  += Plan->transfer;
+    OP_kernels[9].transfer2 += Plan->transfer2;
   }
 
   if (set_size == 0 || set_size == set->core_size || ncolors == 1) {
@@ -136,5 +135,5 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   if (OP_diags>1) deviceSync();
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[nk].time     += wall_t2 - wall_t1;
+  OP_kernels[9].time     += wall_t2 - wall_t1;
 }

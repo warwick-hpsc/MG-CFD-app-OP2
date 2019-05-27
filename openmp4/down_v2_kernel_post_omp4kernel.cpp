@@ -27,7 +27,6 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
 
   int nargs = 4;
   op_arg args[4];
-  const int nk = 20;
 
   args[0] = arg0;
   args[1] = arg1;
@@ -36,10 +35,10 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(nk);
+  op_timing_realloc(20);
   op_timers_core(&cpu_t1, &wall_t1);
-  OP_kernels[nk].name      = name;
-  OP_kernels[nk].count    += 1;
+  OP_kernels[20].name      = name;
+  OP_kernels[20].count    += 1;
 
 
   if (OP_diags>2) {
@@ -93,9 +92,9 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
   if (OP_diags>1) deviceSync();
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[nk].time     += wall_t2 - wall_t1;
-  OP_kernels[nk].transfer += (float)set->size * arg0.size;
-  OP_kernels[nk].transfer += (float)set->size * arg1.size;
-  OP_kernels[nk].transfer += (float)set->size * arg2.size;
-  OP_kernels[nk].transfer += (float)set->size * arg3.size * 2.0f;
+  OP_kernels[20].time     += wall_t2 - wall_t1;
+  OP_kernels[20].transfer += (float)set->size * arg0.size;
+  OP_kernels[20].transfer += (float)set->size * arg1.size;
+  OP_kernels[20].transfer += (float)set->size * arg2.size;
+  OP_kernels[20].transfer += (float)set->size * arg3.size * 2.0f;
 }

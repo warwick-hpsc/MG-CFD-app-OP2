@@ -12,14 +12,13 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
 
   int nargs = 2;
   op_arg args[2];
-  const int nk = 15;
 
   args[0] = arg0;
   args[1] = arg1;
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(nk);
+  op_timing_realloc(15);
   op_timers_core(&cpu_t1, &wall_t1);
 
   if (OP_diags>2) {
@@ -58,10 +57,10 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[nk].name      = name;
-  OP_kernels[nk].count    += 1;
-  OP_kernels[nk].time     += wall_t2 - wall_t1;
-  OP_kernels[nk].transfer += (float)set->size * arg0.size;
-  OP_kernels[nk].transfer += (float)set->size * arg1.size;
-  OP_kernels[nk].transfer += (float)set->size * arg0.map->dim * 4.0f;
+  OP_kernels[15].name      = name;
+  OP_kernels[15].count    += 1;
+  OP_kernels[15].time     += wall_t2 - wall_t1;
+  OP_kernels[15].transfer += (float)set->size * arg0.size;
+  OP_kernels[15].transfer += (float)set->size * arg1.size;
+  OP_kernels[15].transfer += (float)set->size * arg0.map->dim * 4.0f;
 }

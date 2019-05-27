@@ -14,7 +14,6 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
   int nargs = 4;
   op_arg args[4];
-  const int nk = 10;
 
   args[0] = arg0;
   args[1] = arg1;
@@ -23,7 +22,7 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(nk);
+  op_timing_realloc(10);
   op_timers_core(&cpu_t1, &wall_t1);
 
   int  ninds   = 2;
@@ -73,8 +72,8 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
       block_offset += nblocks;
     }
-    OP_kernels[nk].transfer  += Plan->transfer;
-    OP_kernels[nk].transfer2 += Plan->transfer2;
+    OP_kernels[10].transfer  += Plan->transfer;
+    OP_kernels[10].transfer2 += Plan->transfer2;
   }
 
   if (set_size == 0 || set_size == set->core_size) {
@@ -85,7 +84,7 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[nk].name      = name;
-  OP_kernels[nk].count    += 1;
-  OP_kernels[nk].time     += wall_t2 - wall_t1;
+  OP_kernels[10].name      = name;
+  OP_kernels[10].count    += 1;
+  OP_kernels[10].time     += wall_t2 - wall_t1;
 }
