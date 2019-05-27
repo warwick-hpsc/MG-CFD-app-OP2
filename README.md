@@ -3,17 +3,12 @@ MG-CFD OP2
 
 OP2 port of [MG-CFD](https://github.com/warwick-hpsc/MG-CFD-app-plain). Provides MPI, full OpenMP, CUDA, OpenACC, OpenMP 4, and pairings of them.
 
-MG-CFD is an unstructured grid, multigrid (MG), finite-volume computational fluid dynamics (CFD) solver for inviscid flow. 
-It has the goal of serving as a platform for evaluating emerging architectures, programming paradigms and algorithmic optimisations for this class of code.
-
-This application is derived from Andrew Corrigan's CFD code as presented in the AIAA-2009-4001 paper, now included in the 'Rodinia' benchmark suite (http://rodinia.cs.virginia.edu/doku.php).
-
 Dependencies
 ==========================================
 
 * [OP2](https://github.com/OP-DSL/OP2-Common)
 * HDF5 parallel
-* Parmetis
+* ParMETIS
 * PT-Scotch
 * CUDA library if using `mgcfd_cuda` or `mgcfd_mpi_cuda`
 
@@ -23,20 +18,20 @@ Compiling and executing
 ### Building dependencies:
 
 #### HDF5 parallel
-Configure with `--enable-parallel` option, then standard compile
+Configure with `--enable-parallel` option, then standard compile.
 
-#### Parmetis
-Out-of-the-box compile works
+#### ParMETIS
+Out-of-the-box compile works.
 
 #### PT-Scotch
-Follow their build instructions. After linking `Makefile.inc`, edit it and remove the flag `-DSCOTCH_PTHREAD` from `CFLAGS`. Then standard compile
+Follow their build instructions. After linking `Makefile.inc`, edit it and remove the flag `-DSCOTCH_PTHREAD` from `CFLAGS`. Then standard compile.
 
 #### OP2
 Several distinct libraries can be compiled, depending on the mix of parallelism and performance portability desired. Similary for MG-CFD, and so it is likely that you only need to compile a subset of the OP2 libraries. 
 
 All MG-CFD variants need two particular OP2 libraries, created by executing these two OP2 make rules: `core`, `hdf5`. Variant-specific dependencies are listed in next section.
 
-### Compiling MG-CFD OP2:
+### Generating batch submission scripts:
 
 Different binaries can be generated, depending on the mix of parallelism and performance portability desired:
 
@@ -81,7 +76,6 @@ Additional larger meshes are available at request:
 * Rotor 37 8M nodes (multigrid)
 * Rotor 37 25M nodes (multigrid)
 * Rotor 37 150M nodes (single level)
-* ... 
 
 Authorship
 ==========================================
