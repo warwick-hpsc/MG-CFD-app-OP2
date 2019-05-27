@@ -62,10 +62,10 @@ inline void calculate_cell_volumes(
     *vol1 += tetra_volume;
     *vol2 += tetra_volume;
 
-    // // Redirect ewt to be parallel to normal:
-    // for (int i=0; i<NDIM; i++) {
-    //     ewt[i] = (d[i] / dist) * area;
-    // }
+    // Redirect ewt to be parallel to normal:
+    for (int i=0; i<NDIM; i++) {
+        ewt[i] = (d[i] / dist) * area;
+    }
 
     // |ewt| currently is face area. Divide through by distance 
     // to produce 'surface vector' with magnitude (area/dm), 

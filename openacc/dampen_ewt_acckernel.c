@@ -8,9 +8,13 @@
 //#pragma acc routine
 inline void dampen_ewt_openacc( 
     double* ewt) {
-    ewt[0] *= 1e-7;
-    ewt[1] *= 1e-7;
-    ewt[2] *= 1e-7;
+
+
+
+
+    ewt[0] *= 5e-8;
+    ewt[1] *= 5e-8;
+    ewt[2] *= 5e-8;
 }
 
 // host stub function
