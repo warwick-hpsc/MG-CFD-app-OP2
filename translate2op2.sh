@@ -22,7 +22,7 @@ function _main {
 
 	python "${OP2_INSTALL_PATH}"/../translator/c/python/op2.py $files
 
-	grep -l "op_reduction" "${src_dir}"/cuda/* | while read F ; do
+	grep -l "op_reduction" "${src_dir}"/../cuda/* | while read F ; do
 		sed -i "s|op_reduction|// op_reduction|g" "$F"
 	done
 } 
