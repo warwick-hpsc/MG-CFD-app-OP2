@@ -64,6 +64,7 @@ extern config conf;
 
 static struct option long_opts[] = 
 {
+    { "help",               no_argument,       NULL, 'h' },
     { "config_filepath",    required_argument, NULL, 'c'}, 
     { "legacy_mode",        no_argument,       NULL, 'l' },
     { "input-file",         required_argument, NULL, 'i' },
@@ -75,7 +76,7 @@ static struct option long_opts[] =
     { "validate",           no_argument,       NULL, 'v' },
     { "output-variables",   no_argument,       (int*)&conf.output_variables,    1 },
 };
-#define GETOPTS "c:li:d:p:o:g:m:v"
+#define GETOPTS "hc:li:d:p:o:g:m:v"
 
 inline void set_config_defaults() {
     conf.config_filepath = (char*)malloc(sizeof(char));
@@ -275,14 +276,40 @@ inline void read_config() {
     #endif
 }
 
+inline void print_help(void)
+{
+    fprintf(stderr, "MG-CFD OP2 instructions\n\n");
+    fprintf(stderr, "Usage: mgcfd_* [OPTIONS] \n\n");
+    fprintf(stderr, "  -h, --help                       Print help\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "CRITICAL ARGUMENTS\n");
+    fprintf(stderr, "  One of these must be set:\n");
+    fprintf(stderr, "  -i, --input-file=FILEPATH        Multigrid input grid (.dat file)\n");
+    fprintf(stderr, "  -c, --config-filepath=FILEPATH   Config file\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "OPTIONAL ARGUMENTS\n");
+    fprintf(stderr, "  -d, --input-directory=DIRPATH    Directory path to input files\n");
+    fprintf(stderr, "  -o, --output-file-prefix=STRING  String to prepend to output filenames\n");
+    fprintf(stderr, "  -p, --papi-config-file=FILEPATH  PAPI events to monitor\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "  -g, --num-cycles=INT             Number of multigrid V-cycles\n");
+    fprintf(stderr, "  -m, --partitioner=STRING         Partitioner to use: parmetis (default), ptscotch, or inertial\n");
+    fprintf(stderr, "  -v, --validate-result            Check final state against pre-calculated solution\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "DEBUGGING ARGUMENTS\n");
+    fprintf(stderr, "  --output-variables               Write Euler equation variable values to file\n");
+    fprintf(stderr, "  --output-fluxes                  Write flux accumulations to file\n");
+    fprintf(stderr, "  --output-step-factors            Write step factors to file\n");
+}
+
 inline bool parse_arguments(int argc, char** argv) {
     int optc;
     while ((optc = getopt_long(argc, argv, GETOPTS, long_opts, NULL)) != -1) {
         switch(optc) {
-            // case 'h':
-            //     print_help();
-            //     return false;
-            //     break;
+            case 'h':
+                print_help();
+                return false;
+                break;
             case 'i':
                 set_config_param("input_file", strdup(optarg));
                 break;

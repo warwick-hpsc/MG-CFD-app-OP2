@@ -220,7 +220,9 @@ int main(int argc, char** argv)
     double cpu_t1, cpu_t2, wall_t1, wall_t2;
 
     set_config_defaults();
-    parse_arguments(argc, argv);
+    if (!parse_arguments(argc, argv)) {
+        return 1;
+    }
     if (strcmp(conf.input_file, "") == 0) {
         printf("ERROR: input_file not set\n");
         return 1;
