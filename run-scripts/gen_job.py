@@ -34,7 +34,7 @@ defaults["openacc"] = False
 defaults["openmp4"] = False
 # Job scheduling:
 defaults["unit walltime"] = 0.0
-defaults["project code"] = "NotSpecified"
+defaults["project code"] = ""
 # MG-CFD execution:
 defaults["num threads"] = [1]
 defaults["num repeats"] = 1
@@ -52,15 +52,18 @@ def get_key_value(profile, cat, key):
         else:
             raise Exception("Mandatory key '{0}' not present in cat '{1}' of json".format(key, cat))
 
-def py_sed(filepath, from_rgx, to_rgx):
+def py_sed(filepath, from_str, to_str, delete_line_if_none=False):
     with open(filepath, "r") as f:
         lines = f.readlines()
     with open(filepath, "w") as f:
         for line in lines:
-            if isinstance(to_rgx, str):
-                f.write(re.sub(from_rgx,     to_rgx,  line))
+            if from_str in line and to_str == "" and delete_line_if_none:
+                # Delete line
+                pass
+            elif isinstance(to_str, str):
+                f.write(re.sub(from_str,     to_str,  line))
             else:
-                f.write(re.sub(from_rgx, str(to_rgx), line))
+                f.write(re.sub(from_str, str(to_str), line))
 
 def delete_folder_contents(dirpath):
     print("Deleting contents of folder: " + dirpath)
@@ -234,7 +237,7 @@ if __name__=="__main__":
                         ## - Scheduling:
                         py_sed(batch_filepath, "<RUN ID>", job_id)
                         py_sed(batch_filepath, "<PARTITION>", job_queue)
-                        py_sed(batch_filepath, "<PROJECT CODE>", project_code)
+                        py_sed(batch_filepath, "<PROJECT CODE>", project_code, True)
 
                         ## - Parallelism:
                         py_sed(batch_filepath, "<TPN>", num_tpn)
