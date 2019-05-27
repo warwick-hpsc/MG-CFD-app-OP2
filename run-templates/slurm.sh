@@ -12,6 +12,4 @@
 #SBATCH --partition=<PARTITION>
 #SBATCH --account=<PROJECT CODE>
 
-#SBATCH --export=NONE
-
 RUN_CMD="srun -n <NTASKS>"

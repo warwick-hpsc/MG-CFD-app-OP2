@@ -1,11 +1,6 @@
 set -e
 set -u
 
-touch job-is-running.txt
-if [ -f job-in-queue.txt ]; then
-    rm job-in-queue.txt
-fi
-
 # Compilation variables:
 compiler=<COMPILER>
 cpp_wrapper="<CPP_WRAPPER>"
@@ -28,11 +23,15 @@ mg_cycles=<MG_CYCLES>
 partitioner=<PARTITIONER>
 validate_solution=<VALIDATE_SOLUTION>
 
+touch "${run_outdir}"/job-is-running.txt
+if [ -f "${run_outdir}"/job-in-queue.txt ]; then
+    rm "${run_outdir}"/job-in-queue.txt
+fi
 
 ## Exit early if output csv files already exist.
 if ls ${run_outdir}/*.csv 1> /dev/null 2>&1; then
   echo "Output CSV files already present, meaning this job has already run."
-    rm "${run_outdir}"/job-is-running.txt
+  rm "${run_outdir}"/job-is-running.txt
   exit 0
 fi
 
@@ -73,7 +72,6 @@ bin_filepath="${app_dirpath}/bin/${bin_filename}"
       make_cmd+="MPICPP_WRAPPER=$mpicpp_wrapper "
     fi
     make_cmd+="make -j4 $bin_filename"
-    echo "$make_cmd"
     eval "$make_cmd"
     chmod a+x "$bin_filepath"
   elif [ ! -f "$bin_filepath" ]; then
@@ -86,6 +84,7 @@ bin_filepath="${app_dirpath}/bin/${bin_filename}"
 if [[ `hostname` == *"login"* ]]; then
   ## Assume on a login node, do not execute the code.
   echo "Detected presence on login node, aborting before app execution."
+  rm "${run_outdir}"/job-is-running.txt
   exit 0
 fi
 

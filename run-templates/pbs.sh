@@ -11,9 +11,9 @@
 
 ## Load compiler module(s):
 compiler="<COMPILER>"
-if [ "$compiler" = "intel" ]; then
+if [ "$compiler" = "intel" ] && `module list 2>&1 | grep -q PrgEnv-cray` ; then
   module swap PrgEnv-cray PrgEnv-intel
-elif [ "$compiler" = "gnu" ]; then
+elif [ "$compiler" = "gnu" ] && `module list 2>&1 | grep -q PrgEnv-cray` ; then
   module swap PrgEnv-cray PrgEnv-gnu
 # elif [ "$compiler" = "cray" ]; then
 # elif [ "$compiler" = "clang" ]; then

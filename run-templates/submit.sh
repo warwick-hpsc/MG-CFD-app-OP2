@@ -15,7 +15,7 @@ if [ ! -f <RUN_DIRPATH>/Times.csv ]; then
           echo "Submission failed for: <RUN_DIRPATH>/<BATCH_FILENAME>"
           exit 1
         fi
-        touch "job-in-queue.txt"
+        touch <RUN_DIRPATH>/"job-in-queue.txt"
       else
         if ! eval "$submit_cmd" ./<BATCH_FILENAME> ; then
           echo "Submission failed for: <RUN_DIRPATH>/<BATCH_FILENAME>"
