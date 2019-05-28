@@ -3,10 +3,11 @@
 //
 
 // Copyright 2009, Andrew Corrigan, acorriga@gmu.edu
-
 // This code is from the AIAA-2009-4001 paper
 
-// RAB: Extended to use Multigrid, per edge computation, n-neighbours and optionally vflux
+// Warwick extensions:
+// - multigrid, per-edge computation, n-neighbours
+// - residual calculation, solution validation
 
 #include <stdio.h>
 #include <iostream>
