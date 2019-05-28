@@ -59,6 +59,8 @@ void calculate_cell_volumes_omp4_kernel(
           ewt[i] = (d[i] / dist) * area;
       }
 
+
+
       for (int i=0; i<NDIM; i++) {
           ewt[i] /= dist;
       }

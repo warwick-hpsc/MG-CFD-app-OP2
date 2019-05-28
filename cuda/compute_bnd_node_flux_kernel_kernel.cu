@@ -27,6 +27,10 @@ __device__ void compute_bnd_node_flux_kernel_gpu(
       
       
       
+      
+      
+      
+      
           double p_b = variables_b[VAR_DENSITY];
       
           #ifdef IDIVIDE
@@ -78,6 +82,9 @@ __device__ void compute_bnd_node_flux_kernel_gpu(
     } else if ((*g) == 3 || ((*g) >= 4 && (*g) <= 7) ) {
 
 
+      
+      
+      
       
       
       

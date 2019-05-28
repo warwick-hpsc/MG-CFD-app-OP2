@@ -52,6 +52,10 @@ void compute_bnd_node_flux_kernel_omp4_kernel(
         
         
         
+        
+        
+        
+        
             double p_b = variables_b[VAR_DENSITY];
         
             #ifdef IDIVIDE
@@ -103,6 +107,9 @@ void compute_bnd_node_flux_kernel_omp4_kernel(
       } else if ((*g) == 3 || ((*g) >= 4 && (*g) <= 7) ) {
 
 
+        
+        
+        
         
         
         

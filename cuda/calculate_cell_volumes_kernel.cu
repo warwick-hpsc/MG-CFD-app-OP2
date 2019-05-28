@@ -36,6 +36,8 @@ __device__ void calculate_cell_volumes_gpu(
         ewt[i] = (d[i] / dist) * area;
     }
 
+
+
     for (int i=0; i<NDIM; i++) {
         ewt[i] /= dist;
     }

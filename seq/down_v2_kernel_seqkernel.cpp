@@ -64,6 +64,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
       int map2idx = arg2.map_data[n * arg2.map->dim + 0];
       int map3idx = arg2.map_data[n * arg2.map->dim + 1];
 
+
       down_v2_kernel(
         &((double*)arg0.data)[3 * map0idx],
         &((double*)arg0.data)[3 * map1idx],

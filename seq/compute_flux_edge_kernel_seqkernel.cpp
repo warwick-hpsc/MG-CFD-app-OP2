@@ -60,6 +60,7 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
       int map0idx = arg0.map_data[n * arg0.map->dim + 0];
       int map1idx = arg0.map_data[n * arg0.map->dim + 1];
 
+
       compute_flux_edge_kernel(
         &((double*)arg0.data)[5 * map0idx],
         &((double*)arg0.data)[5 * map1idx],

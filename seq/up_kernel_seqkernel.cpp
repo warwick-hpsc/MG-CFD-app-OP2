@@ -47,6 +47,7 @@ void op_par_loop_up_kernel(char const *name, op_set set,
       }
       int map1idx = arg1.map_data[n * arg1.map->dim + 0];
 
+
       up_kernel(
         &((double*)arg0.data)[5 * n],
         &((double*)arg1.data)[5 * map1idx],
