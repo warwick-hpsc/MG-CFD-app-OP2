@@ -3,7 +3,7 @@
 //
 
 //user function
-#include ".././src/Kernels/compute_step_factor_kernel.h"
+#include ".././src/Kernels/time_stepping_kernels.h"
 //user function
 //#pragma acc routine
 inline void get_min_dt_kernel_openacc( 

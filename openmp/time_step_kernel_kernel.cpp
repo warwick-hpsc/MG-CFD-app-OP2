@@ -3,7 +3,7 @@
 //
 
 //user function
-#include ".././src/Kernels/misc.h"
+#include ".././src/Kernels/time_stepping_kernels.h"
 
 // host stub function
 void op_par_loop_time_step_kernel(char const *name, op_set set,

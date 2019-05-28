@@ -206,7 +206,7 @@ config conf;
 // MG-CFD kernels:
 #include "flux.h"
 #include "mg.h"
-#include "compute_step_factor_kernel.h"
+#include "time_stepping_kernels.h"
 #include "compute_node_area_kernel.h"
 #include "validation.h"
 

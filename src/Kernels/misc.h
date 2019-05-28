@@ -87,26 +87,4 @@ inline void dampen_ewt(
     ewt[2] *= 5e-8;
 }
 
-inline void time_step_kernel(
-    const int* rkCycle,
-    const double* step_factor,
-    double* flux,
-    const double* old_variable,
-    double* variable)
-{
-    double factor = (*step_factor)/double(RK+1-(*rkCycle));
-
-    variable[VAR_DENSITY]        = old_variable[VAR_DENSITY]        + factor*flux[VAR_DENSITY];
-    variable[VAR_MOMENTUM+0]     = old_variable[VAR_MOMENTUM+0]     + factor*flux[VAR_MOMENTUM+0];
-    variable[VAR_MOMENTUM+1]     = old_variable[VAR_MOMENTUM+1]     + factor*flux[VAR_MOMENTUM+1];
-    variable[VAR_MOMENTUM+2]     = old_variable[VAR_MOMENTUM+2]     + factor*flux[VAR_MOMENTUM+2];
-    variable[VAR_DENSITY_ENERGY] = old_variable[VAR_DENSITY_ENERGY] + factor*flux[VAR_DENSITY_ENERGY];
-
-    flux[VAR_DENSITY]        = 0.0;
-    flux[VAR_MOMENTUM+0]     = 0.0;
-    flux[VAR_MOMENTUM+1]     = 0.0;
-    flux[VAR_MOMENTUM+2]     = 0.0;
-    flux[VAR_DENSITY_ENERGY] = 0.0;
-}
-
 #endif
