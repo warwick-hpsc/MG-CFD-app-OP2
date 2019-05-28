@@ -31,7 +31,7 @@ Several distinct libraries can be compiled, depending on the mix of parallelism 
 
 All MG-CFD variants need two particular OP2 libraries, created by executing these two OP2 make rules: `core`, `hdf5`. Variant-specific dependencies are listed in next section.
 
-### Generating batch submission scripts:
+### Compiling MG-CFD
 
 Different binaries can be generated, depending on the mix of parallelism and performance portability desired:
 
@@ -46,7 +46,7 @@ MPI + CUDA | mgcfd_mpi_cuda | mpi_cuda
 
 In future, OpenACC and OpenMP 4.5 ports will be available
 
-### Executing MG-CFD OP2:
+### Generating batch submission scripts:
 
 1) Prepare a json file detailing run configuration. See ./run-inputs/annotated.json for documentation on each option. 
 
@@ -86,7 +86,3 @@ If you wish to cite this work then please refer to our (pending) journal publica
 
 * Owenson A.M.B., Wright S.A., Bunt R.A., Ho Y.K., Street M.J., and Jarvis S.A. (2019), An Unstructured CFD Mini-Application for the Performance Prediction of a Production CFD Code, Concurrency Computat: Pract Exper., 2019
 
-Release
-==========================================
-
-MG-CFD is released under a MIT license.
