@@ -5,15 +5,6 @@
 #ifndef CONST_H
 #define CONST_H
 
-// nvcc needs a kick to handle inlined functions, 
-// so each "inline" must be prefixed 
-// by CUDA code. Easiest way to do this is to 
-// redefine the "inline" keyword:
-// UPDATE: This was a bad idea.
-// #ifdef __CUDACC__
-//   #define inline __host__ __device__ inline
-// #endif
-
 #ifndef OP_FUN_PREFIX
     #ifdef __CUDACC__
         #define OP_FUN_PREFIX __host__ __device__
