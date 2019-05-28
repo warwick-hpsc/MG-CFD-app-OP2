@@ -1,3 +1,6 @@
+// Copyright 2009, Andrew Corrigan, acorriga@gmu.edu
+// This code is from the AIAA-2009-4001 paper
+
 #ifndef COMPUTE_STEP_FACTOR_H
 #define COMPUTE_STEP_FACTOR_H
 

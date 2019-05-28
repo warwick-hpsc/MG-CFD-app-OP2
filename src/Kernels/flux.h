@@ -1,3 +1,6 @@
+// Copyright 2009, Andrew Corrigan, acorriga@gmu.edu
+// This code is from the AIAA-2009-4001 paper
+
 #ifndef FLUX_H
 #define FLUX_H
 
