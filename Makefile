@@ -276,7 +276,7 @@ $(OBJ_DIR)/mgcfd_mpi_openmp_kernels.o:
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	    -DMPI_ON \
-	    -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
+	    -c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
 $(OBJ_DIR)/mgcfd_mpi_openmp_main.o:
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
