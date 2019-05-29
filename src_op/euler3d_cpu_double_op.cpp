@@ -703,7 +703,7 @@ int main(int argc, char** argv)
     // std::string csv_out_filepath(conf.output_file_prefix);
     // csv_out_filepath += "op2_times.csv";
     // printf("Writing OP2 timings to file: %s\n", csv_out_filepath.c_str());
-    // op_timing_raw_output_2_csv(csv_out_filepath.c_str());
+    // op_timings_to_csv(csv_out_filepath.c_str());
 
     if (conf.validate_result) {
         op_printf("-----------------------------------------------------\n");
