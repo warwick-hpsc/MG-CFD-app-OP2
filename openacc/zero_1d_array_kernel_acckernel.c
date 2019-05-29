@@ -3,7 +3,11 @@
 //
 
 //user function
-#include ".././src/Kernels/misc.h"
+#include <cmath>
+#include "const.h"
+#include "structures.h"
+#include "global.h"
+
 //user function
 //#pragma acc routine
 inline void zero_1d_array_kernel_openacc( 

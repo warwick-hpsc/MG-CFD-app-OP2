@@ -3,7 +3,11 @@
 //
 
 //user function
-#include ".././src/Kernels/flux.h"
+#include <math.h>
+#include "inlined_funcs.h"
+#include "global.h"
+#include "config.h"
+
 //user function
 //#pragma acc routine
 inline void compute_flux_edge_kernel_openacc( 

@@ -3,7 +3,8 @@
 //
 
 //user function
-#include ".././src/Kernels/validation.h"
+#include "utils.h"
+
 //user function
 //#pragma acc routine
 inline void count_non_zeros_openacc( 

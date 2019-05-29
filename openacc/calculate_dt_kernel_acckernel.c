@@ -3,7 +3,11 @@
 //
 
 //user function
-#include ".././src/Kernels/time_stepping_kernels.h"
+#include <math.h>
+#include <cmath>
+#include "const.h"
+#include "inlined_funcs.h"
+
 //user function
 //#pragma acc routine
 inline void calculate_dt_kernel_openacc( 

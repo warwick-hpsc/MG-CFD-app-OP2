@@ -3,7 +3,8 @@
 //
 
 //user function
-#include ".././src/Kernels/copy_double_kernel.h"
+#include "const.h"
+
 //user function
 //#pragma acc routine
 inline void copy_double_kernel_openacc( 

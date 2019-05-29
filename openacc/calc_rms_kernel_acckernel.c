@@ -3,7 +3,8 @@
 //
 
 //user function
-#include ".././src/Kernels/validation.h"
+#include "utils.h"
+
 //user function
 //#pragma acc routine
 inline void calc_rms_kernel_openacc( 

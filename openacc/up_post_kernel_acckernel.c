@@ -3,7 +3,9 @@
 //
 
 //user function
-#include ".././src/Kernels/mg.h"
+#include <math.h>
+#include "const.h"
+
 //user function
 //#pragma acc routine
 inline void up_post_kernel_openacc( 
