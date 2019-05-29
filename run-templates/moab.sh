@@ -6,9 +6,13 @@
 
 #MSUB -l nodes=<NODES>
 #MSUB -l ttc=<TPN>
-#MSUB -l walltime=<HOURS>:<MINUTES>:00
 #MSUB -n
+
+#MSUB -l walltime=<HOURS>:<MINUTES>:00
 #MSUB -q <PARTITION>
 #MSUB -A <PROJECT CODE>
 
-RUN_CMD="srun --cpus-per-task=<NTHREADS> -n <NTASKS>"
+RUN_CMD="srun --cpus-per-task=<NTHREADS>"
+
+export OMP_NUM_THREADS=$PBS_NUM_PPN
+export OMP_PROC_BIND=true

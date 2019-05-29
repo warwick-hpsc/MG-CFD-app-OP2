@@ -104,7 +104,6 @@ if $validate_solution ; then
   exec_command+=" -v"
 fi
 echo "EXECUTING $bin_filepath"
-export OMP_NUM_THREADS=$nthreads
 cd "${data_dirpath}"
 echo "$exec_command"
 eval "$exec_command"

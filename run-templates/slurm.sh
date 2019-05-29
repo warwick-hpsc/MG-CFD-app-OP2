@@ -7,9 +7,15 @@
 #SBATCH --nodes=<NODES>
 #SBATCH --ntasks-per-node=<TPN>
 #SBATCH --cpus-per-task=<NTHREADS>
-#SBATCH --time=<HOURS>:<MINUTES>:00
+#SBATCH --ntasks-per-core=1
 #SBATCH --exclusive
+#SBATCH -m block:block
+
+#SBATCH --time=<HOURS>:<MINUTES>:00
 #SBATCH --partition=<PARTITION>
 #SBATCH --account=<PROJECT CODE>
 
-RUN_CMD="srun -n <NTASKS>"
+RUN_CMD="srun --cpu_bind=cores"
+
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export OMP_PROC_BIND=true
