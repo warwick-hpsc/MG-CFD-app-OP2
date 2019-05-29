@@ -18,10 +18,10 @@ void op_par_loop_up_post_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(17);
-  op_timers_core(&cpu_t1, &wall_t1);
   double inner_cpu_t1, inner_cpu_t2, inner_wall_t1, inner_wall_t2;
   double compute_time=0.0, sync_time=0.0;
+  op_timing_realloc(17);
+  op_timers_core(&cpu_t1, &wall_t1);
 
 
   if (OP_diags>2) {
@@ -42,6 +42,7 @@ void op_par_loop_up_post_kernel(char const *name, op_set set,
   if (set->size >0) {
 
     // execute plan
+    op_timers_core(&inner_cpu_t1, &inner_wall_t1);
     #pragma omp parallel for
     for ( int thr=0; thr<nthreads; thr++ ){
       int start  = (set->size* thr)/nthreads;
@@ -52,6 +53,8 @@ void op_par_loop_up_post_kernel(char const *name, op_set set,
           &((int*)arg1.data)[1*n]);
       }
     }
+    op_timers_core(&inner_cpu_t2, &inner_wall_t2);
+    compute_time += inner_wall_t2 - inner_wall_t1;
   }
 
   op_timers_core(&inner_cpu_t1, &inner_wall_t1);

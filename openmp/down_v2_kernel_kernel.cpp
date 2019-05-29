@@ -34,10 +34,10 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(19);
-  op_timers_core(&cpu_t1, &wall_t1);
   double inner_cpu_t1, inner_cpu_t2, inner_wall_t1, inner_wall_t2;
   double compute_time=0.0, sync_time=0.0;
+  op_timing_realloc(19);
+  op_timers_core(&cpu_t1, &wall_t1);
 
   int  ninds   = 5;
   int  inds[10] = {0,0,1,1,2,2,3,3,4,4};
