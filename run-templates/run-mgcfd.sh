@@ -42,7 +42,7 @@ if $mpi ; then
   elif $openmp ; then
   	bin_filename=mgcfd_mpi_openmp
   else
-  	bin_filename=mgcfd_mpi_genseq
+  	bin_filename=mgcfd_mpi
   fi
 else
   if $cuda ; then

@@ -176,9 +176,9 @@ MGCFD_INCS := -Isrc -Isrc/Kernels
 OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
 
 # all: mgcfd_seq mgcfd_openmp mgcfd_openacc mgcfd_openmp4 mgcfd_cuda \
-# 	 mgcfd_mpi_genseq mgcfd_mpi_openmp mgcfd_mpi_cuda
+# 	 mgcfd_mpi mgcfd_mpi_openmp mgcfd_mpi_cuda
 
-all: mgcfd_seq mgcfd_openmp mgcfd_mpi_genseq mgcfd_mpi_openmp mgcfd_cuda
+all: mgcfd_seq mgcfd_openmp mgcfd_mpi mgcfd_mpi_openmp mgcfd_cuda
 
 OP2_SEQ_OBJECTS := $(OBJ_DIR)/mgcfd_seq_main.o \
                    $(OBJ_DIR)/mgcfd_seq_kernels.o
@@ -209,7 +209,7 @@ OP2_OPENACC_OBJECTS := $(OBJ_DIR)/mgcfd_openacc_main.o \
 ## User-friendly wrappers around actual targets:
 mgcfd_seq: $(BIN_DIR)/mgcfd_seq
 mgcfd_openmp: $(BIN_DIR)/mgcfd_openmp
-mgcfd_mpi_genseq: $(BIN_DIR)/mgcfd_mpi_genseq
+mgcfd_mpi: $(BIN_DIR)/mgcfd_mpi
 mgcfd_mpi_openmp: $(BIN_DIR)/mgcfd_mpi_openmp
 mgcfd_cuda: $(BIN_DIR)/mgcfd_cuda
 mgcfd_openmp4: $(BIN_DIR)/mgcfd_openmp4
@@ -264,7 +264,7 @@ $(OBJ_DIR)/mgcfd_mpi_main.o:
 	$(MPICPP) $(CPPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	     -DMPI_ON \
 	    -c -o $@ $(OP2_MAIN_SRC)
-$(BIN_DIR)/mgcfd_mpi_genseq: $(OP2_MPI_OBJECTS)
+$(BIN_DIR)/mgcfd_mpi: $(OP2_MPI_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $^ $(OPTIMISE) \
 		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
