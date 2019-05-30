@@ -120,13 +120,14 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
       block_offset += nblocks;
     }
 
+    block_offset = 0;
     for ( int col=0; col<Plan->ncolors; col++ ){
       int nblocks = Plan->ncolblk[col];
       for ( int blockIdx=0; blockIdx<nblocks; blockIdx++ ){
         int blockId  = Plan->blkmap[blockIdx + block_offset];
-        int nelem    = Plan->nelems[blockId];
-        iter_counts += nelem;
+        iter_counts += Plan->nelems[blockId];
       }
+      block_offset += nblocks;
     }
 
     OP_kernels[9].transfer  += Plan->transfer;
