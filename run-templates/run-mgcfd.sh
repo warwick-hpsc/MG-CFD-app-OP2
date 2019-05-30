@@ -61,7 +61,7 @@ bin_filepath="${app_dirpath}/bin/${bin_filename}"
 
 # if [ ! -f "$bin_filepath" ]; then
   ## Try compiling anyway, source files may have changed
-  if [[ `hostname` == *"login"* ]]; then
+  if [[ `hostname` == *"login"* ]] || [ `basename "$0"` = run.sh ]; then
     ## On login node, compile
     cd "${app_dirpath}"
     make_cmd="COMPILER=${compiler} "
@@ -103,7 +103,6 @@ exec_command+=" $bin_filepath OP_MAPS_BASE_INDEX=1 -i input.dat -p ${run_outdir}
 if $validate_solution ; then
   exec_command+=" -v"
 fi
-echo "EXECUTING $bin_filepath"
 cd "${data_dirpath}"
 echo "$exec_command"
 eval "$exec_command"
