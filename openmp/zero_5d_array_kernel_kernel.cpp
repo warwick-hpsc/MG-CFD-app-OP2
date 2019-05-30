@@ -16,7 +16,7 @@ void op_par_loop_zero_5d_array_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(1);
+  op_timing_realloc_manytime(1, omp_get_max_threads());
   op_timers_core(&cpu_t1, &wall_t1);
 
 

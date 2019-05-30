@@ -24,7 +24,7 @@ void op_par_loop_down_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(21);
+  op_timing_realloc_manytime(21, omp_get_max_threads());
   op_timers_core(&cpu_t1, &wall_t1);
 
   int  ninds   = 2;
