@@ -172,13 +172,20 @@ NVCCFLAGS += $(CODE_GEN_CUDA) -m64 -Xptxas -dlcm=ca -Xptxas=-v -use_fast_math -O
 
 MGCFD_INCS := -Isrc -Isrc/Kernels
 
+## Enable VERIFY_OP2_TIMING to perform timing measurements external to 
+## those performed by OP2 internally. Intended to verify whether OP2 timers 
+## are correct, particularly for MPI sync time.
+# MGCFD_INCS += -DVERIFY_OP2_TIMING
+
 
 OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
+
 
 # all: mgcfd_seq mgcfd_openmp mgcfd_openacc mgcfd_openmp4 mgcfd_cuda \
 # 	 mgcfd_mpi mgcfd_mpi_openmp mgcfd_mpi_cuda
 
 all: mgcfd_seq mgcfd_openmp mgcfd_mpi mgcfd_mpi_openmp mgcfd_cuda
+
 
 OP2_SEQ_OBJECTS := $(OBJ_DIR)/mgcfd_seq_main.o \
                    $(OBJ_DIR)/mgcfd_seq_kernels.o

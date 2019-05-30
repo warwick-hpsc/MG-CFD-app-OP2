@@ -19,8 +19,6 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  double inner_cpu_t1, inner_cpu_t2, inner_wall_t1, inner_wall_t2;
-  double compute_time=0.0, sync_time=0.0;
   op_timing_realloc(14);
   op_timers_core(&cpu_t1, &wall_t1);
 
@@ -29,10 +27,7 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  count_bad_vals");
   }
 
-  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   op_mpi_halo_exchanges(set, nargs, args);
-  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
-  sync_time += inner_wall_t2 - inner_wall_t1;
   // set number of threads
   #ifdef _OPENMP
     int nthreads = omp_get_max_threads();
@@ -51,7 +46,6 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
   if (set->size >0) {
 
     // execute plan
-    op_timers_core(&inner_cpu_t1, &inner_wall_t1);
     #pragma omp parallel for
     for ( int thr=0; thr<nthreads; thr++ ){
       int start  = (set->size* thr)/nthreads;
@@ -62,11 +56,8 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
           &arg1_l[64*omp_get_thread_num()]);
       }
     }
-    op_timers_core(&inner_cpu_t2, &inner_wall_t2);
-    compute_time += inner_wall_t2 - inner_wall_t1;
   }
 
-  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   // combine reduction data
   for ( int thr=0; thr<nthreads; thr++ ){
     for ( int d=0; d<1; d++ ){
@@ -75,8 +66,6 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
   }
   op_mpi_reduce(&arg1,arg1h);
   op_mpi_set_dirtybit(nargs, args);
-  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
-  sync_time += inner_wall_t2 - inner_wall_t1;
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);

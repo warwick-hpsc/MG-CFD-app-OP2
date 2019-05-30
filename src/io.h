@@ -291,9 +291,13 @@ void dump_edge_neighbours(
     fclose(file);
 }
 
-inline void dump_iter_counts_to_file(
+inline void dump_perf_data_to_file(
     int rank, 
     int num_levels, 
+    #ifdef VERIFY_OP2_TIMING
+        double* flux_kernel_compute_times, 
+        double* flux_kernel_sync_times, 
+    #endif
     long* flux_kernel_iter_counts, 
     char* output_file_prefix)
 {
@@ -302,7 +306,7 @@ inline void dump_iter_counts_to_file(
         filepath += ".";
     }
     filepath += std::string("P=") + number_to_string(rank);
-    filepath += ".LoopNumIters.csv";
+    filepath += ".PerfData.csv";
 
     bool write_header = false;
     std::ifstream f(filepath.c_str());
@@ -316,118 +320,35 @@ inline void dump_iter_counts_to_file(
     if (write_header) {
         header << "rank";
         header << ",partitioner";
-        for (int l=0; l<num_levels; l++) {
-            header << "," << "flux" << l ;
-        }
+        header << ",kernel";
+        header << ",level";
+        #ifdef VERIFY_OP2_TIMING
+            header << ",computeTime";
+            header << ",syncTime";
+        #endif
+        header << ",iters";
     }
 
     std::ofstream outfile;
     outfile.open(filepath.c_str(), std::ios_base::app);
     if (write_header) outfile << header.str() << std::endl;
 
-    std::ostringstream data_line;
-
-    data_line << rank;
-    data_line << "," << conf.partitioner_string;
-
     for (int l=0; l<num_levels; l++) {
+        std::ostringstream data_line;
+
+        data_line << rank;
+        data_line << ',' << conf.partitioner_string;
+        data_line << ",compute_flux_edge_kernel";
+        data_line << ',' << l;
+
+        #ifdef VERIFY_OP2_TIMING
+            data_line << ',' << flux_kernel_compute_times[l];
+            data_line << ',' << flux_kernel_sync_times[l];
+        #endif
         data_line << ',' << flux_kernel_iter_counts[l];
+
+        outfile << data_line.str() << std::endl;
     }
-
-    outfile << data_line.str() << std::endl;
-
-    outfile.close();
-}
-
-inline void dump_compute_times_to_file(
-    int rank, 
-    int num_levels, 
-    double* flux_kernel_compute_times, 
-    char* output_file_prefix)
-{
-    std::string filepath = std::string(output_file_prefix);
-    if (filepath.length() > 1 && filepath.at(filepath.size()-1) != '/') {
-        filepath += ".";
-    }
-    filepath += std::string("P=") + number_to_string(rank);
-    filepath += ".ComputeTimes.csv";
-
-    bool write_header = false;
-    std::ifstream f(filepath.c_str());
-    if (!f || f.peek() == std::ifstream::traits_type::eof()) {
-        write_header = true;
-    }
-    f.close();
-
-    std::ostringstream header;
-
-    if (write_header) {
-        header << "rank";
-        header << ",partitioner";
-        for (int l=0; l<num_levels; l++) {
-            header << "," << "flux" << l ;
-        }
-    }
-
-    std::ofstream outfile;
-    outfile.open(filepath.c_str(), std::ios_base::app);
-    if (write_header) outfile << header.str() << std::endl;
-
-    std::ostringstream data_line;
-    data_line << rank;
-    data_line << "," << conf.partitioner_string;
-    for (int l=0; l<num_levels; l++) {
-        data_line << ',' << flux_kernel_compute_times[l];
-    }
-    outfile << data_line.str() << std::endl;
-
-    outfile.close();
-}
-
-inline void dump_sync_times_to_file(
-    int rank, 
-    int num_levels, 
-    double* flux_kernel_sync_times, 
-    char* output_file_prefix)
-{
-    std::string filepath = std::string(output_file_prefix);
-    if (filepath.length() > 1 && filepath.at(filepath.size()-1) != '/') {
-        filepath += ".";
-    }
-    filepath += std::string("P=") + number_to_string(rank);
-    filepath += ".SyncTimes.csv";
-
-    bool write_header = false;
-    std::ifstream f(filepath.c_str());
-    if (!f || f.peek() == std::ifstream::traits_type::eof()) {
-        write_header = true;
-    }
-    f.close();
-
-    std::ostringstream header;
-
-    if (write_header) {
-        header << "rank";
-        header << ",partitioner";
-        for (int l=0; l<num_levels; l++) {
-            header << "," << "flux" << l ;
-        }
-    }
-
-    std::ofstream outfile;
-    outfile.open(filepath.c_str(), std::ios_base::app);
-    if (write_header) outfile << header.str() << std::endl;
-
-    std::ostringstream data_line;
-
-    data_line << rank;
-    data_line << "," << conf.partitioner_string;
-
-    for (int l=0; l<num_levels; l++) {
-        data_line << ',' << flux_kernel_sync_times[l];
-    }
-
-    outfile << data_line.str() << std::endl;
 
     outfile.close();
 }

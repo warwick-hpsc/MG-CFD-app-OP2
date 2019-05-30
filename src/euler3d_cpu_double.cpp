@@ -95,14 +95,16 @@ int main(int argc, char** argv)
         }
     }
 
-    double flux_kernel_compute_times[levels];
-    for (int i=0; i<levels; i++) {
-        flux_kernel_compute_times[i] = 0.0;
-    }
-    double flux_kernel_sync_times[levels];
-    for (int i=0; i<levels; i++) {
-        flux_kernel_sync_times[i] = 0.0;
-    }
+    #ifdef VERIFY_OP2_TIMING
+        double flux_kernel_compute_times[levels];
+        for (int i=0; i<levels; i++) {
+            flux_kernel_compute_times[i] = 0.0;
+        }
+        double flux_kernel_sync_times[levels];
+        for (int i=0; i<levels; i++) {
+            flux_kernel_sync_times[i] = 0.0;
+        }
+    #endif
     long flux_kernel_iter_counts[levels];
     for (int i=0; i<levels; i++) {
         flux_kernel_iter_counts[i] = 0;
@@ -540,11 +542,14 @@ int main(int argc, char** argv)
     op_timers(&cpu_t2, &wall_t2);
     op_printf("Max total runtime = %f\n", wall_t2 - wall_t1);
 
+    // Write summary performance data to stdout:
     op_timing_output();
-    // std::string csv_out_filepath(conf.output_file_prefix);
-    // csv_out_filepath += "op2_times.csv";
-    // printf("Writing OP2 timings to file: %s\n", csv_out_filepath.c_str());
-    // op_timings_to_csv(csv_out_filepath.c_str());
+
+    // Write full performance data to file:
+    std::string csv_out_filepath(conf.output_file_prefix);
+    csv_out_filepath += "op2_performance_data.csv";
+    op_printf("Writing OP2 timings to file: %s\n", csv_out_filepath.c_str());
+    op_timings_to_csv(csv_out_filepath.c_str());
 
     if (conf.validate_result) {
         op_printf("-----------------------------------------------------\n");
@@ -678,20 +683,15 @@ int main(int argc, char** argv)
             flux_kernel_event_counts, 
             conf.output_file_prefix);
     #endif
-    dump_iter_counts_to_file(
+
+    dump_perf_data_to_file(
         my_rank, 
         levels, 
+        #ifdef VERIFY_OP2_TIMING
+            flux_kernel_compute_times, 
+            flux_kernel_sync_times,
+        #endif
         flux_kernel_iter_counts, 
-        conf.output_file_prefix);
-    dump_compute_times_to_file(
-        my_rank, 
-        levels, 
-        flux_kernel_compute_times, 
-        conf.output_file_prefix);
-    dump_sync_times_to_file(
-        my_rank, 
-        levels, 
-        flux_kernel_sync_times, 
         conf.output_file_prefix);
 
     op_printf("-----------------------------------------------------\n");

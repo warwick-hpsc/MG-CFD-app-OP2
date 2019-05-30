@@ -22,8 +22,6 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  double inner_cpu_t1, inner_cpu_t2, inner_wall_t1, inner_wall_t2;
-  double compute_time=0.0, sync_time=0.0;
   op_timing_realloc(20);
   op_timers_core(&cpu_t1, &wall_t1);
 
@@ -32,10 +30,7 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  down_v2_kernel_post");
   }
 
-  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   op_mpi_halo_exchanges(set, nargs, args);
-  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
-  sync_time += inner_wall_t2 - inner_wall_t1;
   // set number of threads
   #ifdef _OPENMP
     int nthreads = omp_get_max_threads();
@@ -46,7 +41,6 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
   if (set->size >0) {
 
     // execute plan
-    op_timers_core(&inner_cpu_t1, &inner_wall_t1);
     #pragma omp parallel for
     for ( int thr=0; thr<nthreads; thr++ ){
       int start  = (set->size* thr)/nthreads;
@@ -59,15 +53,10 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
           &((double*)arg3.data)[5*n]);
       }
     }
-    op_timers_core(&inner_cpu_t2, &inner_wall_t2);
-    compute_time += inner_wall_t2 - inner_wall_t1;
   }
 
-  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   // combine reduction data
   op_mpi_set_dirtybit(nargs, args);
-  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
-  sync_time += inner_wall_t2 - inner_wall_t1;
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);

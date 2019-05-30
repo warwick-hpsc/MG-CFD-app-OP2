@@ -12,8 +12,10 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   op_arg arg2,
   op_arg arg3,
   op_arg arg4
-  , double* compute_time_ptr
-  , double* sync_time_ptr
+  #ifdef VERIFY_OP2_TIMING
+    , double* compute_time_ptr
+    , double* sync_time_ptr
+  #endif
   , long* iter_counts_ptr
   #ifdef PAPI
   , long_long* restrict event_counts, int event_set, int num_events
@@ -36,6 +38,7 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   op_timers_core(&cpu_t1, &wall_t1);
   double inner_cpu_t1, inner_cpu_t2, inner_wall_t1, inner_wall_t2;
   double compute_time=0.0, sync_time=0.0;
+  long iter_counts=0;
 
   if (OP_diags>2) {
     printf(" kernel routine with indirection: compute_flux_edge_kernel\n");
@@ -70,8 +73,7 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
     }
     op_timers_core(&inner_cpu_t2, &inner_wall_t2);
     compute_time += inner_wall_t2 - inner_wall_t1;
-
-    iter_counts_ptr += set_size;
+    iter_counts += set_size;
   }
 
   op_timers_core(&inner_cpu_t1, &inner_wall_t1);
@@ -93,6 +95,9 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   OP_kernels[9].transfer += (float)set->size * arg2.size;
   OP_kernels[9].transfer += (float)set->size * arg0.map->dim * 4.0f;
 
-  *compute_time_ptr += compute_time;
-  *sync_time_ptr += sync_time;
+  #ifdef VERIFY_OP2_TIMING
+    *compute_time_ptr += compute_time;
+    *sync_time_ptr += sync_time;
+  #endif
+  *iter_counts_ptr += iter_counts;
 }

@@ -86,13 +86,15 @@ void op_par_loop_compute_flux_edge_kernel(char const *, op_set,
   op_arg,
   op_arg,
   op_arg
-  , double* // compute time
-  , double* // sync time
+  #ifdef VERIFY_OP2_TIMING
+    , double* // compute time
+    , double* // sync time
+  #endif
   , long* // iterations
   #ifdef PAPI
-   , long_long*, int, int
+    , long_long*, int, int
   #endif
-   );
+);
 
 void op_par_loop_compute_bnd_node_flux_kernel(char const *, op_set,
   op_arg,
@@ -249,14 +251,16 @@ int main(int argc, char** argv)
         }
     }
 
-    double flux_kernel_compute_times[levels];
-    for (int i=0; i<levels; i++) {
-        flux_kernel_compute_times[i] = 0.0;
-    }
-    double flux_kernel_sync_times[levels];
-    for (int i=0; i<levels; i++) {
-        flux_kernel_sync_times[i] = 0.0;
-    }
+    #ifdef VERIFY_OP2_TIMING
+        double flux_kernel_compute_times[levels];
+        for (int i=0; i<levels; i++) {
+            flux_kernel_compute_times[i] = 0.0;
+        }
+        double flux_kernel_sync_times[levels];
+        for (int i=0; i<levels; i++) {
+            flux_kernel_sync_times[i] = 0.0;
+        }
+    #endif
     long flux_kernel_iter_counts[levels];
     for (int i=0; i<levels; i++) {
         flux_kernel_iter_counts[i] = 0;
@@ -574,8 +578,10 @@ int main(int argc, char** argv)
                         op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                         op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
                         op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
-                        , &flux_kernel_compute_times[level]
-                        , &flux_kernel_sync_times[level]
+                        #ifdef VERIFY_OP2_TIMING
+                          , &flux_kernel_compute_times[level]
+                          , &flux_kernel_sync_times[level]
+                        #endif
                         , &flux_kernel_iter_counts[level]
                         #ifdef PAPI
                         , &flux_kernel_event_counts[level*num_events], event_set, num_events
@@ -694,16 +700,19 @@ int main(int argc, char** argv)
         }
     }
     op_printf("\n");
-	  op_printf("Compute complete\n");
+	op_printf("Compute complete\n");
 
     op_timers(&cpu_t2, &wall_t2);
     op_printf("Max total runtime = %f\n", wall_t2 - wall_t1);
 
+    // Write summary performance data to stdout:
     op_timing_output();
-    // std::string csv_out_filepath(conf.output_file_prefix);
-    // csv_out_filepath += "op2_times.csv";
-    // printf("Writing OP2 timings to file: %s\n", csv_out_filepath.c_str());
-    // op_timings_to_csv(csv_out_filepath.c_str());
+
+    // Write full performance data to file:
+    std::string csv_out_filepath(conf.output_file_prefix);
+    csv_out_filepath += "op2_performance_data.csv";
+    op_printf("Writing OP2 timings to file: %s\n", csv_out_filepath.c_str());
+    op_timings_to_csv(csv_out_filepath.c_str());
 
     if (conf.validate_result) {
         op_printf("-----------------------------------------------------\n");
@@ -833,20 +842,15 @@ int main(int argc, char** argv)
             flux_kernel_event_counts, 
             conf.output_file_prefix);
     #endif
-    dump_iter_counts_to_file(
+
+    dump_perf_data_to_file(
         my_rank, 
         levels, 
+        #ifdef VERIFY_OP2_TIMING
+            flux_kernel_compute_times, 
+            flux_kernel_sync_times,
+        #endif
         flux_kernel_iter_counts, 
-        conf.output_file_prefix);
-    dump_compute_times_to_file(
-        my_rank, 
-        levels, 
-        flux_kernel_compute_times, 
-        conf.output_file_prefix);
-    dump_sync_times_to_file(
-        my_rank, 
-        levels, 
-        flux_kernel_sync_times, 
         conf.output_file_prefix);
 
     op_printf("-----------------------------------------------------\n");
