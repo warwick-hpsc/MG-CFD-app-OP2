@@ -24,6 +24,10 @@
 
 #include "hdf5.h"
 
+#ifdef PAPI
+#include "papi_funcs.h"
+#endif
+
 // OP2:
 #include  "op_lib_cpp.h"
 
@@ -188,9 +192,6 @@ void op_par_loop_count_non_zeros(char const *, op_set,
 #include "utils.h"
 #include "io.h"
 #include "timer.h"
-#ifdef PAPI
-#include "papi_funcs.h"
-#endif
 
 // Global scalars:
 double smoothing_coefficient = double(0.2f);

@@ -33,7 +33,7 @@ inline std::string& trim(std::string &s) {
 
 static char *copy_str(char const *src) {
   const size_t len = strlen(src) + 1;
-  char *dest = (char *)op_calloc(len, sizeof(char));
+  char *dest = (char*)malloc(len * sizeof(char));
   return strncpy(dest, src, len);
 }
 

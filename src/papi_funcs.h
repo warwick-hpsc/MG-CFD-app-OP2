@@ -221,9 +221,9 @@ inline void dump_papi_counters_to_file(
         header << "Rank";
         header << ",Partitioner";
         header << ",PAPI counter";
-        for (int l=0; l<num_levels; l++) {
-            header << "," << "flux" << l ;
-        }
+        header << ",kernel";
+        header << ",level";
+        header << ",count";
     }
 
     std::ofstream outfile;
@@ -238,17 +238,20 @@ inline void dump_papi_counters_to_file(
             exit(EXIT_FAILURE);
         }
 
-        std::ostringstream event_data_line;
-        event_data_line << rank;
-        event_data_line << "," << conf.partitioner_string;
-        event_data_line << "," << eventName;
-
         for (int l=0; l<num_levels; l++) {
+            std::ostringstream event_data_line;
+            event_data_line << rank;
+            event_data_line << "," << conf.partitioner_string;
+            event_data_line << "," << eventName;
+
+            event_data_line << "," << "compute_flux_edge_kernel";
+            event_data_line << "," << l;
+
             const int idx = l*num_events + eid;
             event_data_line << ',' << flux_kernel_event_counts[idx];
-        }
 
-        outfile << event_data_line.str() << std::endl;
+            outfile << event_data_line.str() << std::endl;
+        }
     }
     outfile.close();
 }

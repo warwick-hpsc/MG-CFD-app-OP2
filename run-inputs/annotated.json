@@ -38,6 +38,9 @@
         "cpp wrapper": "",
         "mpicpp wrapper": "",
 
+        "papi comment": "Toggle whether to monitor PAPI events. Currently only implemented in 'seq' and 'mpi' codes.",
+        "papi": true,
+
         "general parallelism comment": "If possible, enabled modes below will be combined; if not, gen_job.py will complain",
         "mpi comment": "Toggle whether to use MPI",
         "mpi": true,

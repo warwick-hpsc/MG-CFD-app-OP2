@@ -31,7 +31,7 @@ def clean_pd_read_csv(filepath):
     return df
 
 def get_data_colnames(df):
-    mg_cfd_data_colnames = ["iters", "computeTime", "syncTime"]
+    mg_cfd_data_colnames = ["iters", "computeTime", "syncTime", "count"]
     op2_data_colnames = ["count", "total time", "plan time", "mpi time", "GB used", "GB total"]
     data_colnames = list(Set(mg_cfd_data_colnames+op2_data_colnames).intersection(Set(df.columns.values)))
     return data_colnames

@@ -8,6 +8,10 @@
 #include "global.h"
 #include "config.h"
 
+#ifdef PAPI
+#include <papi.h>
+#endif
+
 //user function
 //#pragma acc routine
 inline void compute_flux_edge_kernel_openacc( 

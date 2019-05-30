@@ -3,6 +3,7 @@ set -u
 
 # Compilation variables:
 compiler=<COMPILER>
+papi=<PAPI>
 cpp_wrapper="<CPP_WRAPPER>"
 mpicpp_wrapper="<MPICPP_WRAPPER>"
 mpi=<MPI>
@@ -71,6 +72,9 @@ bin_filepath="${app_dirpath}/bin/${bin_filename}"
     if [ "$mpicpp_wrapper" != "" ]; then
       make_cmd+="MPICPP_WRAPPER=$mpicpp_wrapper "
     fi
+    if $papi ; then
+      make_cmd+="PAPI=1 "
+    fi
     make_cmd+="make -j4 $bin_filename"
     eval "$make_cmd"
     chmod a+x "$bin_filepath"
@@ -99,7 +103,10 @@ else
     exec_command=""
   fi
 fi
-exec_command+=" $bin_filepath OP_MAPS_BASE_INDEX=1 -i input.dat -p ${run_outdir}/papi.conf -o ${run_outdir}/ -g $mg_cycles -m $partitioner"
+exec_command+=" $bin_filepath OP_MAPS_BASE_INDEX=1 -i input.dat -o ${run_outdir}/ -g $mg_cycles -m $partitioner"
+if $papi ; then
+  exec_command+=" -p ${run_outdir}/papi.conf"
+fi
 if $validate_solution ; then
   exec_command+=" -v"
 fi

@@ -5,6 +5,10 @@
 //user function
 #include ".././src/Kernels/flux.h"
 
+#ifdef PAPI
+#include <papi.h>
+#endif
+
 // host stub function
 void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   op_arg arg0,

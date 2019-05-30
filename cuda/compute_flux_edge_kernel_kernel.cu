@@ -7,6 +7,10 @@
 #include "global.h"
 #include "config.h"
 
+#ifdef PAPI
+#include <papi.h>
+#endif
+
 //user function
 __device__ void compute_flux_edge_kernel_gpu( 
     const double *variables_a,

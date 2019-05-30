@@ -20,6 +20,10 @@
 
 #include "hdf5.h"
 
+#ifdef PAPI
+#include "papi_funcs.h"
+#endif
+
 // OP2:
 #include "op_seq.h"
 #include "op_hdf5.h"
@@ -32,9 +36,6 @@
 #include "utils.h"
 #include "io.h"
 #include "timer.h"
-#ifdef PAPI
-#include "papi_funcs.h"
-#endif
 
 // Global scalars:
 double smoothing_coefficient = double(0.2f);

@@ -25,6 +25,7 @@ js_to_submit_cmd["pbs"] = "qsub"
 defaults = {}
 # Compilation:
 defaults["compiler"] = "intel"
+defaults["papi"] = False
 defaults["cpp wrapper"] = ""
 defaults["mpicpp wrapper"] = ""
 defaults["openmp"] = False
@@ -102,6 +103,7 @@ if __name__=="__main__":
     js = get_key_value(profile, "setup", "job scheduler")
 
     compiler = get_key_value(profile, "compile", "compiler")
+    use_papi = get_key_value(profile, "compile", "papi")
     cpp_wrapper = get_key_value(profile, "compile", "cpp wrapper")
     mpicpp_wrapper = get_key_value(profile, "compile", "mpicpp wrapper")
     use_mpi = get_key_value(profile, "compile", "mpi")
@@ -129,6 +131,14 @@ if __name__=="__main__":
     if use_openacc:
         if use_mpi:
             raise Exception("Cannot combine OpenACC and MPI")
+
+    if use_papi:
+        if use_openmp:
+            print("WARNING: PAPI monitoring not yet implemented in OpenMP codes. Disabling PAPI.")
+            use_papi = False
+        if use_openmp4 or use_openacc or use_cuda:
+            print("WARNING: PAPI monitoring with accelerator codes is nonsense. Disabling PAPI.")
+            use_papi = False
 
     if use_mpi:
         if use_cuda:
@@ -251,6 +261,7 @@ if __name__=="__main__":
 
                         ## - Compilation:
                         py_sed(batch_filepath, "<COMPILER>", compiler)
+                        py_sed(batch_filepath, "<PAPI>", str(use_papi).lower())
                         py_sed(batch_filepath, "<CPP_WRAPPER>", cpp_wrapper)
                         py_sed(batch_filepath, "<MPICPP_WRAPPER>", mpicpp_wrapper)
                         py_sed(batch_filepath, "<MPI>", str(use_mpi).lower())

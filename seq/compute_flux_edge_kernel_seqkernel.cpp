@@ -5,6 +5,10 @@
 //user function
 #include ".././src/Kernels/flux.h"
 
+#ifdef PAPI
+#include "papi_funcs.h"
+#endif
+
 // host stub function
 void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   op_arg arg0,
@@ -51,14 +55,31 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
 
   if (set->size >0) {
 
+    #ifdef PAPI
+      // Init and start PAPI
+      long_long* temp_count_stores = (long_long*)malloc(sizeof(long_long)*num_events);
+      for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+      my_papi_start(event_set);
+    #endif
+
     op_timers_core(&inner_cpu_t1, &inner_wall_t1);
     for ( int n=0; n<set_size; n++ ){
       if (n==set->core_size) {
+        #ifdef PAPI
+          my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
+        #endif
+
         op_timers_core(&inner_cpu_t2, &inner_wall_t2);
         compute_time += inner_wall_t2 - inner_wall_t1;
         op_mpi_wait_all(nargs, args);
         op_timers_core(&inner_cpu_t1, &inner_wall_t1);
         sync_time += inner_wall_t1 - inner_wall_t2;
+
+        #ifdef PAPI
+          // Restart PAPI
+          for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+          my_papi_start(event_set);
+        #endif
       }
       int map0idx = arg0.map_data[n * arg0.map->dim + 0];
       int map1idx = arg0.map_data[n * arg0.map->dim + 1];
@@ -74,6 +95,12 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
     op_timers_core(&inner_cpu_t2, &inner_wall_t2);
     compute_time += inner_wall_t2 - inner_wall_t1;
     iter_counts += set_size;
+
+    #ifdef PAPI
+      my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
+      for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+      free(temp_count_stores);
+    #endif
   }
 
   op_timers_core(&inner_cpu_t1, &inner_wall_t1);

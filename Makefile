@@ -171,6 +171,11 @@ NVCCFLAGS += $(CODE_GEN_CUDA) -m64 -Xptxas -dlcm=ca -Xptxas=-v -use_fast_math -O
 
 
 MGCFD_INCS := -Isrc -Isrc/Kernels
+ifdef PAPI
+  MGCFD_INCS += -DPAPI
+  MGCFD_LIBS := -lpapi -lpfm
+endif
+
 
 ## Enable VERIFY_OP2_TIMING to perform timing measurements external to 
 ## those performed by OP2 internally. Intended to verify whether OP2 timers 
@@ -237,7 +242,7 @@ $(OBJ_DIR)/mgcfd_seq_kernels.o:
 		-c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
 $(BIN_DIR)/mgcfd_seq: $(OP2_SEQ_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ \
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_LIBS) $^ \
 		-lm $(OP2_LIB) -lop2_seq -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
 		-o $@
 
@@ -255,7 +260,7 @@ $(OBJ_DIR)/mgcfd_openmp_kernels.o:
 		-c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
 $(BIN_DIR)/mgcfd_openmp: $(OP2_OMP_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) \
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_openmp -lop2_hdf5 $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
 
@@ -273,7 +278,7 @@ $(OBJ_DIR)/mgcfd_mpi_main.o:
 	    -c -o $@ $(OP2_MAIN_SRC)
 $(BIN_DIR)/mgcfd_mpi: $(OP2_MPI_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $^ $(OPTIMISE) \
+	$(MPICPP) $(CPPFLAGS) $^ $(OPTIMISE) $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
 
@@ -291,7 +296,7 @@ $(OBJ_DIR)/mgcfd_mpi_openmp_main.o:
 	    -c -o $@ $(OP2_MAIN_SRC)
 $(BIN_DIR)/mgcfd_mpi_openmp: $(OP2_MPI_OMP_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) \
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
 
@@ -307,7 +312,7 @@ $(OBJ_DIR)/mgcfd_cuda_main.o:
 	    -c -o $@ $(OP2_MAIN_SRC)
 $(BIN_DIR)/mgcfd_cuda: $(OP2_CUDA_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CFLAGS) $^ $(OPTIMISE) \
+	$(MPICPP) $(CFLAGS) $^ $(OPTIMISE) $(MGCFD_LIBS) \
 	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_cuda $(HDF5_LIB) -lop2_hdf5 \
 	    -o $@
 
@@ -327,7 +332,7 @@ $(OBJ_DIR)/mgcfd_omp4_main.o:
 	    -Iopenmp4/ -c -o $@ $(OP2_MAIN_SRC)
 $(BIN_DIR)/mgcfd_openmp4: $(OP2_OMP4_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPOFFLOAD) $^ $(OPTIMISE) \
+	$(MPICPP) $(CPPFLAGS) $(OMPOFFLOAD) $^ $(OPTIMISE) $(MGCFD_LIBS) \
 	    $(OP2_LIB) -lop2_openmp4 $(CUDA_LIB) -lcudart \
 		$(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) -lop2_hdf5 \
 	    -o $@
@@ -347,7 +352,7 @@ $(OBJ_DIR)/mgcfd_openacc_main.o:
 	    -c -o $@ $(OP2_MAIN_SRC)
 $(BIN_DIR)/mgcfd_openacc: $(OP2_OPENACC_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(ACCFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ \
+	$(MPICPP) $(CPPFLAGS) $(ACCFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_LIBS) $^ \
 	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_cuda $(HDF5_LIB) -lop2_hdf5 \
 	    -o $@
 
@@ -364,7 +369,7 @@ $(OBJ_DIR)/mgcfd_mpi_cuda_main.o:
         -c -o $@ $(OP2_MAIN_SRC)
 $(BIN_DIR)/mgcfd_mpi_cuda: $(OP2_MPI_CUDA_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CFLAGS) $(OPTIMISE) $^ \
+	$(MPICPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_LIBS) $^ \
 	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
         -o $@
 

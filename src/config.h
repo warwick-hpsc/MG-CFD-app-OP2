@@ -330,7 +330,6 @@ inline bool parse_arguments(int argc, char** argv) {
             case 'h':
                 print_help();
                 return false;
-                break;
             case 'i':
                 set_config_param("input_file", strdup(optarg));
                 break;
