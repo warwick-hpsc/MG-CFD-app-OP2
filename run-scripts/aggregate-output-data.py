@@ -31,7 +31,7 @@ def clean_pd_read_csv(filepath):
     return df
 
 def get_data_colnames(df):
-    mg_cfd_data_colnames = ["flux0", "flux1", "flux2", "flux3"]
+    mg_cfd_data_colnames = ["iters", "computeTime", "syncTime"]
     op2_data_colnames = ["count", "total time", "plan time", "mpi time", "GB used", "GB total"]
     data_colnames = list(Set(mg_cfd_data_colnames+op2_data_colnames).intersection(Set(df.columns.values)))
     return data_colnames
@@ -61,7 +61,7 @@ def infer_partitioner(slurm_filepath):
     return ""
 
 def collate_csvs():
-    cats = ["ComputeTimes", "PAPI", "SyncTimes", "LoopNumIters", "op2_times"]
+    cats = ["PerfData", "PAPI", "op2_performance_data"]
 
     for cat in cats:
         print("Collating " + cat)
@@ -76,7 +76,7 @@ def collate_csvs():
 
             for run_root, run_dirnames, run_filenames in os.walk(dp):
                 nranks = -1
-                ## Need to infer partitioner for op2_times.csv:
+                ## Need to infer partitioner for op2_performance_data.csv:
                 partitioner = ""
                 for f in run_filenames:
                     if f.endswith(".batch") or f=="run.sh":
@@ -109,7 +109,7 @@ def collate_csvs():
             df_agg.to_csv(agg_fp, index=False)
 
 def aggregate():
-    for cat in ["ComputeTimes", "PAPI", "SyncTimes", "LoopNumIters", "op2_times"]:
+    for cat in ["PerfData", "PAPI", "op2_performance_data"]:
         print("Aggregating " + cat)
         df_filepath = os.path.join(prepared_output_dirpath,cat+".csv")
         if not os.path.isfile(df_filepath):
@@ -138,27 +138,6 @@ def aggregate():
             df_sd_pct = df_sd_pct.drop(columns=[dc, dc+"_sd"])
         df_sd_pct = df_sd_pct.round(4)
         df_sd_pct.to_csv(df_sd_pct_out_filepath, index=False)
-
-    ## Calculate sync time %:
-    compute_times = clean_pd_read_csv(os.path.join(prepared_output_dirpath, "ComputeTimes.mean.csv"))
-    data_colnames = get_data_colnames(compute_times)
-    if "mode" in compute_times.columns.values:
-        ## 'mode' column indicates whether compute was independent or dependent. 
-        ## Sum across these categories:
-        compute_times = compute_times.drop(columns=["mode"])
-        job_id_colnames = get_job_id_colnames(compute_times)
-        compute_times = compute_times.groupby(job_id_colnames).sum().reset_index()
-    compute_times = compute_times.rename(index=str, columns={s:s+"_compute" for s in data_colnames})
-    sync_times = df = clean_pd_read_csv(os.path.join(prepared_output_dirpath, "SyncTimes.mean.csv"))
-    sync_times = sync_times.rename(index=str, columns={s:s+"_sync" for s in data_colnames})
-    sync_pct = sync_times.merge(compute_times)
-    for dc in data_colnames:
-        sync_pct[dc] = 0.0
-        f = sync_pct[dc+"_sync"] > 0.0
-        sync_pct.loc[f, dc] = sync_pct.loc[f, dc+"_sync"] / (sync_pct.loc[f, dc+"_sync"] + sync_pct.loc[f, dc+"_compute"])
-        sync_pct = sync_pct.drop(columns=[dc+"_sync", dc+"_compute"])
-    sync_pct_out_filepath = os.path.join(prepared_output_dirpath, "SyncTimes.pct.csv")
-    sync_pct.to_csv(sync_pct_out_filepath, index=False)
 
 collate_csvs()
 aggregate()
