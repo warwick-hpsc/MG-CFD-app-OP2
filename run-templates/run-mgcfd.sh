@@ -3,6 +3,7 @@ set -u
 
 # Compilation variables:
 compiler=<COMPILER>
+debug=<DEBUG>
 papi=<PAPI>
 cpp_wrapper="<CPP_WRAPPER>"
 mpicpp_wrapper="<MPICPP_WRAPPER>"
@@ -49,11 +50,11 @@ else
   if $cuda ; then
   	bin_filename=mgcfd_cuda
   elif $openmp ; then
-  	bin_filename=mgcfd_mpi_openmp
+  	bin_filename=mgcfd_openmp
   elif $openmp4 ; then
-  	bin_filename=mgcfd_mpi_openmp4
+  	bin_filename=mgcfd_openmp4
   elif $openacc ; then
-  	bin_filename=mgcfd_mpi_openacc
+  	bin_filename=mgcfd_openacc
   else
   	bin_filename=mgcfd_seq
   fi
@@ -75,6 +76,9 @@ bin_filepath="${app_dirpath}/bin/${bin_filename}"
     if $papi ; then
       make_cmd+="PAPI=1 "
     fi
+    if $debug ; then
+      make_cmd+="DEBUG=1 "
+    fi
     make_cmd+="make -j4 $bin_filename"
     eval "$make_cmd"
     chmod a+x "$bin_filepath"
@@ -94,13 +98,21 @@ fi
 
 # Run:
 
+exec_command=""
 if [ ! -z ${RUN_CMD+x} ]; then
-  exec_command="$RUN_CMD"
+  exec_command+="$RUN_CMD"
 else
   if $mpi ; then
-    exec_command="mpirun -n $ntasks"
+    exec_command+="mpirun -n $ntasks"
+    if $debug ; then
+      # exec_command+=" xterm -e gdb --args"
+      exec_command+=" xterm -e gdb -ex run --args"
+    fi
   else
-    exec_command=""
+    exec_command+=""
+    if $debug ; then
+      exec_command+=" gdb --args"
+    fi
   fi
 fi
 exec_command+=" $bin_filepath OP_MAPS_BASE_INDEX=1 -i input.dat -o ${run_outdir}/ -g $mg_cycles -m $partitioner"

@@ -24,6 +24,8 @@
 #include "papi_funcs.h"
 #endif
 
+// #define LOG_PROGRESS
+
 // OP2:
 #include "op_seq.h"
 #include "op_hdf5.h"
@@ -198,12 +200,15 @@ int main(int argc, char** argv)
     // Setup OP2
     char* op_name = alloc<char>(100);
     {
-        // op_init(argc, argv, 7); // Report positive checks in op_plan_check
-        // op_init(argc, argv, 4);
-        // op_init(argc, argv, 3); // Report execution of parallel loops
-        // op_init(argc, argv, 2); // Info on plan construction
-        // op_init(argc, argv, 1); // Error-checking
-        op_init(argc, argv, 0);
+        #ifdef LOG_PROGRESS
+            // op_init(argc, argv, 7); // Report positive checks in op_plan_check
+            // op_init(argc, argv, 4);
+            op_init(argc, argv, 3); // Report execution of parallel loops
+            // op_init(argc, argv, 2); // Info on plan construction
+            // op_init(argc, argv, 1); // Error-checking
+        #else
+            op_init(argc, argv, 0);
+        #endif
 
         op_decl_const(1, "double", &smoothing_coefficient);
         op_decl_const(NVAR, "double", ff_variable);
@@ -392,8 +397,12 @@ int main(int argc, char** argv)
     double min_dt = std::numeric_limits<double>::max();
     while(i < cycles)
     {
-        if (level==0)
-        op_printf("Performing MG cycle %d / %d", i+1, cycles);
+        #ifdef LOG_PROGRESS
+            op_printf("Performing MG cycle %d / %d", i+1, cycles);
+        #else
+            if (level==0)
+            op_printf("Performing MG cycle %d / %d", i+1, cycles);
+        #endif
 
         op_par_loop(copy_double_kernel, "copy_double_kernel", op_nodes[level],
                     op_arg_dat(p_variables[level],     -1, OP_ID, NVAR, "double", OP_READ),
@@ -417,6 +426,10 @@ int main(int argc, char** argv)
         int rkCycle;
         for (rkCycle=0; rkCycle<RK; rkCycle++)
         {
+            #ifdef LOG_PROGRESS
+                op_printf(" RK cycle %d / %d\n", rkCycle+1, RK);
+            #endif
+
             op_par_loop(compute_flux_edge_kernel, "compute_flux_edge_kernel", op_edges[level],
                         op_arg_dat(p_variables[level], 0, p_edge_to_nodes[level], NVAR, "double", OP_READ),
                         op_arg_dat(p_variables[level], 1, p_edge_to_nodes[level], NVAR, "double", OP_READ),

@@ -43,8 +43,11 @@ PTSCOTCH_LIB += -lptscotch -lscotch -lptscotcherr
 
 
 
-OPTIMISE := -O2
-# OPTIMISE := -pg -g -O0
+ifdef DEBUG
+  OPTIMISE := -pg -g -O0
+else
+  OPTIMISE := -O2
+endif
 
 BIN_DIR = bin
 OBJ_DIR = obj
@@ -102,16 +105,16 @@ ifeq ($(COMPILER),intel)
   endif
 else
 ifeq ($(COMPILER),xl)
-  CPP		= xlc++
-  CFLAGS	= -O5 -qarch=pwr8 -qtune=pwr8 -qhot
-  CPPFLAGS 	= $(CFLAGS)
-  OMPFLAGS	= -qsmp=omp -qthreaded
-  OMPOFFLOAD    = -qsmp=omp -qoffload -Xptxas -v -g1
-  MPIFLAGS	= $(CPPFLAGS)
+  CPP		 = xlc++
+  CFLAGS	 = -qarch=pwr8 -qtune=pwr8 -qhot
+  CPPFLAGS 	 = $(CFLAGS)
+  OMPFLAGS	 = -qsmp=omp -qthreaded
+  OMPOFFLOAD = -qsmp=omp -qoffload -Xptxas -v -g1
+  MPIFLAGS	 = $(CPPFLAGS)
 else
 ifeq ($(COMPILER),pgi)
   CPP       	= pgc++
-  CFLAGS  	= -O3
+  CFLAGS  	= 
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -mp
   MPIFLAGS 	= $(CPPFLAGS)
@@ -122,7 +125,7 @@ ifeq ($(COMPILER),pgi)
 else
 ifeq ($(COMPILER),cray)
   CPP           = CC
-  CFLAGS       = -O3 -h fp3 -h ipa5
+  CFLAGS        = -h fp3 -h ipa5
   CPPFLAGS      = $(CFLAGS)
   OMPFLAGS      = -h omp
   MPICPP        = CC

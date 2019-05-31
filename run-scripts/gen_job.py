@@ -9,7 +9,7 @@ template_dirpath = os.path.join(os.path.dirname(script_dirpath), "run-templates"
 app_dirpath = os.path.dirname(script_dirpath)
 
 js_to_filename = {}
-js_to_filename[""] = ""
+js_to_filename[""] = "local.sh"
 js_to_filename["slurm"] = "slurm.sh"
 js_to_filename["moab"] = "moab.sh"
 js_to_filename["lsf"] = "lsf.sh"
@@ -25,6 +25,7 @@ js_to_submit_cmd["pbs"] = "qsub"
 defaults = {}
 # Compilation:
 defaults["compiler"] = "intel"
+defaults["debug"] = False
 defaults["papi"] = False
 defaults["cpp wrapper"] = ""
 defaults["mpicpp wrapper"] = ""
@@ -103,6 +104,7 @@ if __name__=="__main__":
     js = get_key_value(profile, "setup", "job scheduler")
 
     compiler = get_key_value(profile, "compile", "compiler")
+    do_debug = get_key_value(profile, "compile", "debug")
     use_papi = get_key_value(profile, "compile", "papi")
     cpp_wrapper = get_key_value(profile, "compile", "cpp wrapper")
     mpicpp_wrapper = get_key_value(profile, "compile", "mpicpp wrapper")
@@ -144,19 +146,18 @@ if __name__=="__main__":
         if use_cuda:
             bin_filename = "mgcfd_mpi_cuda"
         elif use_openmp:
-            bin_filename = "mgcfd_mpi_cuda"
+            bin_filename = "mgcfd_mpi_openmp"
         else:
-            bin_filename = "mgcfd_mpi_cuda"
-
+            bin_filename = "mgcfd_mpi"
     else:
         if use_cuda:
-            bin_filename = "mgcfd_mpi_cuda"
+            bin_filename = "mgcfd_cuda"
         elif use_openmp:
-            bin_filename = "mgcfd_mpi_cuda"
+            bin_filename = "mgcfd_openmp"
         elif use_openmp4:
-            bin_filename = "mgcfd_mpi_cuda"
+            bin_filename = "mgcfd_openmp4"
         elif use_openacc:
-            bin_filename = "mgcfd_mpi_cuda"
+            bin_filename = "mgcfd_openacc"
         else:
             bin_filename = "mgcfd_seq"
     bin_filepath = os.path.join(app_dirpath, "bin", "bin_filename")
@@ -215,9 +216,8 @@ if __name__=="__main__":
                         shutil.copyfile(os.path.join(template_dirpath, "run-mgcfd.sh"), job_run_filepath)
 
                         ## Instantiate job scheduling header:
-                        if js != "":
-                            js_filepath = os.path.join(job_dir, js_filename)
-                            shutil.copyfile(os.path.join(template_dirpath, js_filename), js_filepath)
+                        js_filepath = os.path.join(job_dir, js_filename)
+                        shutil.copyfile(os.path.join(template_dirpath, js_filename), js_filepath)
 
                         ## Combine into a single batch submission script:
                         if js == "":
@@ -226,7 +226,7 @@ if __name__=="__main__":
                             batch_filename = js+".batch"
                         batch_filepath = os.path.join(job_dir, batch_filename)
                         with open(batch_filepath, "w") as f_out:
-                            if js != "":
+                            if js_filepath != "":
                                 with open(js_filepath, "r") as f_in:
                                     for line in f_in.readlines():
                                         f_out.write(line)
@@ -261,6 +261,7 @@ if __name__=="__main__":
 
                         ## - Compilation:
                         py_sed(batch_filepath, "<COMPILER>", compiler)
+                        py_sed(batch_filepath, "<DEBUG>", str(do_debug).lower())
                         py_sed(batch_filepath, "<PAPI>", str(use_papi).lower())
                         py_sed(batch_filepath, "<CPP_WRAPPER>", cpp_wrapper)
                         py_sed(batch_filepath, "<MPICPP_WRAPPER>", mpicpp_wrapper)
