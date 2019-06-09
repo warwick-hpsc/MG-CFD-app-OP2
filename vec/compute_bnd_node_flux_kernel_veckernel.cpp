@@ -349,7 +349,7 @@ inline void compute_bnd_node_flux_kernel_vec( const int *g, const double *edge_w
 
     if ((*g) <= 2) {
 
-      double p_b = ((double *)variables_b)[VAR_DENSITY];
+      double p_b =  variables_b[VAR_DENSITY][idx];
 
     #ifdef IDIVIDE
     double ip_b = 1.0 / p_b;
@@ -362,10 +362,10 @@ inline void compute_bnd_node_flux_kernel_vec( const int *g, const double *edge_w
            flux_contribution_i_momentum_z_b[NDIM],
            flux_contribution_i_density_energy_b[NDIM];
 
-    momentum_b.x = ((double *)variables_b)[VAR_MOMENTUM+0];
-    momentum_b.y = ((double *)variables_b)[VAR_MOMENTUM+1];
-    momentum_b.z = ((double *)variables_b)[VAR_MOMENTUM+2];
-    pe_b = ((double *)variables_b)[VAR_DENSITY_ENERGY];
+    momentum_b.x = variables_b[VAR_MOMENTUM+0][idx];
+    momentum_b.y = variables_b[VAR_MOMENTUM+1][idx];
+    momentum_b.z = variables_b[VAR_MOMENTUM+2][idx];
+    pe_b = variables_b[VAR_DENSITY_ENERGY][idx];
 
     #ifdef IDIVIDE
     compute_velocity(ip_b, momentum_b, velocity_b);
@@ -390,16 +390,16 @@ inline void compute_bnd_node_flux_kernel_vec( const int *g, const double *edge_w
         flux_contribution_i_momentum_z_b,
         flux_contribution_i_density_energy_b);
 
-    fluxes_b[0][VAR_DENSITY]        += 0;
-    fluxes_b[0][VAR_MOMENTUM +0]    += edge_weight[0]*pressure_b;
-    fluxes_b[0][VAR_MOMENTUM +1]    += edge_weight[1]*pressure_b;
-    fluxes_b[0][VAR_MOMENTUM +2]    += edge_weight[2]*pressure_b;
-    fluxes_b[0][VAR_DENSITY_ENERGY] += 0;
+    fluxes_b[VAR_DENSITY][idx]        += 0;
+    fluxes_b[VAR_MOMENTUM +0][idx]    += edge_weight[0]*pressure_b;
+    fluxes_b[VAR_MOMENTUM +1][idx]    += edge_weight[1]*pressure_b;
+    fluxes_b[VAR_MOMENTUM +2][idx]    += edge_weight[2]*pressure_b;
+    fluxes_b[VAR_DENSITY_ENERGY][idx] += 0;
 
     } else if ((*g) == 3 || ((*g) >= 4 && (*g) <= 7) ) {
 
 
-      double p_b = ((double *)variables_b)[VAR_DENSITY];
+      double p_b = variables_b[VAR_DENSITY][idx];
 
       #ifdef IDIVIDE
       double ip_b = 1.0 / p_b;
@@ -412,10 +412,10 @@ inline void compute_bnd_node_flux_kernel_vec( const int *g, const double *edge_w
              flux_contribution_i_momentum_z_b[NDIM],
              flux_contribution_i_density_energy_b[NDIM];
 
-      momentum_b.x = ((double *)variables_b)[VAR_MOMENTUM+0];
-      momentum_b.y = ((double *)variables_b)[VAR_MOMENTUM+1];
-      momentum_b.z = ((double *)variables_b)[VAR_MOMENTUM+2];
-      pe_b = ((double *)variables_b)[VAR_DENSITY_ENERGY];
+      momentum_b.x = variables_b[VAR_MOMENTUM+0][idx];
+      momentum_b.y = variables_b[VAR_MOMENTUM+1][idx];
+      momentum_b.z = variables_b[VAR_MOMENTUM+2][idx];
+      pe_b = variables_b[VAR_DENSITY_ENERGY][idx];
 
       #ifdef IDIVIDE
       compute_velocity(ip_b, momentum_b, velocity_b);

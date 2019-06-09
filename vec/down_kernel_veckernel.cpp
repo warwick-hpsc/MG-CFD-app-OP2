@@ -214,11 +214,11 @@ inline void down_kernel_vec( double* variable, const double* residual,
     double dz = fabs(coord[2] - coord_above[2][idx]);
     double dm = sqrt(dx*dx + dy*dy + dz*dz);
 
-    variable[VAR_DENSITY]        -= dm* (residual_above[0][VAR_DENSITY]        - residual[VAR_DENSITY]);
-    variable[VAR_MOMENTUM+0]     -= dx* (residual_above[0][VAR_MOMENTUM+0]     - residual[VAR_MOMENTUM+0]);
-    variable[VAR_MOMENTUM+1]     -= dy* (residual_above[0][VAR_MOMENTUM+1]     - residual[VAR_MOMENTUM+1]);
-    variable[VAR_MOMENTUM+2]     -= dz* (residual_above[0][VAR_MOMENTUM+2]     - residual[VAR_MOMENTUM+2]);
-    variable[VAR_DENSITY_ENERGY] -= dm* (residual_above[0][VAR_DENSITY_ENERGY] - residual[VAR_DENSITY_ENERGY]);
+    variable[VAR_DENSITY]        -= dm* (residual_above[VAR_DENSITY][idx]        - residual[VAR_DENSITY]);
+    variable[VAR_MOMENTUM+0]     -= dx* (residual_above[VAR_MOMENTUM+0][idx]     - residual[VAR_MOMENTUM+0]);
+    variable[VAR_MOMENTUM+1]     -= dy* (residual_above[VAR_MOMENTUM+1][idx]     - residual[VAR_MOMENTUM+1]);
+    variable[VAR_MOMENTUM+2]     -= dz* (residual_above[VAR_MOMENTUM+2][idx]     - residual[VAR_MOMENTUM+2]);
+    variable[VAR_DENSITY_ENERGY] -= dm* (residual_above[VAR_DENSITY_ENERGY][idx] - residual[VAR_DENSITY_ENERGY]);
 }
 #endif
 

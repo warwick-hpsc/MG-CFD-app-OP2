@@ -218,20 +218,20 @@ inline void down_v2_kernel_vec( const double coord2a[*][SIMD_VEC],
     double dz_a1a2 = coord2a[2][idx] - coord1a[2][idx];
     if (dx_a1a2 == 0.0 && dy_a1a2 == 0.0 && dz_a1a2 == 0.0) {
 
-        residuals1a_prolonged[0][VAR_DENSITY]        = residuals1a[0][VAR_DENSITY];
-        residuals1a_prolonged[0][VAR_MOMENTUM+0]     = residuals1a[0][VAR_MOMENTUM+0];
-        residuals1a_prolonged[0][VAR_MOMENTUM+1]     = residuals1a[0][VAR_MOMENTUM+1];
-        residuals1a_prolonged[0][VAR_MOMENTUM+2]     = residuals1a[0][VAR_MOMENTUM+2];
-        residuals1a_prolonged[0][VAR_DENSITY_ENERGY] = residuals1a[0][VAR_DENSITY_ENERGY];
+        residuals1a_prolonged[VAR_DENSITY][idx]        = residuals1a[VAR_DENSITY][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+0][idx]     = residuals1a[VAR_MOMENTUM+0][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+1][idx]     = residuals1a[VAR_MOMENTUM+1][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+2][idx]     = residuals1a[VAR_MOMENTUM+2][idx];
+        residuals1a_prolonged[VAR_DENSITY_ENERGY][idx] = residuals1a[VAR_DENSITY_ENERGY][idx];
         residuals1a_prolonged_wsum[0][idx]= 1.0;
     } else {
 
         const double idist_a1a2 = 1.0/sqrt(dx_a1a2*dx_a1a2 + dy_a1a2*dy_a1a2 + dz_a1a2*dz_a1a2);
-        residuals1a_prolonged[0][VAR_DENSITY]        += idist_a1a2*residuals1a[0][VAR_DENSITY];
-        residuals1a_prolonged[0][VAR_MOMENTUM+0]     += idist_a1a2*residuals1a[0][VAR_MOMENTUM+0];
-        residuals1a_prolonged[0][VAR_MOMENTUM+1]     += idist_a1a2*residuals1a[0][VAR_MOMENTUM+1];
-        residuals1a_prolonged[0][VAR_MOMENTUM+2]     += idist_a1a2*residuals1a[0][VAR_MOMENTUM+2];
-        residuals1a_prolonged[0][VAR_DENSITY_ENERGY] += idist_a1a2*residuals1a[0][VAR_DENSITY_ENERGY];
+        residuals1a_prolonged[VAR_DENSITY][idx]        += idist_a1a2*residuals1a[VAR_DENSITY][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+0][idx]     += idist_a1a2*residuals1a[VAR_MOMENTUM+0][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+1][idx]     += idist_a1a2*residuals1a[VAR_MOMENTUM+1][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+2][idx]     += idist_a1a2*residuals1a[VAR_MOMENTUM+2][idx];
+        residuals1a_prolonged[VAR_DENSITY_ENERGY][idx] += idist_a1a2*residuals1a[VAR_DENSITY_ENERGY][idx];
         residuals1a_prolonged_wsum[0][idx]+= idist_a1a2;
 
         double dx_b1a2 = coord1b[0][idx] - coord2a[0][idx];
@@ -239,11 +239,11 @@ inline void down_v2_kernel_vec( const double coord2a[*][SIMD_VEC],
         double dz_b1a2 = coord1b[2][idx] - coord2a[2][idx];
 
         const double idist_b1a2 = 1.0/sqrt(dx_b1a2*dx_b1a2 + dy_b1a2*dy_b1a2 + dz_b1a2*dz_b1a2);
-        residuals1a_prolonged[0][VAR_DENSITY]        += idist_b1a2*residuals1b[0][VAR_DENSITY];
-        residuals1a_prolonged[0][VAR_MOMENTUM+0]     += idist_b1a2*residuals1b[0][VAR_MOMENTUM+0];
-        residuals1a_prolonged[0][VAR_MOMENTUM+1]     += idist_b1a2*residuals1b[0][VAR_MOMENTUM+1];
-        residuals1a_prolonged[0][VAR_MOMENTUM+2]     += idist_b1a2*residuals1b[0][VAR_MOMENTUM+2];
-        residuals1a_prolonged[0][VAR_DENSITY_ENERGY] += idist_b1a2*residuals1b[0][VAR_DENSITY_ENERGY];
+        residuals1a_prolonged[VAR_DENSITY][idx]        += idist_b1a2*residuals1b[VAR_DENSITY][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+0][idx]     += idist_b1a2*residuals1b[VAR_MOMENTUM+0][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+1][idx]     += idist_b1a2*residuals1b[VAR_MOMENTUM+1][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+2][idx]     += idist_b1a2*residuals1b[VAR_MOMENTUM+2][idx];
+        residuals1a_prolonged[VAR_DENSITY_ENERGY][idx] += idist_b1a2*residuals1b[VAR_DENSITY_ENERGY][idx];
         residuals1a_prolonged_wsum[0][idx]+= idist_b1a2;
     }
 
@@ -252,20 +252,20 @@ inline void down_v2_kernel_vec( const double coord2a[*][SIMD_VEC],
     double dz_b1b2 = coord2b[2][idx] - coord1b[2][idx];
     if (dx_b1b2 == 0.0 && dy_b1b2 == 0.0 && dz_b1b2 == 0.0) {
 
-        residuals1b_prolonged[0][VAR_DENSITY]        = residuals1b[0][VAR_DENSITY];
-        residuals1b_prolonged[0][VAR_MOMENTUM+0]      = residuals1b[0][VAR_MOMENTUM+0];
-        residuals1b_prolonged[0][VAR_MOMENTUM+1]      = residuals1b[0][VAR_MOMENTUM+1];
-        residuals1b_prolonged[0][VAR_MOMENTUM+2]      = residuals1b[0][VAR_MOMENTUM+2];
-        residuals1b_prolonged[0][VAR_DENSITY_ENERGY] = residuals1b[0][VAR_DENSITY_ENERGY];
+        residuals1b_prolonged[VAR_DENSITY][idx]       = residuals1b[VAR_DENSITY][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+0][idx]    = residuals1b[VAR_MOMENTUM+0][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+1][idx]    = residuals1b[VAR_MOMENTUM+1][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+2][idx]    = residuals1b[VAR_MOMENTUM+2][idx];
+        residuals1b_prolonged[VAR_DENSITY_ENERGY][idx]= residuals1b[VAR_DENSITY_ENERGY][idx];
         residuals1b_prolonged_wsum[0][idx]= 1.0;
     } else {
 
         const double idist_b1b2 = 1.0/sqrt(dx_b1b2*dx_b1b2 + dy_b1b2*dy_b1b2 + dz_b1b2*dz_b1b2);
-        residuals1b_prolonged[0][VAR_DENSITY]        += idist_b1b2*residuals1b[0][VAR_DENSITY];
-        residuals1b_prolonged[0][VAR_MOMENTUM+0]     += idist_b1b2*residuals1b[0][VAR_MOMENTUM+0];
-        residuals1b_prolonged[0][VAR_MOMENTUM+1]     += idist_b1b2*residuals1b[0][VAR_MOMENTUM+1];
-        residuals1b_prolonged[0][VAR_MOMENTUM+2]     += idist_b1b2*residuals1b[0][VAR_MOMENTUM+2];
-        residuals1b_prolonged[0][VAR_DENSITY_ENERGY] += idist_b1b2*residuals1b[0][VAR_DENSITY_ENERGY];
+        residuals1b_prolonged[VAR_DENSITY][idx]        += idist_b1b2*residuals1b[VAR_DENSITY][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+0][idx]     += idist_b1b2*residuals1b[VAR_MOMENTUM+0][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+1][idx]     += idist_b1b2*residuals1b[VAR_MOMENTUM+1][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+2][idx]     += idist_b1b2*residuals1b[VAR_MOMENTUM+2][idx];
+        residuals1b_prolonged[VAR_DENSITY_ENERGY][idx] += idist_b1b2*residuals1b[VAR_DENSITY_ENERGY][idx];
         residuals1b_prolonged_wsum[0][idx]+= idist_b1b2;
 
         double dx_a1b2 = coord1a[0][idx] - coord2b[0][idx];
@@ -273,11 +273,11 @@ inline void down_v2_kernel_vec( const double coord2a[*][SIMD_VEC],
         double dz_a1b2 = coord1a[2][idx] - coord2b[2][idx];
 
         const double idist_a1b2 = 1.0/sqrt(dx_a1b2*dx_a1b2 + dy_a1b2*dy_a1b2 + dz_a1b2*dz_a1b2);
-        residuals1b_prolonged[0][VAR_DENSITY]        += idist_a1b2*residuals1b[0][VAR_DENSITY];
-        residuals1b_prolonged[0][VAR_MOMENTUM+0]     += idist_a1b2*residuals1b[0][VAR_MOMENTUM+0];
-        residuals1b_prolonged[0][VAR_MOMENTUM+1]     += idist_a1b2*residuals1b[0][VAR_MOMENTUM+1];
-        residuals1b_prolonged[0][VAR_MOMENTUM+2]     += idist_a1b2*residuals1b[0][VAR_MOMENTUM+2];
-        residuals1b_prolonged[0][VAR_DENSITY_ENERGY] += idist_a1b2*residuals1b[0][VAR_DENSITY_ENERGY];
+        residuals1b_prolonged[VAR_DENSITY][idx]        += idist_a1b2*residuals1b[VAR_DENSITY][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+0][idx]     += idist_a1b2*residuals1b[VAR_MOMENTUM+0][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+1][idx]     += idist_a1b2*residuals1b[VAR_MOMENTUM+1][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+2][idx]     += idist_a1b2*residuals1b[VAR_MOMENTUM+2][idx];
+        residuals1b_prolonged[VAR_DENSITY_ENERGY][idx] += idist_a1b2*residuals1b[VAR_DENSITY_ENERGY][idx];
         residuals1b_prolonged_wsum[0][idx]+= idist_a1b2;
     }
 }
