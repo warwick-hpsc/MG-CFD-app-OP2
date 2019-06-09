@@ -153,6 +153,6 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
   op_timers_core(&cpu_t2, &wall_t2);
   OP_kernels[7].name      = name;
   OP_kernels[7].count    += 1;
-  OP_kernels[7].times[0] += wall_t2 - wall_t1;
+  OP_kernels[7].time     += wall_t2 - wall_t1;
   OP_kernels[7].transfer += (float)set->size * arg0.size;
 }

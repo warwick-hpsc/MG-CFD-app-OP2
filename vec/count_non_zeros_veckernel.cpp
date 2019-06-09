@@ -182,6 +182,6 @@ void op_par_loop_count_non_zeros(char const *name, op_set set,
   op_timers_core(&cpu_t2, &wall_t2);
   OP_kernels[23].name      = name;
   OP_kernels[23].count    += 1;
-  OP_kernels[23].times[0] += wall_t2 - wall_t1;
+  OP_kernels[23].time     += wall_t2 - wall_t1;
   OP_kernels[23].transfer += (float)set->size * arg0.size;
 }

@@ -77,7 +77,7 @@ void op_par_loop_copy_double_kernel(char const *name, op_set set,
   op_timers_core(&cpu_t2, &wall_t2);
   OP_kernels[5].name      = name;
   OP_kernels[5].count    += 1;
-  OP_kernels[5].times[0] += wall_t2 - wall_t1;
+  OP_kernels[5].time     += wall_t2 - wall_t1;
   OP_kernels[5].transfer += (float)set->size * arg0.size;
   OP_kernels[5].transfer += (float)set->size * arg1.size * 2.0f;
 }

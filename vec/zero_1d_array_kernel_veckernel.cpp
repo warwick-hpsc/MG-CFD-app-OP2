@@ -142,6 +142,6 @@ void op_par_loop_zero_1d_array_kernel(char const *name, op_set set,
   op_timers_core(&cpu_t2, &wall_t2);
   OP_kernels[2].name      = name;
   OP_kernels[2].count    += 1;
-  OP_kernels[2].times[0] += wall_t2 - wall_t1;
+  OP_kernels[2].time     += wall_t2 - wall_t1;
   OP_kernels[2].transfer += (float)set->size * arg0.size * 2.0f;
 }

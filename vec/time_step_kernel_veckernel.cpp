@@ -169,7 +169,7 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
   op_timers_core(&cpu_t2, &wall_t2);
   OP_kernels[11].name      = name;
   OP_kernels[11].count    += 1;
-  OP_kernels[11].times[0] += wall_t2 - wall_t1;
+  OP_kernels[11].time     += wall_t2 - wall_t1;
   OP_kernels[11].transfer += (float)set->size * arg1.size;
   OP_kernels[11].transfer += (float)set->size * arg2.size * 2.0f;
   OP_kernels[11].transfer += (float)set->size * arg3.size;

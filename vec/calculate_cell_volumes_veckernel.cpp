@@ -91,7 +91,7 @@ inline void dampen_ewt(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-void calculate_cell_volumes_vec( const double coords1[*][SIMD_VEC], const double coords2[*][SIMD_VEC], double* ewt, double vol1[*][SIMD_VEC], double vol2[*][SIMD_VEC], int idx ) {
+inline void calculate_cell_volumes_vec( const double coords1[*][SIMD_VEC], const double coords2[*][SIMD_VEC], double* ewt, double vol1[*][SIMD_VEC], double vol2[*][SIMD_VEC], int idx ) {
     double d[NDIM];
     double dist = 0.0;
     for (int i=0; i<NDIM; i++) {
@@ -242,7 +242,7 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
   op_timers_core(&cpu_t2, &wall_t2);
   OP_kernels[3].name      = name;
   OP_kernels[3].count    += 1;
-  OP_kernels[3].times[0] += wall_t2 - wall_t1;
+  OP_kernels[3].time     += wall_t2 - wall_t1;
   OP_kernels[3].transfer += (float)set->size * arg0.size;
   OP_kernels[3].transfer += (float)set->size * arg3.size * 2.0f;
   OP_kernels[3].transfer += (float)set->size * arg2.size * 2.0f;

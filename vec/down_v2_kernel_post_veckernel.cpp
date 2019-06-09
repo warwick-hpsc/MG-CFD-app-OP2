@@ -275,7 +275,7 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
   op_timers_core(&cpu_t2, &wall_t2);
   OP_kernels[20].name      = name;
   OP_kernels[20].count    += 1;
-  OP_kernels[20].times[0] += wall_t2 - wall_t1;
+  OP_kernels[20].time     += wall_t2 - wall_t1;
   OP_kernels[20].transfer += (float)set->size * arg0.size;
   OP_kernels[20].transfer += (float)set->size * arg1.size;
   OP_kernels[20].transfer += (float)set->size * arg2.size;

@@ -80,27 +80,12 @@ void op_par_loop_compute_step_factor_kernel(char const *, op_set,
   op_arg,
   op_arg );
 
-// void op_par_loop_compute_flux_edge_kernel(char const *, op_set,
-//   op_arg,
-//   op_arg,
-//   op_arg,
-//   op_arg,
-//   op_arg );
 void op_par_loop_compute_flux_edge_kernel(char const *, op_set,
   op_arg,
   op_arg,
   op_arg,
   op_arg,
-  op_arg
-  #ifdef VERIFY_OP2_TIMING
-    , double* // compute time
-    , double* // sync time
-  #endif
-  , long* // iterations
-  #ifdef PAPI
-    , long_long*, int, int
-  #endif
-);
+  op_arg );
 
 void op_par_loop_compute_bnd_node_flux_kernel(char const *, op_set,
   op_arg,
@@ -591,16 +576,7 @@ int main(int argc, char** argv)
                         op_arg_dat(p_variables[level],1,p_edge_to_nodes[level],5,"double",OP_READ),
                         op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                         op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
-                        #ifdef VERIFY_OP2_TIMING
-                          , &flux_kernel_compute_times[level]
-                          , &flux_kernel_sync_times[level]
-                        #endif
-                        , &flux_kernel_iter_counts[level]
-                        #ifdef PAPI
-                        , &flux_kernel_event_counts[level*num_events], event_set, num_events
-                        #endif
-                        );
+                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));
 
             op_par_loop_compute_bnd_node_flux_kernel("compute_bnd_node_flux_kernel",op_bnd_nodes[level],
                         op_arg_dat(p_bnd_node_groups[level],-1,OP_ID,1,"int",OP_READ),

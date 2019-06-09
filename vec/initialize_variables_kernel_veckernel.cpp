@@ -142,6 +142,6 @@ void op_par_loop_initialize_variables_kernel(char const *name, op_set set,
   op_timers_core(&cpu_t2, &wall_t2);
   OP_kernels[0].name      = name;
   OP_kernels[0].count    += 1;
-  OP_kernels[0].times[0] += wall_t2 - wall_t1;
+  OP_kernels[0].time     += wall_t2 - wall_t1;
   OP_kernels[0].transfer += (float)set->size * arg0.size * 2.0f;
 }

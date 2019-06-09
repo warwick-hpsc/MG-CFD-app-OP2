@@ -163,7 +163,7 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
   op_timers_core(&cpu_t2, &wall_t2);
   OP_kernels[8].name      = name;
   OP_kernels[8].count    += 1;
-  OP_kernels[8].times[0] += wall_t2 - wall_t1;
+  OP_kernels[8].time     += wall_t2 - wall_t1;
   OP_kernels[8].transfer += (float)set->size * arg0.size;
   OP_kernels[8].transfer += (float)set->size * arg1.size;
   OP_kernels[8].transfer += (float)set->size * arg3.size * 2.0f;
