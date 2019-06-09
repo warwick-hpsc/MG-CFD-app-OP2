@@ -539,10 +539,10 @@ int main(int argc, char** argv)
     while(i < cycles)
     {
         #ifdef LOG_PROGRESS
-            op_printf("Performing MG cycle %d / %d", i+1, cycles);
+            op_printf("Performing MG cycle %d / %d\n", i+1, cycles);
         #else
             if (level==0)
-            op_printf("Performing MG cycle %d / %d", i+1, cycles);
+            op_printf("Performing MG cycle %d / %d\n", i+1, cycles);
         #endif
 
         op_par_loop_copy_double_kernel("copy_double_kernel",op_nodes[level],
