@@ -411,7 +411,6 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
       }
       ALIGNED_double double dat2[5][SIMD_VEC];
       ALIGNED_double double dat3[5][SIMD_VEC];
-      // Setup gather
       #pragma simd
       for ( int i=0; i<SIMD_VEC; i++ ){
         int idx2_5 = 5 * arg2.map_data[(n+i) * arg2.map->dim + 0];
@@ -429,7 +428,6 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
         dat3[4][i] = 0.0;
 
       }
-      // Kernel call
       #pragma simd
       for ( int i=0; i<SIMD_VEC; i++ ){
         compute_bnd_node_flux_kernel_vec(

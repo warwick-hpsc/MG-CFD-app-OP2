@@ -257,7 +257,6 @@ void op_par_loop_up_kernel(char const *name, op_set set,
       }
       ALIGNED_double double dat1[5][SIMD_VEC];
       ALIGNED_int int dat2[1][SIMD_VEC];
-      // Setup gather
       #pragma simd
       for ( int i=0; i<SIMD_VEC; i++ ){
 
@@ -270,7 +269,6 @@ void op_par_loop_up_kernel(char const *name, op_set set,
         dat2[0][i] = 0.0;
 
       }
-      // Kernel call
       #pragma simd
       for ( int i=0; i<SIMD_VEC; i++ ){
         up_kernel_vec(

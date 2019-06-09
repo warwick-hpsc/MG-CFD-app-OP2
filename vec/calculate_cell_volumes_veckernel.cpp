@@ -173,7 +173,6 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
       ALIGNED_double double dat1[3][SIMD_VEC];
       ALIGNED_double double dat3[1][SIMD_VEC];
       ALIGNED_double double dat4[1][SIMD_VEC];
-      // Setup gather
       #pragma simd
       for ( int i=0; i<SIMD_VEC; i++ ){
         int idx0_3 = 3 * arg0.map_data[(n+i) * arg0.map->dim + 0];
@@ -187,16 +186,11 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
         dat1[1][i] = (ptr1)[idx1_3 + 1];
         dat1[2][i] = (ptr1)[idx1_3 + 2];
 
-        dat2[i] = 0.0;
-        dat2[i] = 0.0;
-        dat2[i] = 0.0;
-
         dat3[0][i] = 0.0;
 
         dat4[0][i] = 0.0;
 
       }
-      // Kernel call
       #pragma simd
       for ( int i=0; i<SIMD_VEC; i++ ){
         calculate_cell_volumes_vec(
