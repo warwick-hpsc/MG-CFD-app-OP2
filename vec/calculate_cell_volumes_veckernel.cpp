@@ -119,6 +119,7 @@ inline void calculate_cell_volumes_vec( const double coords1[*][SIMD_VEC], const
     for (int i=0; i<NDIM; i++) {
         ewt[i] /= dist;
     }
+
 }
 #endif
 
