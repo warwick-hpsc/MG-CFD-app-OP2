@@ -101,9 +101,9 @@ fi
 # Run:
 
 cd "${data_dirpath}"
-input_dat_filename="input.dat"
+input_dat_filename="input-mgcfd.dat"
 if [ ! -f "$input_dat_filename" ]; then
-  input_dat_filename="input-mgcfd.dat"
+  input_dat_filename="input.dat"
   if [ ! -f "$input_dat_filename" ]; then
     echo "ERROR: Cannot find input .dat file"
     exit 1
