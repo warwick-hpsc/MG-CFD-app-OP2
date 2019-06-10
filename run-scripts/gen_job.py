@@ -233,9 +233,9 @@ if __name__=="__main__":
 
                             ## Combine into a single batch submission script:
                             if js == "":
-                                batch_filename = "run.sh"
+                                batch_filename = "run.N={0}.sh".format(str(nt).zfill(4))
                             else:
-                                batch_filename = js+".batch"
+                                batch_filename = js+".N={0}.batch".format(str(nt).zfill(4))
                             batch_filepath = os.path.join(job_dir, batch_filename)
                             with open(batch_filepath, "w") as f_out:
                                 if js_filepath != "":
