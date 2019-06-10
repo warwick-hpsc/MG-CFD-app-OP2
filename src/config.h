@@ -49,6 +49,16 @@ namespace Partitioners
     };
 }
 
+namespace PartitionerMethods
+{
+    enum PartitionerMethods {
+        Geom, 
+        KWay, 
+        GeomKWay
+    };
+}
+
+
 typedef struct {
     char* config_filepath;
     char* input_file;
@@ -65,6 +75,9 @@ typedef struct {
 
     Partitioners::Partitioners partitioner;
     char* partitioner_string;
+
+    PartitionerMethods::PartitionerMethods partitioner_method;
+    char* partitioner_method_string;
 
     bool validate_result;
 
@@ -94,10 +107,11 @@ static struct option long_opts[] =
     { "output-file-prefix", required_argument, NULL, 'o' },
     { "num-cycles",         required_argument, NULL, 'g' },
     { "partitioner",        required_argument, NULL, 'm' },
+    { "partitioner-method", required_argument, NULL, 'r' },
     { "validate",           no_argument,       NULL, 'v' },
     { "output-variables",   no_argument,       (int*)&conf.output_variables,    1 },
 };
-#define GETOPTS "hc:li:d:p:o:g:m:v"
+#define GETOPTS "hc:li:d:p:o:g:m:r:v"
 
 inline void set_config_defaults() {
     conf.config_filepath = (char*)malloc(sizeof(char));
@@ -121,6 +135,9 @@ inline void set_config_defaults() {
     conf.num_cycles = 25;
 
     conf.partitioner = Partitioners::Parmetis;
+    conf.partitioner_method = PartitionerMethods::Geom;
+    conf.partitioner_string = (char*)malloc(sizeof(char));
+    conf.partitioner_string[0] = '\0';
 
     conf.output_volumes = false;
     conf.output_step_factors = false;
@@ -177,7 +194,21 @@ inline void set_config_param(const char* const key, const char* const value) {
         else {
             printf("WARNING: Unknown value '%s' encountered for key '%s' during parsing of config file.\n", value, key);
         }
-        conf.partitioner_string = strdup(value);
+    }
+
+    else if (strcmp(key, "partitioner-method")==0) {
+        if (strcmp(value, "geom")==0) {
+            conf.partitioner_method = PartitionerMethods::Geom;
+        }
+        else if (strcmp(value, "kway")==0) {
+            conf.partitioner_method = PartitionerMethods::KWay;
+        }
+        else if (strcmp(value, "geomkway")==0) {
+            conf.partitioner_method = PartitionerMethods::GeomKWay;
+        }
+        else {
+            printf("WARNING: Unknown value '%s' encountered for key '%s' during parsing of config file.\n", value, key);
+        }
     }
 
     else if (strcmp(key,"output_volumes")==0) {
@@ -315,6 +346,7 @@ inline void print_help(void)
     fprintf(stderr, "\n");
     fprintf(stderr, "  -g, --num-cycles=INT             Number of multigrid V-cycles\n");
     fprintf(stderr, "  -m, --partitioner=STRING         Partitioner to use: parmetis (default), ptscotch, or inertial\n");
+    fprintf(stderr, "  -r, --partitioner-method=STRING  Partitioner method to use: geom (default), kway, or geomkway\n");
     fprintf(stderr, "  -v, --validate-result            Check final state against pre-calculated solution\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "DEBUGGING ARGUMENTS\n");
@@ -352,6 +384,9 @@ inline bool parse_arguments(int argc, char** argv) {
             case 'm':
                 set_config_param("partitioner", strdup(optarg));
                 break;
+            case 'r':
+                set_config_param("partitioner-method", strdup(optarg));
+                break;
             case 'l':
                 conf.legacy_mode = true;
                 break;
@@ -369,6 +404,56 @@ inline bool parse_arguments(int argc, char** argv) {
         conf.output_volumes | conf.output_step_factors | conf.output_edge_mx | 
         conf.output_edge_my | conf.output_edge_mz | conf.output_edge_p  | 
         conf.output_edge_pe | conf.output_fluxes  | conf.output_variables;
+
+    // Generate partitioner string:
+    int new_str_len = 0;
+    if (conf.partitioner == Partitioners::Inertial || 
+        conf.partitioner == Partitioners::Parmetis || 
+        conf.partitioner == Partitioners::Ptscotch) {
+        new_str_len += 8;
+    }
+    new_str_len += 1;
+    if (conf.partitioner_method == PartitionerMethods::Geom || 
+        conf.partitioner_method == PartitionerMethods::KWay) {
+        new_str_len += 4;
+    }
+    else if (conf.partitioner_method == PartitionerMethods::GeomKWay) {
+        new_str_len += 8;
+    }
+    free(conf.partitioner_string);
+    conf.partitioner_string = (char*)malloc(sizeof(char)*new_str_len+1);
+    int i = 0;
+    switch (conf.partitioner) {
+        case Partitioners::Inertial:
+            strcpy(conf.partitioner_string, "inertial");
+            i += 8;
+            break;
+        case Partitioners::Parmetis:
+            strcpy(conf.partitioner_string, "parmetis");
+            i += 8;
+            break;
+        case Partitioners::Ptscotch:
+            strcpy(conf.partitioner_string, "ptscotch");
+            i += 8;
+            break;
+    }
+    strcpy(conf.partitioner_string+i, "-");
+    i += 1;
+    switch (conf.partitioner_method) {
+        case PartitionerMethods::Geom:
+            strcpy(conf.partitioner_string+i, "geom");
+            i += 4;
+            break;
+        case PartitionerMethods::KWay:
+            strcpy(conf.partitioner_string+i, "kway");
+            i += 4;
+            break;
+        case PartitionerMethods::GeomKWay:
+            strcpy(conf.partitioner_string+i, "geomkway");
+            i += 8;
+            break;
+    }
+    strcpy(conf.partitioner_string+i, "\0");
 
     return true;
 }
