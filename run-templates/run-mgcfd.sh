@@ -100,6 +100,16 @@ fi
 
 # Run:
 
+cd "${data_dirpath}"
+input_dat_filename="input.dat"
+if [ ! -f "$input_dat_filename" ]; then
+  input_dat_filename="input-mgcfd.dat"
+  if [ ! -f "$input_dat_filename" ]; then
+    echo "ERROR: Cannot find input .dat file"
+    exit 1
+  fi
+fi
+
 exec_command=""
 if [ ! -z ${RUN_CMD+x} ]; then
   exec_command+="$RUN_CMD"
@@ -124,7 +134,6 @@ fi
 if $validate_solution ; then
   exec_command+=" -v"
 fi
-cd "${data_dirpath}"
 echo "$exec_command"
 eval "$exec_command"
 rm "${run_outdir}"/job-is-running.txt
