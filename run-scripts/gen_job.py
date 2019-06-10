@@ -4,9 +4,9 @@ import itertools
 import math
 from tempfile import NamedTemporaryFile
 
-script_dirpath = os.path.dirname(os.path.realpath(__file__))
-template_dirpath = os.path.join(os.path.dirname(script_dirpath), "run-templates")
+script_dirpath = os.path.dirname(__file__)
 app_dirpath = os.path.dirname(script_dirpath)
+template_dirpath = os.path.join(app_dirpath, "run-templates")
 
 js_to_filename = {}
 js_to_filename[""] = "local.sh"
