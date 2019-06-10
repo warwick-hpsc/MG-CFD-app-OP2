@@ -4,7 +4,7 @@ if [ ! -f <RUN_DIRPATH>/Times.csv ]; then
   cd <RUN_DIRPATH>
 
   if [ "$submit_cmd" = "" ]; then
-    ./<BATCH_FILENAME> | tee submit.log
+    ./<BATCH_FILENAME> 2>&1 | tee run.log
   else
     if [ ! -f "job-in-queue.txt" ] && [ ! -f "job-is-running.txt" ]; then
       if [[ `hostname` == *"login"* ]]; then
