@@ -6,43 +6,21 @@ import fnmatch
 import argparse
 
 script_dirpath = os.path.dirname(os.path.realpath(__file__))
-mg_cfd_dirpath = os.path.join(script_dirpath, "../")
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--job-runs-dirpath', required=True, help="Dirpath to MG-CFD runs output data")
-parser.add_argument('--output-dirpath', required=True, help="Dirpath to generated processed data")
+parser.add_argument('--output-dirpath', required=False, help="Dirpath to generated processed data")
 args = parser.parse_args()
 mg_cfd_output_dirpath = args.job_runs_dirpath
 
-prepared_output_dirpath = args.output_dirpath
+if not args.output_dirpath is None:
+    prepared_output_dirpath = args.output_dirpath
+else:
+    prepared_output_dirpath = mg_cfd_output_dirpath +".aggregated"
 
-def grep(text, filepath):
-    found = False
-    f = open(filepath, "r")
-    for line in f:
-        if text in line:
-            found = True
-            break
-    return found
-    
-
-def clean_pd_read_csv(filepath):
-    df = pd.read_csv(filepath, keep_default_na=False)
-    return df
-
-def get_data_colnames(df):
-    mg_cfd_data_colnames = ["iters", "computeTime", "syncTime", "count"]
-    op2_data_colnames = ["count", "total time", "plan time", "mpi time", "GB used", "GB total"]
-    data_colnames = list(Set(mg_cfd_data_colnames+op2_data_colnames).intersection(Set(df.columns.values)))
-    return data_colnames
-
-def get_job_id_colnames(df):
-    job_id_colnames = list(Set(df.columns.values).difference(Set(get_data_colnames(df))))
-
-    if len(job_id_colnames) == 0:
-        print("ERROR: get_job_id_colnames() failed to find any.")
-        sys.exit(-1)
-    return job_id_colnames
+import imp
+imp.load_source('data_utils', os.path.join(script_dirpath, "data-utils.py"))
+from data_utils import *
 
 def infer_nranks(slurm_filepath):
     with open(slurm_filepath, "r") as f:
@@ -125,7 +103,7 @@ def aggregate():
         df_mean.to_csv(df_mean_out_filepath, index=False)
 
         df_agg = df.groupby(job_id_colnames)
-        df_sd = df_agg.std()
+        df_sd = df_agg.std(ddof=0)
         df_sd = df_sd.reset_index()
         df_sd = df_sd.rename(index=str, columns={s:s+"_sd" for s in data_colnames})
         
