@@ -316,20 +316,6 @@ if __name__=="__main__":
                             ## Make batch script executable:
                             os.chmod(batch_filepath, 0755)
 
-                            ## Add an entry to submit_all.sh:
-                            # submit_all_file.write("\n\n")
-                            # submit_all_file.write('if [ ! -f "{0}"/Times.csv ]; then\n'.format(job_dir))
-                            # submit_all_file.write("  basedir=`pwd`\n")
-                            # submit_all_file.write("  cd {0}\n".format(job_dir))
-                            # if js == "":
-                            #     ## Without a job scheduler to log STDOUT, need to do this manually:
-                            #     submit_all_file.write('  echo "Executing job {0}/{1}"\n'.format(n, num_jobs))
-                            #     submit_all_file.write('  eval "$submit_cmd" ./{0} > submit.log\n'.format(batch_filename))
-                            # else:
-                            #     submit_all_file.write('  eval "$submit_cmd" ./{0}\n'.format(batch_filename))
-                            # submit_all_file.write('  cd "$basedir"\n')
-                            # submit_all_file.write('fi')
-
                             # Copy template 'submit.sh' to a temp file:
                             submit_tmp = NamedTemporaryFile(prefix='myprefix')
                             if not os.path.isfile(submit_tmp.name):
