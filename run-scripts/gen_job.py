@@ -161,7 +161,7 @@ if __name__=="__main__":
             bin_filename = "mgcfd_openacc"
         else:
             bin_filename = "mgcfd_seq"
-    bin_filepath = os.path.join(app_dirpath, "bin", "bin_filename")
+    bin_filepath = os.path.join(app_dirpath, "bin", bin_filename)
 
     num_repeats = get_key_value(profile, "run", "num repeats")
     mg_cycles = get_key_value(profile, "run", "mg cycles")
