@@ -99,11 +99,11 @@ extern config conf;
 static struct option long_opts[] = 
 {
     { "help",               no_argument,       NULL, 'h' },
-    { "config_filepath",    required_argument, NULL, 'c'}, 
-    { "legacy_mode",        no_argument,       NULL, 'l' },
+    { "config-filepath",    required_argument, NULL, 'c'}, 
+    { "legacy-mode",        no_argument,       NULL, 'l' },
     { "input-file",         required_argument, NULL, 'i' },
     { "input-directory",    required_argument, NULL, 'd' },
-    { "papi_config_file",   required_argument, NULL, 'p' },
+    { "papi-config-file",   required_argument, NULL, 'p' },
     { "output-file-prefix", required_argument, NULL, 'o' },
     { "num-cycles",         required_argument, NULL, 'g' },
     { "partitioner",        required_argument, NULL, 'm' },
@@ -152,7 +152,7 @@ inline void set_config_defaults() {
 }
 
 inline void set_config_param(const char* const key, const char* const value) {
-    if (strcmp(key,"config_filepath")==0) {
+    if (strcmp(key,"config-filepath")==0) {
         conf.config_filepath = strdup(value);
     }
     else if (strcmp(key,"input_file")==0) {
@@ -166,7 +166,7 @@ inline void set_config_param(const char* const key, const char* const value) {
     }
 
     #ifdef PAPI
-    else if (strcmp(key,"papi_config_file")==0) {
+    else if (strcmp(key,"papi-config-file")==0) {
         conf.papi_config_file = strdup(value);
     }
     #endif
@@ -323,7 +323,7 @@ inline void read_config() {
 
     #ifdef PAPI
     if (conf.papi_config_file != std::string("") && conf.papi_config_file[0] != '/') {
-        set_config_param("papi_config_file", (std::string(conf.input_file_directory) + "/" + conf.papi_config_file).c_str());
+        set_config_param("papi-config-file", (std::string(conf.input_file_directory) + "/" + conf.papi_config_file).c_str());
     }
     #endif
 }
@@ -366,14 +366,14 @@ inline bool parse_arguments(int argc, char** argv) {
                 set_config_param("input_file", strdup(optarg));
                 break;
             case 'c':
-                set_config_param("config_filepath", strdup(optarg));
+                set_config_param("config-filepath", strdup(optarg));
                 read_config();
                 break;
             case 'd':
                 set_config_param("input_file_directory", strdup(optarg));
                 break;
             case 'p':
-                set_config_param("papi_config_file", strdup(optarg));
+                set_config_param("papi-config-file", strdup(optarg));
                 break;
             case 'o':
                 set_config_param("output_file_prefix", strdup(optarg));
