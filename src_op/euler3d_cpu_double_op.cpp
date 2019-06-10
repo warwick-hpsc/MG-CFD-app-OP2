@@ -578,6 +578,7 @@ int main(int argc, char** argv)
           op_exit();
           return 1;
         }
+        op_printf("min_dt = %.5e\n", min_dt);
         op_par_loop_compute_step_factor_kernel("compute_step_factor_kernel",op_nodes[level],
                     op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_READ),
                     op_arg_dat(p_volumes[level],-1,OP_ID,1,"double",OP_READ),
