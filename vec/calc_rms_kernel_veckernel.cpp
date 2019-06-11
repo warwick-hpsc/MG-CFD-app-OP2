@@ -6,21 +6,21 @@
 //************************************************//
 // Copyright 2016-2019 University of Warwick
 
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the "Software"),
-// to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-// sell copies of the Software, and to permit persons to whom the Software is furnished
+// Permission is hereby granted, free of charge, to any person obtaining 
+// a copy of this software and associated documentation files (the "Software"), 
+// to deal in the Software without restriction, including without limitation 
+// the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or 
+// sell copies of the Software, and to permit persons to whom the Software is furnished 
 // to do so, subject to the following conditions:
 
-// The above copyright notice and this permission notice shall be included
+// The above copyright notice and this permission notice shall be included 
 // in all copies or substantial portions of the Software.
 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-// PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
+// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A 
+// PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR 
+// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, 
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR 
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //************************************************//
 
@@ -30,8 +30,8 @@
 #include "utils.h"
 
 inline void residual_kernel(
-    const double* old_variable,
-    const double* variable,
+    const double* old_variable, 
+    const double* variable, 
     double* residual)
 {
     for (int v=0; v<NVAR; v++) {
@@ -40,7 +40,7 @@ inline void residual_kernel(
 }
 
 inline void calc_rms_kernel(
-    const double* residual,
+    const double* residual, 
     double* rms)
 {
     for (int i=0; i<NVAR; i++) {
@@ -50,7 +50,7 @@ inline void calc_rms_kernel(
 
 inline void identify_differences(
     const double* test_value,
-    const double* master_value,
+    const double* master_value, 
     double* difference)
 {
     // If floating-point operations have been reordered, then a difference
@@ -62,7 +62,7 @@ inline void identify_differences(
     //           arithmetic operation performed
 
     // N represents how many of the least-significant base-10 digits
-    // of the floating-point mantissa are allowed to differ due to
+    // of the floating-point mantissa are allowed to differ due to 
     // FP arithmetic reordering. Its value is guessed as 8, as to set it
     // accurately would require a trace of all floating-point operation
     // outputs during the runs.
@@ -94,9 +94,9 @@ inline void identify_differences(
 }
 
 inline void count_non_zeros(
-    const double* value,
+    const double* value, 
     int* count)
-{
+{   
     for (int v=0; v<NVAR; v++) {
         if ((*value) > 0.0) {
             (*count)++;
@@ -105,9 +105,9 @@ inline void count_non_zeros(
 }
 
 inline void count_bad_vals(
-    const double* value,
+    const double* value, 
     int* count)
-{
+{   
     #ifdef OPENACC
         // OpenACC compilation is complaining about use of isnan()
     #else
@@ -149,7 +149,7 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
 
   if (exec_size >0) {
 
-    #ifdef VECTORIZE2
+    #ifdef VECTORIZE
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
       double dat1[SIMD_VEC] = {0.0};

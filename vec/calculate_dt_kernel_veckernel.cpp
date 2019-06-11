@@ -16,8 +16,8 @@
 #include "inlined_funcs.h"
 
 inline void calculate_dt_kernel(
-    const double* variable,
-    const double* volume,
+    const double* variable, 
+    const double* volume, 
     double* dt)
 {
     double density = variable[VAR_DENSITY];
@@ -37,7 +37,7 @@ inline void calculate_dt_kernel(
 }
 
 inline void get_min_dt_kernel(
-    const double* dt,
+    const double* dt, 
     double* min_dt)
 {
     if ((*dt) < (*min_dt)) {
@@ -46,9 +46,9 @@ inline void get_min_dt_kernel(
 }
 
 inline void compute_step_factor_kernel(
-    const double* variable,
-    const double* volume,
-    const double* min_dt,
+    const double* variable, 
+    const double* volume, 
+    const double* min_dt, 
     double* step_factor)
 {
     double density = variable[VAR_DENSITY];
@@ -126,7 +126,7 @@ void op_par_loop_calculate_dt_kernel(char const *name, op_set set,
 
   if (exec_size >0) {
 
-    #ifdef VECTORIZE2
+    #ifdef VECTORIZE
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
       #pragma simd

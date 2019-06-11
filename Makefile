@@ -46,7 +46,9 @@ PTSCOTCH_LIB += -lptscotch -lscotch -lptscotcherr
 ifdef DEBUG
   OPTIMISE := -pg -g -O0
 else
-  OPTIMISE := -O2
+  # OPTIMISE := -O2
+  # OPTIMISE := -O1
+  OPTIMISE := -O0
 endif
 
 BIN_DIR = bin
@@ -91,7 +93,8 @@ ifeq ($(OP2_COMPILER),gnu)
 else
 ifeq ($(OP2_COMPILER),intel)
   CPP = icpc
-  CFLAGS = -DMPICH_IGNORE_CXX_SEEK -restrict -fno-alias -inline-forceinline -parallel -DVECTORIZE #-parallel #-DCOMM_PERF #-DDEBUG #-qopt-report=5
+  # CFLAGS = -DMPICH_IGNORE_CXX_SEEK -restrict -fno-alias -inline-forceinline -parallel -DVECTORIZE #-parallel #-DCOMM_PERF #-DDEBUG #-qopt-report=5
+  CFLAGS = -DVECTORIZE
   CFLAGS += -fmax-errors=1
   CPPFLAGS = $(CFLAGS)
   OMPFLAGS = -qopenmp
