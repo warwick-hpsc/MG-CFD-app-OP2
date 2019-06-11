@@ -4,7 +4,7 @@ import itertools
 import math
 from tempfile import NamedTemporaryFile
 
-script_dirpath = os.path.dirname(__file__)
+script_dirpath = os.path.join(os.getcwd(), os.path.dirname(__file__))
 app_dirpath = os.path.dirname(script_dirpath)
 template_dirpath = os.path.join(app_dirpath, "run-templates")
 
