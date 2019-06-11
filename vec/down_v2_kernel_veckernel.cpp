@@ -362,7 +362,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
       ALIGNED_double double dat7[5][SIMD_VEC];
       ALIGNED_double double dat8[1][SIMD_VEC];
       ALIGNED_double double dat9[1][SIMD_VEC];
-      #pragma simd
+      #pragma omp simd
       for ( int i=0; i<SIMD_VEC; i++ ){
         int idx0_3 = 3 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx1_3 = 3 * arg0.map_data[(n+i) * arg0.map->dim + 1];
@@ -416,7 +416,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
         dat9[0][i] = 0.0;
 
       }
-      #pragma simd
+      #pragma omp simd
       for ( int i=0; i<SIMD_VEC; i++ ){
         down_v2_kernel_vec(
           dat0,

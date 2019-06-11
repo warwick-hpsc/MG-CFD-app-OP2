@@ -135,7 +135,7 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
     }
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      #pragma simd
+      #pragma omp simd
       for ( int i=0; i<SIMD_VEC; i++ ){
         compute_step_factor_kernel(
           &(ptr0)[5 * (n+i)],

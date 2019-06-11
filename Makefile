@@ -302,12 +302,12 @@ $(OBJ_DIR)/mgcfd_mpi_vec_kernels.o:
         -c -o $@ $(SRC_DIR)/../vec/_veckernels.cpp
 $(OBJ_DIR)/mgcfd_mpi_vec_main.o:
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
         -DMPI_ON \
         -c -o $@ $(OP2_MAIN_SRC)
 $(BIN_DIR)/mgcfd_mpi_vec: $(OP2_MPI_VEC_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $^ $(OPTIMISE) $(MGCFD_LIBS) \
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MGCFD_LIBS) \
         -lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
         -o $@
 

@@ -558,7 +558,7 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
       ALIGNED_double double dat1[5][SIMD_VEC];
       ALIGNED_double double dat3[5][SIMD_VEC];
       ALIGNED_double double dat4[5][SIMD_VEC];
-      #pragma simd
+      #pragma omp simd
       for ( int i=0; i<SIMD_VEC; i++ ){
         int idx0_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx1_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 1];
@@ -588,7 +588,7 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
         dat4[4][i] = 0.0;
 
       }
-      #pragma simd
+      #pragma omp simd
       for ( int i=0; i<SIMD_VEC; i++ ){
         compute_flux_edge_kernel_vec(
           dat0,
