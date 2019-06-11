@@ -129,9 +129,12 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
   if (exec_size >0) {
 
     #ifdef VECTORIZE
+    double dat2[SIMD_VEC];
+    for ( int i=0; i<SIMD_VEC; i++ ){
+      dat2[i] = *((double*)arg2.data);
+    }
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      double dat2[SIMD_VEC] = {*arg2.data};
       #pragma simd
       for ( int i=0; i<SIMD_VEC; i++ ){
         compute_step_factor_kernel(

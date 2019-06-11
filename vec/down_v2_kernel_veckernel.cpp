@@ -206,7 +206,7 @@ inline void down_v2_kernel_post(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline inline void down_v2_kernel_vec( const double coord2a[*][SIMD_VEC], const double coord2b[*][SIMD_VEC], const double coord1a[*][SIMD_VEC], const double coord1b[*][SIMD_VEC], const double residuals1a[*][SIMD_VEC], const double residuals1b[*][SIMD_VEC], double residuals1a_prolonged[*][SIMD_VEC], double residuals1b_prolonged[*][SIMD_VEC], double residuals1a_prolonged_wsum[*][SIMD_VEC], double residuals1b_prolonged_wsum[*][SIMD_VEC], int idx ) {
+inline void down_v2_kernel_vec( const double coord2a[*][SIMD_VEC], const double coord2b[*][SIMD_VEC], const double coord1a[*][SIMD_VEC], const double coord1b[*][SIMD_VEC], const double residuals1a[*][SIMD_VEC], const double residuals1b[*][SIMD_VEC], double residuals1a_prolonged[*][SIMD_VEC], double residuals1b_prolonged[*][SIMD_VEC], double residuals1a_prolonged_wsum[*][SIMD_VEC], double residuals1b_prolonged_wsum[*][SIMD_VEC], int idx ) {
 
 
 

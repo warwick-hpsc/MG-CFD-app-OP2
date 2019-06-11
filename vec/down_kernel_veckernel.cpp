@@ -206,7 +206,7 @@ inline void down_v2_kernel_post(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline inline void down_kernel_vec( double* variable, const double* residual, const double* coord, const double residual_above[*][SIMD_VEC], const double coord_above[*][SIMD_VEC], int idx ) {
+inline void down_kernel_vec( double* variable, const double* residual, const double* coord, const double residual_above[*][SIMD_VEC], const double coord_above[*][SIMD_VEC], int idx ) {
     double dx = fabs(coord[0] - coord_above[0][idx]);
     double dy = fabs(coord[1] - coord_above[1][idx]);
     double dz = fabs(coord[2] - coord_above[2][idx]);

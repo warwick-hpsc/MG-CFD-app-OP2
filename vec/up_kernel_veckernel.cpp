@@ -206,7 +206,7 @@ inline void down_v2_kernel_post(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline inline void up_kernel_vec( const double* variable, double variable_above[*][SIMD_VEC], int up_scratch[*][SIMD_VEC], int idx ) {
+inline void up_kernel_vec( const double* variable, double variable_above[*][SIMD_VEC], int up_scratch[*][SIMD_VEC], int idx ) {
     variable_above[VAR_DENSITY][idx]        += variable[VAR_DENSITY];
     variable_above[VAR_MOMENTUM+0][idx]     += variable[VAR_MOMENTUM+0];
     variable_above[VAR_MOMENTUM+1][idx]     += variable[VAR_MOMENTUM+1];

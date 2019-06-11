@@ -206,7 +206,7 @@ inline void down_v2_kernel_post(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline inline void up_pre_kernel_vec( double variable[*][SIMD_VEC], int up_scratch[*][SIMD_VEC], int idx ) {
+inline void up_pre_kernel_vec( double variable[*][SIMD_VEC], int up_scratch[*][SIMD_VEC], int idx ) {
     variable[VAR_DENSITY][idx] = 0.0;
     variable[VAR_MOMENTUM+0][idx] = 0.0;
     variable[VAR_MOMENTUM+1][idx] = 0.0;

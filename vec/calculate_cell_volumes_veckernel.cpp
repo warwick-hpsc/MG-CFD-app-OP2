@@ -91,7 +91,7 @@ inline void dampen_ewt(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline inline void calculate_cell_volumes_vec( const double coords1[*][SIMD_VEC], const double coords2[*][SIMD_VEC], double* ewt, double vol1[*][SIMD_VEC], double vol2[*][SIMD_VEC], int idx ) {
+inline void calculate_cell_volumes_vec( const double coords1[*][SIMD_VEC], const double coords2[*][SIMD_VEC], double* ewt, double vol1[*][SIMD_VEC], double vol2[*][SIMD_VEC], int idx ) {
     double d[NDIM];
     double dist = 0.0;
     for (int i=0; i<NDIM; i++) {

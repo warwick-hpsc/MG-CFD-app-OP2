@@ -344,7 +344,7 @@ inline void compute_flux_edge_kernel(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline inline void compute_bnd_node_flux_kernel_vec( const int *g, const double *edge_weight, const double variables_b[*][SIMD_VEC], double fluxes_b[*][SIMD_VEC], int idx ) {
+inline void compute_bnd_node_flux_kernel_vec( const int *g, const double *edge_weight, const double variables_b[*][SIMD_VEC], double fluxes_b[*][SIMD_VEC], int idx ) {
 
 
 
