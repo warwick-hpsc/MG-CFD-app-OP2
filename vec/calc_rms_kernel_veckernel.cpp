@@ -150,9 +150,12 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
   if (exec_size >0) {
 
     #ifdef VECTORIZE
+    double dat1[SIMD_VEC];
+    for ( int i=0; i<SIMD_VEC; i++ ){
+      dat1[i] = 0.0;
+    }
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      double dat1[SIMD_VEC] = {0.0};
       #pragma simd
       for ( int i=0; i<SIMD_VEC; i++ ){
         calc_rms_kernel(
