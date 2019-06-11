@@ -139,7 +139,7 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
     }
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      #pragma omp simd
+      #pragma simd simdlen(SIMD_VEC)
       for ( int i=0; i<SIMD_VEC; i++ ){
         time_step_kernel(
           &dat0[i],

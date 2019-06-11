@@ -174,7 +174,7 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
       ALIGNED_double double dat1[3][SIMD_VEC];
       ALIGNED_double double dat3[1][SIMD_VEC];
       ALIGNED_double double dat4[1][SIMD_VEC];
-      #pragma omp simd
+      #pragma simd simdlen(SIMD_VEC)
       for ( int i=0; i<SIMD_VEC; i++ ){
         int idx0_3 = 3 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx1_3 = 3 * arg0.map_data[(n+i) * arg0.map->dim + 1];
@@ -192,7 +192,7 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
         dat4[0][i] = 0.0;
 
       }
-      #pragma omp simd
+      #pragma simd simdlen(SIMD_VEC)
       for ( int i=0; i<SIMD_VEC; i++ ){
         calculate_cell_volumes_vec(
           dat0,

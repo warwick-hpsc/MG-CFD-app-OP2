@@ -156,7 +156,7 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
     }
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      #pragma omp simd
+      #pragma simd simdlen(SIMD_VEC)
       for ( int i=0; i<SIMD_VEC; i++ ){
         count_bad_vals(
           &(ptr0)[5 * (n+i)],
