@@ -122,6 +122,7 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
 
     #ifdef VECTORIZE
     double dat1[SIMD_VEC];
+    #pragma simd
     for ( int i=0; i<SIMD_VEC; i++ ){
       dat1[i] = INFINITY;
     }
