@@ -204,7 +204,7 @@ inline void down_v2_kernel_post(
 }
 
 #endif
-#ifdef VECTORIZE
+#ifdef VECTORIZE2
 //user function -- modified for vectorisation
 inline void down_v2_kernel_vec( const double coord2a[*][SIMD_VEC],
   const double coord2b[*][SIMD_VEC], const double coord1a[*][SIMD_VEC],
@@ -252,11 +252,11 @@ inline void down_v2_kernel_vec( const double coord2a[*][SIMD_VEC],
     double dz_b1b2 = coord2b[2][idx] - coord1b[2][idx];
     if (dx_b1b2 == 0.0 && dy_b1b2 == 0.0 && dz_b1b2 == 0.0) {
 
-        residuals1b_prolonged[VAR_DENSITY][idx]       = residuals1b[VAR_DENSITY][idx];
-        residuals1b_prolonged[VAR_MOMENTUM+0][idx]    = residuals1b[VAR_MOMENTUM+0][idx];
-        residuals1b_prolonged[VAR_MOMENTUM+1][idx]    = residuals1b[VAR_MOMENTUM+1][idx];
-        residuals1b_prolonged[VAR_MOMENTUM+2][idx]    = residuals1b[VAR_MOMENTUM+2][idx];
-        residuals1b_prolonged[VAR_DENSITY_ENERGY][idx]= residuals1b[VAR_DENSITY_ENERGY][idx];
+        residuals1b_prolonged[VAR_DENSITY][idx]        = residuals1b[VAR_DENSITY][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+0][idx]      = residuals1b[VAR_MOMENTUM+0][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+1][idx]      = residuals1b[VAR_MOMENTUM+1][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+2][idx]      = residuals1b[VAR_MOMENTUM+2][idx];
+        residuals1b_prolonged[VAR_DENSITY_ENERGY][idx] = residuals1b[VAR_DENSITY_ENERGY][idx];
         residuals1b_prolonged_wsum[0][idx]= 1.0;
     } else {
 
@@ -344,7 +344,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
 
   if (exec_size >0) {
 
-    #ifdef VECTORIZE
+    #ifdef VECTORIZE2
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
       if (n+SIMD_VEC >= set->core_size) {

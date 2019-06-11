@@ -204,11 +204,10 @@ inline void down_v2_kernel_post(
 }
 
 #endif
-#ifdef VECTORIZE
+#ifdef VECTORIZE2
 //user function -- modified for vectorisation
-inline void down_kernel_vec( double* variable, const double* residual,
-    const double* coord, const double residual_above[*][SIMD_VEC],
-    const double coord_above[*][SIMD_VEC], int idx ) {
+inline void down_kernel_vec( double* variable, const double* residual, const double* coord,
+  const double residual_above[*][SIMD_VEC], const double coord_above[*][SIMD_VEC], int idx ) {
     double dx = fabs(coord[0] - coord_above[0][idx]);
     double dy = fabs(coord[1] - coord_above[1][idx]);
     double dz = fabs(coord[2] - coord_above[2][idx]);
@@ -263,7 +262,7 @@ void op_par_loop_down_kernel(char const *name, op_set set,
 
   if (exec_size >0) {
 
-    #ifdef VECTORIZE
+    #ifdef VECTORIZE2
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
       if (n+SIMD_VEC >= set->core_size) {

@@ -342,7 +342,7 @@ inline void compute_flux_edge_kernel(
 }
 
 #endif
-#ifdef VECTORIZE
+#ifdef VECTORIZE2
 //user function -- modified for vectorisation
 inline void compute_bnd_node_flux_kernel_vec( const int *g, const double *edge_weight,
   const double variables_b[*][SIMD_VEC], double fluxes_b[*][SIMD_VEC], int idx ) {
@@ -510,7 +510,7 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
   if (exec_size >0) {
 
-    #ifdef VECTORIZE
+    #ifdef VECTORIZE2
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
       if (n+SIMD_VEC >= set->core_size) {

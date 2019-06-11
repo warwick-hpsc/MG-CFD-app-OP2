@@ -204,10 +204,10 @@ inline void down_v2_kernel_post(
 }
 
 #endif
-#ifdef VECTORIZE
+#ifdef VECTORIZE2
 //user function -- modified for vectorisation
 inline void up_kernel_vec( const double* variable, double variable_above[*][SIMD_VEC],
-    int up_scratch[*][SIMD_VEC], int idx ) {
+  int up_scratch[*][SIMD_VEC], int idx ) {
     variable_above[VAR_DENSITY][idx]        += variable[VAR_DENSITY];
     variable_above[VAR_MOMENTUM+0][idx]     += variable[VAR_MOMENTUM+0];
     variable_above[VAR_MOMENTUM+1][idx]     += variable[VAR_MOMENTUM+1];
@@ -250,7 +250,7 @@ void op_par_loop_up_kernel(char const *name, op_set set,
 
   if (exec_size >0) {
 
-    #ifdef VECTORIZE
+    #ifdef VECTORIZE2
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
       if (n+SIMD_VEC >= set->core_size) {

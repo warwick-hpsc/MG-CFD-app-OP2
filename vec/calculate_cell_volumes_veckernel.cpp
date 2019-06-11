@@ -43,10 +43,10 @@ inline void zero_1d_array_kernel(
 }
 
 inline void calculate_cell_volumes(
-    const double* coords1, 
-    const double* coords2, 
+    const double* coords1,
+    const double* coords2,
     double* ewt,
-    double* vol1, 
+    double* vol1,
     double* vol2)
 {
     double d[NDIM];
@@ -72,8 +72,8 @@ inline void calculate_cell_volumes(
         ewt[i] = (d[i] / dist) * area;
     }
 
-    // |ewt| currently is face area. Divide through by distance 
-    // to produce 'surface vector' with magnitude (area/dm), 
+    // |ewt| currently is face area. Divide through by distance
+    // to produce 'surface vector' with magnitude (area/dm),
     // for use in flux accumulation:
     for (int i=0; i<NDIM; i++) {
         ewt[i] /= dist;
@@ -89,9 +89,11 @@ inline void dampen_ewt(
 }
 
 #endif
-#ifdef VECTORIZE
+#ifdef VECTORIZE2
 //user function -- modified for vectorisation
-inline void calculate_cell_volumes_vec( const double coords1[*][SIMD_VEC], const double coords2[*][SIMD_VEC], double* ewt, double vol1[*][SIMD_VEC], double vol2[*][SIMD_VEC], int idx ) {
+inline void calculate_cell_volumes_vec( const double coords1[*][SIMD_VEC],
+  const double coords2[*][SIMD_VEC], double* ewt, double vol1[*][SIMD_VEC],
+  double vol2[*][SIMD_VEC], int idx ) {
     double d[NDIM];
     double dist = 0.0;
     for (int i=0; i<NDIM; i++) {
@@ -163,7 +165,7 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
 
   if (exec_size >0) {
 
-    #ifdef VECTORIZE
+    #ifdef VECTORIZE2
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
       if (n+SIMD_VEC >= set->core_size) {
