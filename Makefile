@@ -1,8 +1,8 @@
 #
 # set paths for header files and libraries
 #
-# Some compilers/linkers are happy searching LD_LIBRARY_PATH var. 
-# For others (cough PGI), need to explicitly state each library 
+# Some compilers/linkers are happy searching LD_LIBRARY_PATH var.
+# For others (cough PGI), need to explicitly state each library
 # directory.
 #
 
@@ -46,7 +46,7 @@ PTSCOTCH_LIB += -lptscotch -lscotch -lptscotcherr
 ifdef DEBUG
   OPTIMISE := -pg -g -O0
 else
-  OPTIMISE := -O2
+  OPTIMISE := -O3
 endif
 
 BIN_DIR = bin
@@ -82,19 +82,22 @@ else
   MPICC  := mpicc
 endif
 
-ifeq ($(COMPILER),gnu)
+ifeq ($(OP2_COMPILER),gnu)
   CPP := g++
   CFLAGS	= -fPIC -DUNIX -Wall -Wextra
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -fopenmp
   MPIFLAGS 	= $(CPPFLAGS)
 else
-ifeq ($(COMPILER),intel)
+ifeq ($(OP2_COMPILER),intel)
   CPP = icpc
-  CFLAGS = -DMPICH_IGNORE_CXX_SEEK -restrict -fno-alias -inline-forceinline -parallel -DVECTORIZE #-parallel #-DCOMM_PERF #-DDEBUG #-qopt-report=5
+  CFLAGS = -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -DVECTORIZE -qopt-report=5
+  CFLAGS += -restrict
+  # CFLAGS += -parallel ## This flag intoduces a significant slowdown into 'vec' app
+  # CFLAGS += -fno-alias ## This flag causes 'vec' app to fail validation, do not enable
   CFLAGS += -fmax-errors=1
   CPPFLAGS = $(CFLAGS)
-  OMPFLAGS = -qopenmp 
+  OMPFLAGS = -qopenmp
   OMPOFFLOAD = -qopenmp
   # NVCCFLAGS += -ccbin=$(MPICPP)
   MPIFLAGS	= $(CPPFLAGS)
@@ -104,7 +107,7 @@ ifeq ($(COMPILER),intel)
     OPTIMISE += -xHost
   endif
 else
-ifeq ($(COMPILER),xl)
+ifeq ($(OP2_COMPILER),xl)
   CPP		 = xlc++
   CFLAGS	 = -qarch=pwr8 -qtune=pwr8 -qhot
   CPPFLAGS 	 = $(CFLAGS)
@@ -112,9 +115,9 @@ ifeq ($(COMPILER),xl)
   OMPOFFLOAD = -qsmp=omp -qoffload -Xptxas -v -g1
   MPIFLAGS	 = $(CPPFLAGS)
 else
-ifeq ($(COMPILER),pgi)
+ifeq ($(OP2_COMPILER),pgi)
   CPP       	= pgc++
-  CFLAGS  	= 
+  CFLAGS  	=
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -mp
   MPIFLAGS 	= $(CPPFLAGS)
@@ -123,7 +126,7 @@ ifeq ($(COMPILER),pgi)
   # ACCFLAGS      = -acc -DOPENACC -Minfo=acc
   ACCFLAGS      = -v -acc -DOPENACC -Minfo=acc
 else
-ifeq ($(COMPILER),cray)
+ifeq ($(OP2_COMPILER),cray)
   CPP           = CC
   CFLAGS        = -h fp3 -h ipa5
   CPPFLAGS      = $(CFLAGS)
@@ -178,8 +181,8 @@ ifdef PAPI
 endif
 
 
-## Enable VERIFY_OP2_TIMING to perform timing measurements external to 
-## those performed by OP2 internally. Intended to verify whether OP2 timers 
+## Enable VERIFY_OP2_TIMING to perform timing measurements external to
+## those performed by OP2 internally. Intended to verify whether OP2 timers
 ## are correct, particularly for MPI sync time.
 # MGCFD_INCS += -DVERIFY_OP2_TIMING
 
@@ -187,17 +190,25 @@ endif
 OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
 
 
-# all: mgcfd_seq mgcfd_openmp mgcfd_openacc mgcfd_openmp4 mgcfd_cuda \
-# 	 mgcfd_mpi mgcfd_mpi_openmp mgcfd_mpi_cuda
-
-all: mgcfd_seq mgcfd_openmp mgcfd_mpi mgcfd_mpi_openmp mgcfd_cuda
-
+all: \
+	 mgcfd_openmp \
+	 mgcfd_mpi \
+	 mgcfd_mpi_vec \
+	 mgcfd_mpi_openmp \
+	 mgcfd_cuda \
+	 mgcfd_mpi_cuda \
+	 # mgcfd_openacc \
+	 # mgcfd_openmp4 \
+	 mgcfd_seq
 
 OP2_SEQ_OBJECTS := $(OBJ_DIR)/mgcfd_seq_main.o \
                    $(OBJ_DIR)/mgcfd_seq_kernels.o
 
 OP2_MPI_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_main.o \
                    $(OBJ_DIR)/mgcfd_mpi_kernels.o
+
+OP2_MPI_VEC_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_vec_main.o \
+                       $(OBJ_DIR)/mgcfd_mpi_vec_kernels.o
 
 OP2_OMP_OBJECTS := $(OBJ_DIR)/mgcfd_openmp_main.o \
                    $(OBJ_DIR)/mgcfd_openmp_kernels.o
@@ -219,10 +230,12 @@ OP2_OPENACC_OBJECTS := $(OBJ_DIR)/mgcfd_openacc_main.o \
                        $(OBJ_DIR)/mgcfd_openacc_kernels.o
 
 
+
 ## User-friendly wrappers around actual targets:
 mgcfd_seq: $(BIN_DIR)/mgcfd_seq
 mgcfd_openmp: $(BIN_DIR)/mgcfd_openmp
 mgcfd_mpi: $(BIN_DIR)/mgcfd_mpi
+mgcfd_mpi_vec: $(BIN_DIR)/mgcfd_mpi_vec
 mgcfd_mpi_openmp: $(BIN_DIR)/mgcfd_mpi_openmp
 mgcfd_cuda: $(BIN_DIR)/mgcfd_cuda
 mgcfd_mpi_cuda: $(BIN_DIR)/mgcfd_mpi_cuda
@@ -282,6 +295,24 @@ $(BIN_DIR)/mgcfd_mpi: $(OP2_MPI_OBJECTS)
 	$(MPICPP) $(CPPFLAGS) $^ $(OPTIMISE) $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
+
+
+## MPI_VEC
+$(OBJ_DIR)/mgcfd_mpi_vec_kernels.o:
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+        -DMPI_ON \
+        -c -o $@ $(SRC_DIR)/../vec/_veckernels.cpp
+$(OBJ_DIR)/mgcfd_mpi_vec_main.o:
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+        -DMPI_ON \
+        -c -o $@ $(OP2_MAIN_SRC)
+$(BIN_DIR)/mgcfd_mpi_vec: $(OP2_MPI_VEC_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $^ $(OPTIMISE) $(MGCFD_LIBS) \
+        -lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+        -o $@
 
 
 ## MPI + OPENMP

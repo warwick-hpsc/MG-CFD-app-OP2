@@ -110,6 +110,8 @@ static struct option long_opts[] =
     { "partitioner-method", required_argument, NULL, 'r' },
     { "validate",           no_argument,       NULL, 'v' },
     { "output-variables",   no_argument,       (int*)&conf.output_variables,    1 },
+    { "output-fluxes",      no_argument,       (int*)&conf.output_fluxes,       1 },
+    { "output-step-factors",no_argument,       (int*)&conf.output_step_factors, 1 },
 };
 #define GETOPTS "hc:li:d:p:o:g:m:r:v"
 
@@ -139,13 +141,7 @@ inline void set_config_defaults() {
     conf.partitioner_string = (char*)malloc(sizeof(char));
     conf.partitioner_string[0] = '\0';
 
-    conf.output_volumes = false;
     conf.output_step_factors = false;
-    conf.output_edge_mx = false;
-    conf.output_edge_my = false;
-    conf.output_edge_mz = false;
-    conf.output_edge_p  = false;
-    conf.output_edge_pe = false;
     conf.output_fluxes  = false;
     conf.output_variables = false;
     conf.output_anything = false;
@@ -211,48 +207,9 @@ inline void set_config_param(const char* const key, const char* const value) {
         }
     }
 
-    else if (strcmp(key,"output_volumes")==0) {
-        if (strcmp(value, "Y")==0) {
-            conf.output_volumes = true;
-        }
-    }
     else if (strcmp(key,"output_step_factors")==0) {
         if (strcmp(value, "Y")==0) {
             conf.output_step_factors = true;
-        }
-    }
-    else if (strcmp(key,"output_edge_fluxes")==0) {
-        if (strcmp(value, "Y")==0) {
-            conf.output_edge_mx = true;
-            conf.output_edge_my = true;
-            conf.output_edge_mz = true;
-            conf.output_edge_p  = true;
-            conf.output_edge_pe = true;
-        }
-    }
-    else if (strcmp(key,"output_edge_mx")==0) {
-        if (strcmp(value, "Y")==0) {
-            conf.output_edge_mx = true;
-        }
-    }
-    else if (strcmp(key,"output_edge_my")==0) {
-        if (strcmp(value, "Y")==0) {
-            conf.output_edge_my = true;
-        }
-    }
-    else if (strcmp(key,"output_edge_mz")==0) {
-        if (strcmp(value, "Y")==0) {
-            conf.output_edge_mz = true;
-        }
-    }
-    else if (strcmp(key,"output_edge_p")==0) {
-        if (strcmp(value, "Y")==0) {
-            conf.output_edge_p = true;
-        }
-    }
-    else if (strcmp(key,"output_edge_pe")==0) {
-        if (strcmp(value, "Y")==0) {
-            conf.output_edge_pe = true;
         }
     }
     else if (strcmp(key,"output_fluxes")==0) {
