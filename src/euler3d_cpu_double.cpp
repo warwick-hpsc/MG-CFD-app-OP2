@@ -69,12 +69,22 @@ int main(int argc, char** argv)
     // timer
     double cpu_t1, cpu_t2, wall_t1, wall_t2;
 
+    #ifdef LOG_PROGRESS
+        // op_init(argc, argv, 7); // Report positive checks in op_plan_check
+        // op_init(argc, argv, 4);
+        op_init(argc, argv, 3); // Report execution of parallel loops
+        // op_init(argc, argv, 2); // Info on plan construction
+        // op_init(argc, argv, 1); // Error-checking
+    #else
+        op_init(argc, argv, 0);
+    #endif
+
     set_config_defaults();
     if (!parse_arguments(argc, argv)) {
         return 1;
     }
     if (strcmp(conf.input_file, "") == 0) {
-        printf("ERROR: input_file not set\n");
+        op_printf("ERROR: input_file not set\n");
         return 1;
     }
 
@@ -200,16 +210,6 @@ int main(int argc, char** argv)
     // Setup OP2
     char* op_name = alloc<char>(100);
     {
-        #ifdef LOG_PROGRESS
-            // op_init(argc, argv, 7); // Report positive checks in op_plan_check
-            // op_init(argc, argv, 4);
-            op_init(argc, argv, 3); // Report execution of parallel loops
-            // op_init(argc, argv, 2); // Info on plan construction
-            // op_init(argc, argv, 1); // Error-checking
-        #else
-            op_init(argc, argv, 0);
-        #endif
-
         op_decl_const(1, "double", &smoothing_coefficient);
         op_decl_const(NVAR, "double", ff_variable);
         op_decl_const(NDIM, "double", ff_flux_contribution_momentum_x);

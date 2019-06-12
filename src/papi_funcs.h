@@ -114,9 +114,9 @@ inline void load_papi_events(int num_events, int* event_set, int** events)
     std::string line;
     std::ifstream file_if(conf.papi_config_file);
     if(!file_if.is_open()) {
-        // printf("ERROR: Failed to open PAPI config: '%s'\n", conf.papi_config_file);
+        // op_printf("ERROR: Failed to open PAPI config: '%s'\n", conf.papi_config_file);
         // exit(EXIT_FAILURE);
-        printf("WARNING: Failed to open PAPI config: '%s'\n", conf.papi_config_file);
+        op_printf("WARNING: Failed to open PAPI config: '%s'\n", conf.papi_config_file);
         *event_set = PAPI_NULL;
         return;
     }
@@ -143,10 +143,10 @@ inline void load_papi_events(int num_events, int* event_set, int** events)
             int code = -1;
             ret = PAPI_event_name_to_code(event_name, &code);
             if (ret != PAPI_OK) {
-                printf("Could not convert string '%s' to PAPI event, error = %s\n", event_name, PAPI_strerror(ret));
+                op_printf("Could not convert string '%s' to PAPI event, error = %s\n", event_name, PAPI_strerror(ret));
             } else {
                 if (PAPI_query_event(code) != PAPI_OK) {
-                    printf("PAPI event %s not present\n", event_name);
+                    op_printf("PAPI event %s not present\n", event_name);
                 } else {
                     ret = PAPI_add_event((*event_set), code);
                     if (ret != PAPI_OK) {
@@ -164,7 +164,7 @@ inline void load_papi_events(int num_events, int* event_set, int** events)
         }
     }
     if (file_if.bad()) {
-        printf("ERROR: Failed to read papi conf file: %s\n", conf.papi_config_file);
+        op_printf("ERROR: Failed to read papi conf file: %s\n", conf.papi_config_file);
         exit(EXIT_FAILURE);
     }
     // printf("Finished parsing PAPI file\n");

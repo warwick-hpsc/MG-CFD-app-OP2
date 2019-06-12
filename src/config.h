@@ -54,7 +54,8 @@ namespace PartitionerMethods
     enum PartitionerMethods {
         Geom, 
         KWay, 
-        GeomKWay
+        GeomKWay,
+        NotSet
     };
 }
 
@@ -137,7 +138,7 @@ inline void set_config_defaults() {
     conf.num_cycles = 25;
 
     conf.partitioner = Partitioners::Parmetis;
-    conf.partitioner_method = PartitionerMethods::Geom;
+    conf.partitioner_method = PartitionerMethods::NotSet;
     conf.partitioner_string = (char*)malloc(sizeof(char));
     conf.partitioner_string[0] = '\0';
 
@@ -188,7 +189,7 @@ inline void set_config_param(const char* const key, const char* const value) {
             conf.partitioner = Partitioners::Ptscotch;
         }
         else {
-            printf("WARNING: Unknown value '%s' encountered for key '%s' during parsing of config file.\n", value, key);
+            op_printf("WARNING: Unknown value '%s' encountered for key '%s' during parsing of config file.\n", value, key);
         }
     }
 
@@ -203,7 +204,7 @@ inline void set_config_param(const char* const key, const char* const value) {
             conf.partitioner_method = PartitionerMethods::GeomKWay;
         }
         else {
-            printf("WARNING: Unknown value '%s' encountered for key '%s' during parsing of config file.\n", value, key);
+            op_printf("WARNING: Unknown value '%s' encountered for key '%s' during parsing of config file.\n", value, key);
         }
     }
 
@@ -223,7 +224,7 @@ inline void set_config_param(const char* const key, const char* const value) {
         }
     }
     else {
-        printf("WARNING: Unknown key '%s' encountered during parsing of config file.\n", key);
+        op_printf("WARNING: Unknown key '%s' encountered during parsing of config file.\n", key);
     }
 }
 
@@ -288,28 +289,55 @@ inline void read_config() {
 inline void print_help(void)
 {
     fprintf(stderr, "MG-CFD OP2 instructions\n\n");
-    fprintf(stderr, "Usage: mgcfd_* [OPTIONS] \n\n");
-    fprintf(stderr, "  -h, --help                       Print help\n");
+    fprintf(stderr, "Usage: mgcfd_* [OPTIONS] -i input.dat \n");
+    fprintf(stderr, "       mgcfd_* [OPTIONS] -c conf.conf \n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "-h, --help    Print help\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "CRITICAL ARGUMENTS\n");
+    fprintf(stderr, "\n");
     fprintf(stderr, "  One of these must be set:\n");
-    fprintf(stderr, "  -i, --input-file=FILEPATH        Multigrid input grid (.dat file)\n");
-    fprintf(stderr, "  -c, --config-filepath=FILEPATH   Config file\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "-i, --input-file=FILEPATH\n");
+    fprintf(stderr, "        multigrid input grid (.dat file)\n");
+    fprintf(stderr, "-c, --config-filepath=FILEPATH\n");
+    fprintf(stderr, "        config file\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "OPTIONAL ARGUMENTS\n");
-    fprintf(stderr, "  -d, --input-directory=DIRPATH    Directory path to input files\n");
-    fprintf(stderr, "  -o, --output-file-prefix=STRING  String to prepend to output filenames\n");
-    fprintf(stderr, "  -p, --papi-config-file=FILEPATH  PAPI events to monitor\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "  -g, --num-cycles=INT             Number of multigrid V-cycles\n");
-    fprintf(stderr, "  -m, --partitioner=STRING         Partitioner to use: parmetis (default), ptscotch, or inertial\n");
-    fprintf(stderr, "  -r, --partitioner-method=STRING  Partitioner method to use: geom (default), kway, or geomkway\n");
-    fprintf(stderr, "  -v, --validate-result            Check final state against pre-calculated solution\n");
+    fprintf(stderr, "-d, --input-directory=DIRPATH\n");
+    fprintf(stderr, "        directory path to input files\n");
+    fprintf(stderr, "-o, --output-file-prefix=STRING\n");
+    fprintf(stderr, "        string to prepend to output filenames\n");
+    fprintf(stderr, "-p, --papi-config-file=FILEPATH\n");
+    fprintf(stderr, "        file containing list of PAPI events to monitor\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "-g, --num-cycles=INT\n");
+    fprintf(stderr, "        number of multigrid V-cycles to perform\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "-m, --partitioner=STRING\n");
+    fprintf(stderr, "        specify which partitioner to use:\n");
+    fprintf(stderr, "          parmetis (default)\n");
+    fprintf(stderr, "          ptscotch\n");
+    fprintf(stderr, "          inertial\n");
+    fprintf(stderr, "-r, --partitioner-method=STRING\n");
+    fprintf(stderr, "        specify which partitioner method to use. Currently only\n");
+    fprintf(stderr, "        applicable to ParMETIS.\n");
+    fprintf(stderr, "          geom (default)\n");
+    fprintf(stderr, "          kway\n");
+    fprintf(stderr, "          geomkway\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "-v, --validate-result\n");
+    fprintf(stderr, "        check final state against pre-calculated solution\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "DEBUGGING ARGUMENTS\n");
-    fprintf(stderr, "  --output-variables               Write Euler equation variable values to file\n");
-    fprintf(stderr, "  --output-fluxes                  Write flux accumulations to file\n");
-    fprintf(stderr, "  --output-step-factors            Write step factors to file\n");
+    fprintf(stderr, "--output-variables\n");
+    fprintf(stderr, "        write Euler equation variable values to HDF5 file\n");
+    fprintf(stderr, "--output-fluxes\n");
+    fprintf(stderr, "        write flux accumulations to HDF5 file\n");
+    fprintf(stderr, "--output-step-factors\n");
+    fprintf(stderr, "        write time-step factors to HDF5 file\n");
+    fprintf(stderr, "\n");
 }
 
 inline bool parse_arguments(int argc, char** argv) {
@@ -353,7 +381,7 @@ inline bool parse_arguments(int argc, char** argv) {
             case '\0':
                 break;
             default:
-                printf("Unknown command line parameter '%c'\n", optc);
+                op_printf("Unknown command line parameter '%c'\n", optc);
         }
     }
 
@@ -361,6 +389,36 @@ inline bool parse_arguments(int argc, char** argv) {
         conf.output_volumes | conf.output_step_factors | conf.output_edge_mx | 
         conf.output_edge_my | conf.output_edge_mz | conf.output_edge_p  | 
         conf.output_edge_pe | conf.output_fluxes  | conf.output_variables;
+
+    if (conf.partitioner_method == PartitionerMethods::NotSet) {
+        // Set to method partitioner-specific default:
+        if (conf.partitioner == Partitioners::Ptscotch) {
+            conf.partitioner_method = PartitionerMethods::KWay;
+        }
+        else if (conf.partitioner == Partitioners::Parmetis) {
+            conf.partitioner_method = PartitionerMethods::Geom;
+        }
+        else if (conf.partitioner == Partitioners::Inertial) {
+            conf.partitioner_method = PartitionerMethods::Geom;
+        }
+    }
+
+    // Ensure partitioner and method are compatible:
+    if (conf.partitioner == Partitioners::Ptscotch) {
+        if (conf.partitioner_method != PartitionerMethods::KWay) {
+            op_printf("Incompatible method requested for PT-SCOTCH, overriding with KWay\n");
+            conf.partitioner_method = PartitionerMethods::KWay;
+        }
+    }
+    if (conf.partitioner == Partitioners::Inertial) {
+        if (conf.partitioner_method != PartitionerMethods::Geom) {
+            op_printf("Incompatible method requested for Inertial, overriding with Geom\n");
+            conf.partitioner_method = PartitionerMethods::Geom;
+            // Although OP2 ignores the partitioner-method argument, having MG-CFD 
+            // accept them would imply to the user that it has an effect. Inertial is 
+            // a geometric partitioner, so pretend it requires Geom method.
+        }
+    }
 
     // Generate partitioner string:
     int new_str_len = 0;

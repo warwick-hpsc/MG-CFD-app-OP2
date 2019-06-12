@@ -1,7 +1,7 @@
 MG-CFD OP2
 ==========================================
 
-OP2 port of [MG-CFD](https://github.com/warwick-hpsc/MG-CFD-app-plain). Provides MPI, full OpenMP, CUDA, OpenACC, OpenMP 4, and pairings of them.
+OP2 port of [MG-CFD](https://github.com/warwick-hpsc/MG-CFD-app-plain). Provides MPI, full OpenMP, SIMD, CUDA, OpenACC, OpenMP 4, and some pairings of them.
 
 Dependencies
 ==========================================
@@ -21,7 +21,7 @@ Compiling and executing
 Configure with `--enable-parallel` option, then standard compile.
 
 #### ParMETIS
-Out-of-the-box compile works.
+Standard compile.
 
 #### PT-Scotch
 Follow their build instructions. After linking `Makefile.inc`, edit it and remove the flag `-DSCOTCH_PTHREAD` from `CFLAGS`. Then standard compile.
@@ -37,14 +37,29 @@ Different binaries can be generated, depending on the mix of parallelism and per
 
 Intent | make rule | OP2 dependency (make rule)
 ------ | --------- | -----------------------------
-Sequential | mgcfd_seq | op2_seq
-OpenMP | mgcfd_openmp | op2_openmp
-MPI | mgcfd_mpi_genseq | mpi_seq
+Sequential | mgcfd_seq | seq
+OpenMP | mgcfd_openmp | openmp
+MPI | mgcfd_mpi | mpi_seq
 MPI + OpenMP | mgcfd_mpi_openmp | mpi_seq
+MPI + SIMD | mgcfd_mpi_vec | mpi_seq
 CUDA | mgcfd_cuda | cuda
 MPI + CUDA | mgcfd_mpi_cuda | mpi_cuda
 
 In future, OpenACC and OpenMP 4.5 ports will be available
+
+### Quick run:
+
+Want to execute asap? Navigate to a folder containing input HDF5 files and execute:
+
+```Shell
+     $ ./path/to/mgcfd_* -i input.dat
+```
+
+MG-CFD has more command-line arguments to ease file/directory interaction, and control execution parameters. View the help page for more information:
+
+```Shell
+     $ ./path/to/mgcfd_* --help
+```
 
 ### Generating batch submission scripts:
 
@@ -76,6 +91,10 @@ Additional larger meshes are available at request:
 * Rotor 37 8M nodes (multigrid)
 * Rotor 37 25M nodes (multigrid)
 * Rotor 37 150M nodes (single level)
+
+Updates since release
+==========================================
+12/Jun/2019: added MPI + SIMD variant
 
 Authorship
 ==========================================
