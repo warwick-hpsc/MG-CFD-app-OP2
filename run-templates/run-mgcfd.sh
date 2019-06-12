@@ -127,7 +127,7 @@ else
     fi
   fi
 fi
-exec_command+=" $bin_filepath OP_MAPS_BASE_INDEX=1 -i input.dat -o ${run_outdir}/ -g $mg_cycles -m $partitioner -r $partitioner_method"
+exec_command+=" $bin_filepath OP_MAPS_BASE_INDEX=1 -i $input_dat_filename -o ${run_outdir}/ -g $mg_cycles -m $partitioner -r $partitioner_method"
 if $papi ; then
   exec_command+=" -p ${run_outdir}/papi.conf"
 fi
