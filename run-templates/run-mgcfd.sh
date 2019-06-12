@@ -22,8 +22,10 @@ data_dirpath="<DATA_DIRPATH>"
 nthreads=<NTHREADS>
 ntasks=<NTASKS>
 mg_cycles=<MG_CYCLES>
-partitioner=<PARTITIONER>
 validate_solution=<VALIDATE_SOLUTION>
+
+partitioner=<PARTITIONER>
+partitioner_method=<PARTITIONER_METHOD>
 
 touch "${run_outdir}"/job-is-running.txt
 if [ -f "${run_outdir}"/job-in-queue.txt ]; then
@@ -98,6 +100,16 @@ fi
 
 # Run:
 
+cd "${data_dirpath}"
+input_dat_filename="input-mgcfd.dat"
+if [ ! -f "$input_dat_filename" ]; then
+  input_dat_filename="input.dat"
+  if [ ! -f "$input_dat_filename" ]; then
+    echo "ERROR: Cannot find input .dat file"
+    exit 1
+  fi
+fi
+
 exec_command=""
 if [ ! -z ${RUN_CMD+x} ]; then
   exec_command+="$RUN_CMD"
@@ -115,14 +127,13 @@ else
     fi
   fi
 fi
-exec_command+=" $bin_filepath OP_MAPS_BASE_INDEX=1 -i input.dat -o ${run_outdir}/ -g $mg_cycles -m $partitioner"
+exec_command+=" $bin_filepath OP_MAPS_BASE_INDEX=1 -i input.dat -o ${run_outdir}/ -g $mg_cycles -m $partitioner -r $partitioner_method"
 if $papi ; then
   exec_command+=" -p ${run_outdir}/papi.conf"
 fi
 if $validate_solution ; then
   exec_command+=" -v"
 fi
-cd "${data_dirpath}"
 echo "$exec_command"
 eval "$exec_command"
 rm "${run_outdir}"/job-is-running.txt

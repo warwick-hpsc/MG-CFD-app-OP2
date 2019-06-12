@@ -134,9 +134,7 @@ ifeq ($(OP2_COMPILER),cray)
   MPICPP        = CC
   MPIFLAGS      = $(CPPFLAGS)
 else
-# print:
-# 	@echo "unrecognised value for OP2_COMPILER"
-$(error unrecognised value for OP2_COMPILER)
+  $(error unrecognised value for COMPILER: $(COMPILER))
 endif
 endif
 endif
@@ -240,9 +238,9 @@ mgcfd_mpi: $(BIN_DIR)/mgcfd_mpi
 mgcfd_mpi_vec: $(BIN_DIR)/mgcfd_mpi_vec
 mgcfd_mpi_openmp: $(BIN_DIR)/mgcfd_mpi_openmp
 mgcfd_cuda: $(BIN_DIR)/mgcfd_cuda
+mgcfd_mpi_cuda: $(BIN_DIR)/mgcfd_mpi_cuda
 mgcfd_openmp4: $(BIN_DIR)/mgcfd_openmp4
 mgcfd_openacc: $(BIN_DIR)/mgcfd_openacc
-mgcfd_mpi_cuda: $(BIN_DIR)/mgcfd_mpi_cuda
 
 
 ## SEQUENTIAL
