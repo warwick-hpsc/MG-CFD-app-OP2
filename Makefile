@@ -91,7 +91,9 @@ ifeq ($(OP2_COMPILER),gnu)
 else
 ifeq ($(OP2_COMPILER),intel)
   CPP = icpc
-  CFLAGS = -DMPICH_IGNORE_CXX_SEEK -restrict -inline-forceinline -parallel -DVECTORIZE -qopt-report=5
+  CFLAGS = -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -DVECTORIZE -qopt-report=5
+  CFLAGS += -restrict
+  # CFLAGS += -parallel ## This flag intoduces a significant slowdown into 'vec' app
   # CFLAGS += -fno-alias ## This flag causes 'vec' app to fail validation, do not enable
   CFLAGS += -fmax-errors=1
   CPPFLAGS = $(CFLAGS)
