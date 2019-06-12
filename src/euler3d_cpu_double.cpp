@@ -414,10 +414,10 @@ int main(int argc, char** argv)
     while(i < cycles)
     {
         #ifdef LOG_PROGRESS
-            op_printf("Performing MG cycle %d / %d", i+1, cycles);
+            op_printf("Performing MG cycle %d / %d\n", i+1, cycles);
         #else
             if (level==0)
-            op_printf("Performing MG cycle %d / %d", i+1, cycles);
+            op_printf("Performing MG cycle %d / %d\n", i+1, cycles);
         #endif
 
         op_par_loop(copy_double_kernel, "copy_double_kernel", op_nodes[level],
@@ -433,6 +433,11 @@ int main(int argc, char** argv)
         op_par_loop(get_min_dt_kernel, "get_min_dt_kernel", op_nodes[level], 
                     op_arg_dat(p_step_factors[level], -1, OP_ID, 1, "double", OP_READ), 
                     op_arg_gbl(&min_dt,                1,           "double", OP_MIN));
+        if (min_dt < 0.0f) {
+          op_printf("Fatal error during 'step factor' calculation, min_dt = %.5e\n", min_dt);
+          op_exit();
+          return 1;
+        }
         op_par_loop(compute_step_factor_kernel, "compute_step_factor_kernel", op_nodes[level], 
                     op_arg_dat(p_variables[level],    -1, OP_ID, NVAR, "double", OP_READ), 
                     op_arg_dat(p_volumes[level],      -1, OP_ID, 1,    "double", OP_READ),
