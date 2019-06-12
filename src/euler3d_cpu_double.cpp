@@ -86,7 +86,7 @@ int main(int argc, char** argv)
 
     int problem_size = 0;
     int levels = 0;
-    int base_array_index = 0;
+    int base_array_index = 1;
     std::string* layers = NULL;
     std::string* mg_connectivity_filename = NULL;
     read_input_dat(input_file_name, &problem_size, &levels, &base_array_index, &layers, &mg_connectivity_filename);
