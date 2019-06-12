@@ -47,8 +47,6 @@ ifdef DEBUG
   OPTIMISE := -pg -g -O0
 else
   OPTIMISE := -O3
-  # OPTIMISE := -O1
-  #OPTIMISE := -O0
 endif
 
 BIN_DIR = bin
@@ -93,8 +91,9 @@ ifeq ($(OP2_COMPILER),gnu)
 else
 ifeq ($(OP2_COMPILER),intel)
   CPP = icpc
-  CFLAGS = -DMPICH_IGNORE_CXX_SEEK -restrict -fno-alias -inline-forceinline -parallel -DVECTORIZE -qopt-report=5
-  #CFLAGS += -fmax-errors=1
+  CFLAGS = -DMPICH_IGNORE_CXX_SEEK -restrict -inline-forceinline -parallel -DVECTORIZE -qopt-report=5
+  # CFLAGS += -fno-alias ## This flag causes 'vec' app to fail validation, do not enable
+  CFLAGS += -fmax-errors=1
   CPPFLAGS = $(CFLAGS)
   OMPFLAGS = -qopenmp
   OMPOFFLOAD = -qopenmp
@@ -191,12 +190,16 @@ endif
 OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
 
 
-# all: mgcfd_seq mgcfd_openmp mgcfd_openacc mgcfd_openmp4 mgcfd_cuda \
-# 	 mgcfd_mpi mgcfd_mpi_openmp mgcfd_mpi_cuda
-
-#all: mgcfd_seq mgcfd_openmp mgcfd_mpi mgcfd_mpi_openmp mgcfd_cuda
-
-all: mgcfd_mpi_vec 
+all: \
+	 mgcfd_openmp \
+	 mgcfd_mpi \
+	 mgcfd_mpi_vec \
+	 mgcfd_mpi_openmp \
+	 mgcfd_cuda \
+	 mgcfd_mpi_cuda \
+	 # mgcfd_openacc \
+	 # mgcfd_openmp4 \
+	 mgcfd_seq
 
 OP2_SEQ_OBJECTS := $(OBJ_DIR)/mgcfd_seq_main.o \
                    $(OBJ_DIR)/mgcfd_seq_kernels.o
