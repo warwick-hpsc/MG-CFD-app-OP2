@@ -119,7 +119,7 @@ void op_par_loop_initialize_variables_kernel(char const *name, op_set set,
     #ifdef VECTORIZE
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      #pragma simd simdlen(SIMD_VEC)
+      #pragma omp simd simdlen(SIMD_VEC)
       for ( int i=0; i<SIMD_VEC; i++ ){
         initialize_variables_kernel(
           &(ptr0)[5 * (n+i)]);

@@ -127,7 +127,7 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
     }
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      #pragma simd simdlen(SIMD_VEC)
+      #pragma omp simd simdlen(SIMD_VEC)
       for ( int i=0; i<SIMD_VEC; i++ ){
         get_min_dt_kernel(
           &(ptr0)[1 * (n+i)],

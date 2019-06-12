@@ -254,13 +254,13 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
       }
       ALIGNED_double double dat0[5][SIMD_VEC];
       ALIGNED_int int dat1[1][SIMD_VEC];
-      #pragma simd simdlen(SIMD_VEC)
+      #pragma omp simd simdlen(SIMD_VEC)
       for ( int i=0; i<SIMD_VEC; i++ ){
         int idx0_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx1_1 = 1 * arg0.map_data[(n+i) * arg0.map->dim + 0];
 
       }
-      #pragma simd simdlen(SIMD_VEC)
+      #pragma omp simd simdlen(SIMD_VEC)
       for ( int i=0; i<SIMD_VEC; i++ ){
         up_pre_kernel_vec(
           dat0,
