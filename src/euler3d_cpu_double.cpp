@@ -96,16 +96,27 @@ int main(int argc, char** argv)
 
     int problem_size = 0;
     int levels = 0;
-    int cycles = conf.num_cycles;
+    int base_array_index = 1;
     std::string* layers = NULL;
     std::string* mg_connectivity_filename = NULL;
-    read_input_dat(input_file_name, &problem_size, &levels, &layers, &mg_connectivity_filename);
+    read_input_dat(input_file_name, &problem_size, &levels, &base_array_index, &layers, &mg_connectivity_filename);
     if (strcmp(input_directory, "")!=0) {
         for (int l=0; l<levels; l++) {
             layers[l] = (std::string(input_directory) + "/" + layers[l]).c_str();
             if (l < (levels-1))
                 mg_connectivity_filename[l] = (std::string(input_directory) + "/" + mg_connectivity_filename[l]).c_str();
         }
+    }
+
+    if (base_array_index >= 1 && base_array_index <= 9) {
+      // Append 'base_array_index' to args:
+      std::vector<const char*> new_argv(argv, argv+argc);
+      char tmp_str[21];
+      sprintf(tmp_str, "OP_MAPS_BASE_INDEX=%d\0", base_array_index);
+      new_argv.push_back(tmp_str);
+      new_argv.push_back(nullptr);
+      argv = (char**)new_argv.data();
+      argc++;
     }
 
     #ifdef VERIFY_OP2_TIMING
@@ -296,7 +307,7 @@ int main(int argc, char** argv)
                     variables_solution_filepath += "/";
                 }
                 variables_solution_filepath += "solution.variables.L" + number_to_string(i);
-                variables_solution_filepath += ".cycles=" + number_to_string(cycles);
+                variables_solution_filepath += ".cycles=" + number_to_string(conf.num_cycles);
                 variables_solution_filepath += ".h5";
 
                 // op_printf("Checking access of file %s ...\n", variables_solution_filepath.c_str());
@@ -411,13 +422,13 @@ int main(int argc, char** argv)
     double rms = 0.0;
     int bad_val_count = 0;
     double min_dt = std::numeric_limits<double>::max();
-    while(i < cycles)
+    while(i < conf.num_cycles)
     {
         #ifdef LOG_PROGRESS
-            op_printf("Performing MG cycle %d / %d\n", i+1, cycles);
+            op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
         #else
             if (level==0)
-            op_printf("Performing MG cycle %d / %d\n", i+1, cycles);
+            op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
         #endif
 
         op_par_loop(copy_double_kernel, "copy_double_kernel", op_nodes[level],
@@ -652,7 +663,7 @@ int main(int argc, char** argv)
         for (int l=0; l<levels; l++)
         {
             std::string suffix = std::string(".L") + number_to_string(l) 
-                               + "." + "cycles=" + number_to_string(cycles);
+                               + "." + "cycles=" + number_to_string(conf.num_cycles);
 
             int number_of_edges = op_get_size(op_edges[l]);
             int nel     = op_get_size(op_nodes[l]);

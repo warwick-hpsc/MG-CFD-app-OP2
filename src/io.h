@@ -31,6 +31,7 @@ void read_input_dat(
     const char* file_name, 
     int* problem_size, 
     int* levels, 
+    int* base_array_index,
     std::string** layers, 
     std::string** mg_connectivity)
 {
@@ -147,6 +148,9 @@ void read_input_dat(
                         else if (strcmp(key.c_str(), "num_levels")==0) {
                             *levels = atoi(value.c_str());
                             have_num_levels = true;
+                        }
+                        else if (strcmp(key.c_str(), "base_array_index")==0) {
+                            *base_array_index = atoi(value.c_str());
                         }
                         else if (strcmp(key.c_str(), "mesh_name")==0) {
                             if (strcmp(value.c_str(), "la_cascade")==0) {
