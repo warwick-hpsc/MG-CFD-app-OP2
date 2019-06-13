@@ -22,6 +22,11 @@ js_to_submit_cmd["moab"] = "msub"
 js_to_submit_cmd["lsf"] = "bsub"
 js_to_submit_cmd["pbs"] = "qsub"
 
+part_method_defaults = {}
+part_method_defaults["inertial"] = "geom"
+part_method_defaults["parmetis"] = "geom"
+part_method_defaults["ptscotch"] = "kway"
+
 defaults = {}
 # Compilation:
 defaults["compiler"] = "intel"
@@ -43,7 +48,9 @@ defaults["job scheduler"] = ""
 defaults["num threads"] = [1]
 defaults["num repeats"] = 1
 defaults["mg cycles"] = 50
-defaults["partitioner methods"] = ["geom"]
+# Partitioning:
+defaults["partitioner"] = "parmetis"
+defaults["partitioner methods"] = None
 
 def get_key_value(profile, cat, key):
     if not cat in profile.keys():
@@ -174,7 +181,9 @@ if __name__=="__main__":
     num_tpn_range = get_key_value(profile, "run", "num tasks per node")
     num_threads_range = get_key_value(profile, "run", "num threads per task")
 
-    num_jobs = len(num_nodes_range) * len(num_tpn_range) * len(num_threads_range) * num_repeats * len(partitioners) * len(partitioner_methods)
+    num_jobs = len(num_nodes_range) * len(num_tpn_range) * len(num_threads_range) * num_repeats * len(partitioners)
+    if not partitioner_methods is None:
+        num_jobs *= len(partitioner_methods)
 
     submit_all_filepath = os.path.join(jobs_dir, "submit_all.sh")
     submit_all_file = open(submit_all_filepath, "w")
@@ -198,7 +207,11 @@ if __name__=="__main__":
             for num_thr in num_threads_range:
                 for repeat in range(num_repeats):
                     for partitioner in partitioners:
-                        for part_method in partitioner_methods:
+                        if partitioner_methods is None:
+                            pm = [part_method_defaults[partitioner]]
+                        else:
+                            pm = partitioner_methods
+                        for part_method in pm:
                             n += 1
                             job_id = str(n).zfill(3)
 
