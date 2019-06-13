@@ -467,6 +467,10 @@ inline bool parse_arguments(int argc, char** argv) {
             strcpy(conf.partitioner_string+i, "geomkway");
             i += 8;
             break;
+        case PartitionerMethods::NotSet:
+            strcpy(conf.partitioner_string+i, "NotSet");
+            i += 8;
+            break;
     }
     strcpy(conf.partitioner_string+i, "\0");
 
