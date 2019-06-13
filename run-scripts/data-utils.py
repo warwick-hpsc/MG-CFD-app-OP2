@@ -1,3 +1,4 @@
+import pandas as pd
 from sets import Set
 
 def grep(text, filepath):

@@ -203,9 +203,10 @@ if __name__=="__main__":
     submit_all_file.write("submit_cmd={0}\n\n".format(js_to_submit_cmd[js]))
     submit_all_file.write("num_jobs={0}\n\n".format(num_jobs))
 
-    with open(os.path.join(jobs_dir, "papi.conf"), "w") as f:
-        f.write("PAPI_TOT_INS\n")
-        f.write("PAPI_TOT_CYC\n")
+    if use_papi:
+        with open(os.path.join(jobs_dir, "papi.conf"), "w") as f:
+            f.write("PAPI_TOT_INS\n")
+            f.write("PAPI_TOT_CYC\n")
 
     n = 0
     for num_nodes in num_nodes_range:
@@ -237,11 +238,12 @@ if __name__=="__main__":
                             if not os.path.isdir(job_dir):
                                 os.mkdir(job_dir)
 
-                            ## Link to papi config file:
-                            papi_dest_filepath = os.path.join(job_dir, "papi.conf")
-                            if os.path.isfile(papi_dest_filepath):
-                                os.remove(papi_dest_filepath)
-                            os.symlink(os.path.join(jobs_dir, "papi.conf"), papi_dest_filepath)
+                            if use_papi:
+                                ## Link to papi config file:
+                                papi_dest_filepath = os.path.join(job_dir, "papi.conf")
+                                if os.path.isfile(papi_dest_filepath):
+                                    os.remove(papi_dest_filepath)
+                                os.symlink(os.path.join(jobs_dir, "papi.conf"), papi_dest_filepath)
 
                             ## Instantiate MG-CFD run script:
                             job_run_filepath = os.path.join(job_dir, "run-mgcfd.sh")

@@ -192,19 +192,12 @@ endif
 ## its compute and sync times.
 # MGCFD_INCS += -DDUMP_EXT_PERF_DATA
 
-OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
 
 
-all: \
-	 mgcfd_openmp \
-	 mgcfd_mpi \
-	 mgcfd_mpi_vec \
-	 mgcfd_mpi_openmp \
-	 mgcfd_cuda \
-	 mgcfd_mpi_cuda \
-	 # mgcfd_openacc \
-	 # mgcfd_openmp4 \
-	 mgcfd_seq
+# all: mgcfd_seq mgcfd_openmp mgcfd_mpi mgcfd_mpi_vec mgcfd_mpi_openmp \
+# 	 mgcfd_cuda mgcfd_mpi_cuda \
+# 	 mgcfd_openacc mgcfd_openmp4
+all: mgcfd_seq mgcfd_openmp mgcfd_mpi
 
 ## User-friendly wrappers around actual targets:
 mgcfd_seq: $(BIN_DIR)/mgcfd_seq
@@ -218,6 +211,7 @@ mgcfd_openmp4: $(BIN_DIR)/mgcfd_openmp4
 mgcfd_openacc: $(BIN_DIR)/mgcfd_openacc
 
 
+OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
 
 OP2_SEQ_OBJECTS := $(OBJ_DIR)/mgcfd_seq_main.o \
                    $(OBJ_DIR)/mgcfd_seq_kernels.o

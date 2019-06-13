@@ -31,6 +31,9 @@
 
 #include <papi.h>
 
+// OP2:
+#include "op_seq.h"
+
 #include "config.h"
 
 inline void my_papi_start(int event_set)
@@ -73,7 +76,7 @@ inline void init_papi(int* num_events)
     int ret;
 
     if (PAPI_num_counters() < 2) {
-       fprintf(stderr, "No hardware counters here, or PAPI not supported.\n");
+       fprintf(stderr, "ERROR: No hardware counters here, or PAPI not supported.\n");
        exit(-1);
     }
 
@@ -89,12 +92,12 @@ inline void init_papi(int* num_events)
     }
 
     if ((ret=PAPI_library_init(PAPI_VER_CURRENT)) != PAPI_VER_CURRENT) {
-        fprintf(stderr, "PAPI_library_init() failed: '%s'.\n", PAPI_strerror(ret));
+        fprintf(stderr, "ERROR: PAPI_library_init() failed: '%s'.\n", PAPI_strerror(ret));
         exit(EXIT_FAILURE);
     }
 
     if ((ret=PAPI_thread_init(omp_get_thread_num_ul)) != PAPI_OK) {
-        fprintf(stderr, "PAPI_thread_init() failed: '%s'.\n", PAPI_strerror(ret));
+        fprintf(stderr, "ERROR: PAPI_thread_init() failed: '%s'.\n", PAPI_strerror(ret));
         exit(EXIT_FAILURE);
     }
 }
@@ -106,7 +109,7 @@ inline void load_papi_events(int num_events, int* event_set, int** events)
     *event_set = PAPI_NULL;
     ret = PAPI_create_eventset(event_set);
     if (ret != PAPI_OK || (*event_set)==PAPI_NULL) {
-        fprintf(stderr, "PAPI_create_eventset() failed: '%s'.\n", PAPI_strerror(ret));
+        fprintf(stderr, "ERROR: PAPI_create_eventset() failed: '%s'.\n", PAPI_strerror(ret));
         exit(EXIT_FAILURE);
     }
 
@@ -150,9 +153,9 @@ inline void load_papi_events(int num_events, int* event_set, int** events)
                 } else {
                     ret = PAPI_add_event((*event_set), code);
                     if (ret != PAPI_OK) {
-                        fprintf(stderr, "Failed to add event %d to event set: '%s'.\n", code, PAPI_strerror(ret));
+                        fprintf(stderr, "ERROR: Failed to add event %d to event set: '%s'.\n", code, PAPI_strerror(ret));
                         if ((*event_set)==PAPI_NULL) {
-                            fprintf(stderr, "... and event_set=PAPI_NULL\n");
+                            fprintf(stderr, "ERROR: ... and event_set=PAPI_NULL\n");
                         }
                         exit(EXIT_FAILURE);
                     }
@@ -205,7 +208,7 @@ inline void dump_papi_counters_to_file(
     if (filepath.length() > 1 && filepath.at(filepath.size()-1) != '/') {
         filepath += ".";
     }
-    filepath += std::string("P=") + std::to_string(rank);
+    filepath += std::string("P=") + number_to_string(rank);
     filepath += ".PAPI.csv";
 
     bool write_header = false;
