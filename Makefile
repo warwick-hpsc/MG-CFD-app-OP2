@@ -440,3 +440,21 @@ $(BIN_DIR)/mgcfd_openacc: $(OP2_OPENACC_OBJECTS)
 
 clean:
 	rm -f $(BIN_DIR)/* $(OBJ_DIR)/*
+clean_mgcfd_seq:
+	rm -f $(BIN_DIR)/mgcfd_seq $(OP2_SEQ_OBJECTS)
+clean_mgcfd_mpi:
+	rm -f $(BIN_DIR)/mgcfd_mpi $(OP2_MPI_OBJECTS)
+clean_mgcfd_mpi_vec:
+	rm -f $(BIN_DIR)/mgcfd_mpi_vec $(OP2_MPI_VEC_OBJECTS)
+clean_mgcfd_openmp:
+	rm -f $(BIN_DIR)/mgcfd_openmp $(OP2_OMP_OBJECTS)
+clean_mgcfd_mpi_openmp:
+	rm -f $(BIN_DIR)/mgcfd_mpi_openmp $(OP2_MPI_OMP_OBJECTS)
+clean_mgcfd_cuda:
+	rm -f $(BIN_DIR)/mgcfd_cuda $(OP2_CUDA_OBJECTS)
+clean_mgcfd_mpi_cuda:
+	rm -f $(BIN_DIR)/mgcfd_mpi_cuda $(OP2_MPI_CUDA_OBJECTS)
+clean_mgcfd_openacc:
+	rm -f $(BIN_DIR)/mgcfd_openacc $(OP2_OPENACC_OBJECTS)
+clean_mgcfd_openmp4:
+	rm -f $(BIN_DIR)/mgcfd_openmp4 $(OP2_OMP4_OBJECTS)

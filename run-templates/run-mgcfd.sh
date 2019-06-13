@@ -63,11 +63,27 @@ else
 fi
 bin_filepath="${app_dirpath}/bin/${bin_filename}"
 
+recompile_required=false
+if [ -f "$bin_filepath" ]; then
+  if grep -q "PAPI_NULL" "$bin_filepath" && ! $papi ; then
+    echo "Binary compiled with PAPI, recompile required to remove it"
+    recompile_required=true
+  fi
+
+  if $papi && ! grep -q "PAPI_NULL" "$bin_filepath" ; then
+    echo "Binary not compiled with PAPI, recompile required for papi"
+    recompile_required=true
+  fi
+fi
+
 # if [ ! -f "$bin_filepath" ]; then
   ## Try compiling anyway, source files may have changed
-  if [[ `hostname` == *"login"* ]] || [ `basename "$0"` = run.sh ]; then
-    ## On login node, compile
+  if [[ `hostname` == *"login"* ]] || [ "`head -n1 "$0"`" = "#!/bin/bash" ]; then
+    ## On login node, or executing local run script, so compile
     cd "${app_dirpath}"
+    if $recompile_required ; then
+      make clean_${bin_filename}
+    fi
     make_cmd="COMPILER=${compiler} "
     if [ "$cpp_wrapper" != "" ]; then
       make_cmd+="CPP_WRAPPER=$cpp_wrapper "
