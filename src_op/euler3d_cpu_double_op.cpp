@@ -247,13 +247,17 @@ int main(int argc, char** argv)
 
     if (base_array_index >= 1 && base_array_index <= 9) {
       // Append 'base_array_index' to args:
-      std::vector<const char*> new_argv(argv, argv+argc);
-      char tmp_str[21];
-      sprintf(tmp_str, "OP_MAPS_BASE_INDEX=%d\0", base_array_index);
-      new_argv.push_back(tmp_str);
-      new_argv.push_back(nullptr);
-      argv = (char**)new_argv.data();
+
+      char** new_argv = (char**)malloc((argc+1)*sizeof(char*));
+      for (int i=0; i<argc; i++) {
+        new_argv[i] = (char*)malloc(strlen(argv[i])*sizeof(char));
+        strcpy(new_argv[i], argv[i]);
+      }
+      new_argv[argc] = (char*)malloc(strlen("OP_MAPS_BASE_INDEX=0")*sizeof(char));
+      sprintf(new_argv[argc], "OP_MAPS_BASE_INDEX=%d", base_array_index);
       argc++;
+
+      argv = new_argv;
     }
 
     #ifdef LOG_PROGRESS
