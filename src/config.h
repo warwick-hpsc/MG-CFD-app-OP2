@@ -189,7 +189,7 @@ inline void set_config_param(const char* const key, const char* const value) {
             conf.partitioner = Partitioners::Ptscotch;
         }
         else {
-            op_printf("WARNING: Unknown value '%s' encountered for key '%s' during parsing of config file.\n", value, key);
+            printf("WARNING: Unknown value '%s' encountered for key '%s' during parsing of config file.\n", value, key);
         }
     }
 
@@ -204,7 +204,7 @@ inline void set_config_param(const char* const key, const char* const value) {
             conf.partitioner_method = PartitionerMethods::GeomKWay;
         }
         else {
-            op_printf("WARNING: Unknown value '%s' encountered for key '%s' during parsing of config file.\n", value, key);
+            printf("WARNING: Unknown value '%s' encountered for key '%s' during parsing of config file.\n", value, key);
         }
     }
 
@@ -224,7 +224,7 @@ inline void set_config_param(const char* const key, const char* const value) {
         }
     }
     else {
-        op_printf("WARNING: Unknown key '%s' encountered during parsing of config file.\n", key);
+        printf("WARNING: Unknown key '%s' encountered during parsing of config file.\n", key);
     }
 }
 
@@ -381,7 +381,7 @@ inline bool parse_arguments(int argc, char** argv) {
             case '\0':
                 break;
             default:
-                op_printf("Unknown command line parameter '%c'\n", optc);
+                printf("Unknown command line parameter '%c'\n", optc);
         }
     }
 
@@ -406,13 +406,13 @@ inline bool parse_arguments(int argc, char** argv) {
     // Ensure partitioner and method are compatible:
     if (conf.partitioner == Partitioners::Ptscotch) {
         if (conf.partitioner_method != PartitionerMethods::KWay) {
-            op_printf("Incompatible method requested for PT-SCOTCH, overriding with KWay\n");
+            printf("Incompatible method requested for PT-SCOTCH, overriding with KWay\n");
             conf.partitioner_method = PartitionerMethods::KWay;
         }
     }
     if (conf.partitioner == Partitioners::Inertial) {
         if (conf.partitioner_method != PartitionerMethods::Geom) {
-            op_printf("Incompatible method requested for Inertial, overriding with Geom\n");
+            printf("Incompatible method requested for Inertial, overriding with Geom\n");
             conf.partitioner_method = PartitionerMethods::Geom;
             // Although OP2 ignores the partitioner-method argument, having MG-CFD 
             // accept them would imply to the user that it has an effect. Inertial is 
@@ -465,6 +465,10 @@ inline bool parse_arguments(int argc, char** argv) {
             break;
         case PartitionerMethods::GeomKWay:
             strcpy(conf.partitioner_string+i, "geomkway");
+            i += 8;
+            break;
+        case PartitionerMethods::NotSet:
+            strcpy(conf.partitioner_string+i, "NotSet");
             i += 8;
             break;
     }
