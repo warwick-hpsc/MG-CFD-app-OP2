@@ -216,19 +216,6 @@ int main(int argc, char** argv)
         feenableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
     #endif
     
-    // timer
-    double cpu_t1, cpu_t2, wall_t1, wall_t2;
-
-    #ifdef LOG_PROGRESS
-        // op_init(argc, argv, 7); // Report positive checks in op_plan_check
-        // op_init(argc, argv, 4);
-        op_init(argc, argv, 3); // Report execution of parallel loops
-        // op_init(argc, argv, 2); // Info on plan construction
-        // op_init(argc, argv, 1); // Error-checking
-    #else
-        op_init(argc, argv, 0);
-    #endif
-
     set_config_defaults();
     if (!parse_arguments(argc, argv)) {
         return 1;
@@ -268,6 +255,19 @@ int main(int argc, char** argv)
       argv = (char**)new_argv.data();
       argc++;
     }
+
+    #ifdef LOG_PROGRESS
+        // op_init(argc, argv, 7); // Report positive checks in op_plan_check
+        // op_init(argc, argv, 4);
+        op_init(argc, argv, 3); // Report execution of parallel loops
+        // op_init(argc, argv, 2); // Info on plan construction
+        // op_init(argc, argv, 1); // Error-checking
+    #else
+        op_init(argc, argv, 0);
+    #endif
+
+    // timer
+    double cpu_t1, cpu_t2, wall_t1, wall_t2;
 
     #ifdef VERIFY_OP2_TIMING
         double flux_kernel_compute_times[levels];
