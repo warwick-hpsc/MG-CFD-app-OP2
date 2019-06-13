@@ -728,15 +728,17 @@ int main(int argc, char** argv)
             conf.output_file_prefix);
     #endif
 
-    dump_perf_data_to_file(
-        my_rank, 
-        levels, 
-        #ifdef VERIFY_OP2_TIMING
-            flux_kernel_compute_times, 
-            flux_kernel_sync_times,
-        #endif
-        flux_kernel_iter_counts, 
-        conf.output_file_prefix);
+    #ifdef DUMP_EXT_PERF_DATA
+        dump_perf_data_to_file(
+            my_rank, 
+            levels, 
+            #ifdef VERIFY_OP2_TIMING
+                flux_kernel_compute_times, 
+                flux_kernel_sync_times,
+            #endif
+            flux_kernel_iter_counts, 
+            conf.output_file_prefix);
+    #endif
 
     op_printf("-----------------------------------------------------\n");
     op_printf("Winding down OP2\n");

@@ -186,6 +186,11 @@ endif
 ## are correct, particularly for MPI sync time.
 # MGCFD_INCS += -DVERIFY_OP2_TIMING
 
+## Enable DUMP_EXT_PERF_DATA to write out externally-collected 
+## performance data. Included number of loop iterations counts of 
+## each kernel, and if VERIFY_OP2_TIMING is enabled then also 
+## its compute and sync times.
+# MGCFD_INCS += -DDUMP_EXT_PERF_DATA
 
 OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
 
