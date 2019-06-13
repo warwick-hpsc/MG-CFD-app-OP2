@@ -38,6 +38,7 @@ defaults["openmp"] = False
 defaults["mpi"] = False
 defaults["cuda"] = False
 defaults["openacc"] = False
+defaults["app dirpath"] = None
 defaults["openmp4"] = False
 # Job scheduling:
 defaults["unit walltime"] = 0.0
@@ -105,6 +106,12 @@ if __name__=="__main__":
     data_dirpath = profile["run"]["data dirpath"]
     if data_dirpath[0] != '/':
         data_dirpath = os.path.join(app_dirpath, data_dirpath)
+
+    if not get_key_value(profile, "compile", "app dirpath") is None:
+        app_dirpath = get_key_value(profile, "compile", "app dirpath")
+        if not os.path.isdir(jobs_dir):
+            raise Exception("Requested app dirpath does not exist")
+        template_dirpath = os.path.join(app_dirpath, "run-templates")
 
     ## Read parameters from json:
     job_queue = get_key_value(profile, "setup", "partition")
