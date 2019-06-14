@@ -82,14 +82,19 @@ else
   MPICC  := mpicc
 endif
 
-ifeq ($(OP2_COMPILER),gnu)
+ifdef OP2_COMPILER
+  ifeq ($(COMPILER),)
+    COMPILER=$(OP2_COMPILER)
+  endif
+endif
+ifeq ($(COMPILER),gnu)
   CPP := g++
   CFLAGS	= -fPIC -DUNIX -Wall -Wextra
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -fopenmp
   MPIFLAGS 	= $(CPPFLAGS)
 else
-ifeq ($(OP2_COMPILER),intel)
+ifeq ($(COMPILER),intel)
   CPP = icpc
   CFLAGS = -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -DVECTORIZE -qopt-report=5
   CFLAGS += -restrict
@@ -107,7 +112,7 @@ ifeq ($(OP2_COMPILER),intel)
     OPTIMISE += -xHost
   endif
 else
-ifeq ($(OP2_COMPILER),xl)
+ifeq ($(COMPILER),xl)
   CPP		 = xlc++
   CFLAGS	 = -qarch=pwr8 -qtune=pwr8 -qhot
   CPPFLAGS 	 = $(CFLAGS)
@@ -115,7 +120,7 @@ ifeq ($(OP2_COMPILER),xl)
   OMPOFFLOAD = -qsmp=omp -qoffload -Xptxas -v -g1
   MPIFLAGS	 = $(CPPFLAGS)
 else
-ifeq ($(OP2_COMPILER),pgi)
+ifeq ($(COMPILER),pgi)
   CPP       	= pgc++
   CFLAGS  	=
   CPPFLAGS 	= $(CFLAGS)
@@ -126,7 +131,7 @@ ifeq ($(OP2_COMPILER),pgi)
   # ACCFLAGS      = -acc -DOPENACC -Minfo=acc
   ACCFLAGS      = -v -acc -DOPENACC -Minfo=acc
 else
-ifeq ($(OP2_COMPILER),cray)
+ifeq ($(COMPILER),cray)
   CPP           = CC
   CFLAGS        = -h fp3 -h ipa5
   CPPFLAGS      = $(CFLAGS)
