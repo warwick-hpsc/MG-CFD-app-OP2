@@ -82,14 +82,19 @@ else
   MPICC  := mpicc
 endif
 
-ifeq ($(OP2_COMPILER),gnu)
+ifdef OP2_COMPILER
+  ifeq ($(COMPILER),)
+    COMPILER=$(OP2_COMPILER)
+  endif
+endif
+ifeq ($(COMPILER),gnu)
   CPP := g++
   CFLAGS	= -fPIC -DUNIX -Wall -Wextra
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -fopenmp
   MPIFLAGS 	= $(CPPFLAGS)
 else
-ifeq ($(OP2_COMPILER),intel)
+ifeq ($(COMPILER),intel)
   CPP = icpc
   CFLAGS = -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -DVECTORIZE -qopt-report=5
   CFLAGS += -restrict
@@ -107,7 +112,7 @@ ifeq ($(OP2_COMPILER),intel)
     OPTIMISE += -xHost
   endif
 else
-ifeq ($(OP2_COMPILER),xl)
+ifeq ($(COMPILER),xl)
   CPP		 = xlc++
   CFLAGS	 = -qarch=pwr8 -qtune=pwr8 -qhot
   CPPFLAGS 	 = $(CFLAGS)
@@ -115,7 +120,7 @@ ifeq ($(OP2_COMPILER),xl)
   OMPOFFLOAD = -qsmp=omp -qoffload -Xptxas -v -g1
   MPIFLAGS	 = $(CPPFLAGS)
 else
-ifeq ($(OP2_COMPILER),pgi)
+ifeq ($(COMPILER),pgi)
   CPP       	= pgc++
   CFLAGS  	=
   CPPFLAGS 	= $(CFLAGS)
@@ -126,7 +131,7 @@ ifeq ($(OP2_COMPILER),pgi)
   # ACCFLAGS      = -acc -DOPENACC -Minfo=acc
   ACCFLAGS      = -v -acc -DOPENACC -Minfo=acc
 else
-ifeq ($(OP2_COMPILER),cray)
+ifeq ($(COMPILER),cray)
   CPP           = CC
   CFLAGS        = -h fp3 -h ipa5
   CPPFLAGS      = $(CFLAGS)
@@ -186,20 +191,18 @@ endif
 ## are correct, particularly for MPI sync time.
 # MGCFD_INCS += -DVERIFY_OP2_TIMING
 
+## Enable DUMP_EXT_PERF_DATA to write out externally-collected 
+## performance data. Included number of loop iterations counts of 
+## each kernel, and if VERIFY_OP2_TIMING is enabled then also 
+## its compute and sync times.
+# MGCFD_INCS += -DDUMP_EXT_PERF_DATA
 
-OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
 
 
-all: \
-	 mgcfd_openmp \
-	 mgcfd_mpi \
-	 mgcfd_mpi_vec \
-	 mgcfd_mpi_openmp \
-	 mgcfd_cuda \
-	 mgcfd_mpi_cuda \
-	 # mgcfd_openacc \
-	 # mgcfd_openmp4 \
-	 mgcfd_seq
+# all: mgcfd_seq mgcfd_openmp mgcfd_mpi mgcfd_mpi_vec mgcfd_mpi_openmp \
+# 	 mgcfd_cuda mgcfd_mpi_cuda \
+# 	 mgcfd_openacc mgcfd_openmp4
+all: mgcfd_seq mgcfd_openmp mgcfd_mpi
 
 ## User-friendly wrappers around actual targets:
 mgcfd_seq: $(BIN_DIR)/mgcfd_seq
@@ -213,6 +216,7 @@ mgcfd_openmp4: $(BIN_DIR)/mgcfd_openmp4
 mgcfd_openacc: $(BIN_DIR)/mgcfd_openacc
 
 
+OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
 
 OP2_SEQ_OBJECTS := $(OBJ_DIR)/mgcfd_seq_main.o \
                    $(OBJ_DIR)/mgcfd_seq_kernels.o
@@ -435,3 +439,21 @@ $(BIN_DIR)/mgcfd_openacc: $(OP2_OPENACC_OBJECTS)
 
 clean:
 	rm -f $(BIN_DIR)/* $(OBJ_DIR)/*
+clean_mgcfd_seq:
+	rm -f $(BIN_DIR)/mgcfd_seq $(OP2_SEQ_OBJECTS)
+clean_mgcfd_mpi:
+	rm -f $(BIN_DIR)/mgcfd_mpi $(OP2_MPI_OBJECTS)
+clean_mgcfd_mpi_vec:
+	rm -f $(BIN_DIR)/mgcfd_mpi_vec $(OP2_MPI_VEC_OBJECTS)
+clean_mgcfd_openmp:
+	rm -f $(BIN_DIR)/mgcfd_openmp $(OP2_OMP_OBJECTS)
+clean_mgcfd_mpi_openmp:
+	rm -f $(BIN_DIR)/mgcfd_mpi_openmp $(OP2_MPI_OMP_OBJECTS)
+clean_mgcfd_cuda:
+	rm -f $(BIN_DIR)/mgcfd_cuda $(OP2_CUDA_OBJECTS)
+clean_mgcfd_mpi_cuda:
+	rm -f $(BIN_DIR)/mgcfd_mpi_cuda $(OP2_MPI_CUDA_OBJECTS)
+clean_mgcfd_openacc:
+	rm -f $(BIN_DIR)/mgcfd_openacc $(OP2_OPENACC_OBJECTS)
+clean_mgcfd_openmp4:
+	rm -f $(BIN_DIR)/mgcfd_openmp4 $(OP2_OMP4_OBJECTS)

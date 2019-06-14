@@ -22,13 +22,18 @@ js_to_submit_cmd["moab"] = "msub"
 js_to_submit_cmd["lsf"] = "bsub"
 js_to_submit_cmd["pbs"] = "qsub"
 
+part_method_defaults = {}
+part_method_defaults["inertial"] = "geom"
+part_method_defaults["parmetis"] = "geom"
+part_method_defaults["ptscotch"] = "kway"
+
 defaults = {}
 # Compilation:
-defaults["compiler"] = "intel"
+defaults["app dirpath"] = None
 defaults["debug"] = False
 defaults["papi"] = False
-defaults["cpp wrapper"] = ""
-defaults["mpicpp wrapper"] = ""
+defaults["cpp wrapper"] = None
+defaults["mpicpp wrapper"] = None
 defaults["openmp"] = False
 defaults["mpi"] = False
 defaults["cuda"] = False
@@ -38,12 +43,17 @@ defaults["openmp4"] = False
 defaults["unit walltime"] = 0.0
 defaults["project code"] = ""
 defaults["partition"] = ""
-defaults["job scheduler"] = ""
+defaults["num nodes"] = None
+defaults["num tasks"] = None
+defaults["num tasks per node"] = None
+defaults["num threads per task"] = None
 # MG-CFD execution:
 defaults["num threads"] = [1]
 defaults["num repeats"] = 1
 defaults["mg cycles"] = 50
-defaults["partitioner methods"] = ["geom"]
+# Partitioning:
+defaults["partitioners"] = ["parmetis"]
+defaults["partitioner methods"] = None
 
 def get_key_value(profile, cat, key):
     if not cat in profile.keys():
@@ -62,7 +72,7 @@ def py_sed(filepath, from_str, to_str, delete_line_if_none=False):
         lines = f.readlines()
     with open(filepath, "w") as f:
         for line in lines:
-            if from_str in line and to_str == "" and delete_line_if_none:
+            if from_str in line and (to_str == "" or to_str is None) and delete_line_if_none:
                 # Delete line
                 pass
             elif isinstance(to_str, str):
@@ -78,6 +88,25 @@ def delete_folder_contents(dirpath):
             shutil.rmtree(fp)
         else:
             os.remove(fp)
+
+def infer_task_counts(num_nodes, num_tasks, num_tpn):
+    if num_tasks is None:
+        try:
+            num_tasks = num_nodes * num_tpn
+        except:
+            pass
+    if num_nodes is None:
+        try:
+            num_nodes = int(num_tasks / num_tpn)
+        except:
+            pass
+    if num_tpn is None:
+        try:
+            num_tpn = int(num_tasks / num_nodes)
+        except:
+            pass
+
+    return num_nodes, num_tasks, num_tpn
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
@@ -96,8 +125,16 @@ if __name__=="__main__":
         delete_folder_contents(jobs_dir)
 
     data_dirpath = profile["run"]["data dirpath"]
+    if not os.path.isdir(data_dirpath):
+        raise Exception("Requested data dirpath does not exist")
     if data_dirpath[0] != '/':
         data_dirpath = os.path.join(app_dirpath, data_dirpath)
+
+    if not get_key_value(profile, "compile", "app dirpath") is None:
+        app_dirpath = get_key_value(profile, "compile", "app dirpath")
+        if not os.path.isdir(jobs_dir):
+            raise Exception("Requested app dirpath does not exist")
+        template_dirpath = os.path.join(app_dirpath, "run-templates")
 
     ## Read parameters from json:
     job_queue = get_key_value(profile, "setup", "partition")
@@ -171,10 +208,31 @@ if __name__=="__main__":
     partitioner_methods = get_key_value(profile, "run", "partitioner methods")
     
     num_nodes_range = get_key_value(profile, "run", "num nodes")
+    num_tasks_range = get_key_value(profile, "run", "num tasks")
     num_tpn_range = get_key_value(profile, "run", "num tasks per node")
     num_threads_range = get_key_value(profile, "run", "num threads per task")
 
-    num_jobs = len(num_nodes_range) * len(num_tpn_range) * len(num_threads_range) * num_repeats * len(partitioners) * len(partitioner_methods)
+    iteration_space = {}
+    if not partitioners is None:
+        iteration_space["partitioner"] = partitioners
+    if not partitioner_methods is None:
+        iteration_space["partitioner method"] = partitioner_methods
+    if not num_nodes_range is None:
+        iteration_space["num nodes"] = num_nodes_range
+    if not num_tasks_range is None:
+        iteration_space["num tasks"] = num_tasks_range
+    if not num_tpn_range is None:
+        iteration_space["num tpn"] = num_tpn_range
+    if not num_threads_range is None:
+        iteration_space["num threads"] = num_threads_range
+    iterables = itertools.product(*iteration_space.values())
+    iterables_labelled = []
+    for item in iterables:
+        item_dict = {}
+        for i in xrange(len(item)):
+          item_dict[iteration_space.keys()[i]] = item[i]
+        iterables_labelled.append(item_dict)
+    num_jobs = len(iterables_labelled)
 
     submit_all_filepath = os.path.join(jobs_dir, "submit_all.sh")
     submit_all_file = open(submit_all_filepath, "w")
@@ -187,160 +245,189 @@ if __name__=="__main__":
     submit_all_file.write("submit_cmd={0}\n\n".format(js_to_submit_cmd[js]))
     submit_all_file.write("num_jobs={0}\n\n".format(num_jobs))
 
-    with open(os.path.join(jobs_dir, "papi.conf"), "w") as f:
-        f.write("PAPI_TOT_INS\n")
-        f.write("PAPI_TOT_CYC\n")
+    if use_papi:
+        with open(os.path.join(jobs_dir, "papi.conf"), "w") as f:
+            f.write("PAPI_TOT_INS\n")
+            f.write("PAPI_TOT_CYC\n")
 
     n = 0
-    for num_nodes in num_nodes_range:
-        for num_tpn in num_tpn_range:
-            nt = num_nodes * num_tpn
-            for num_thr in num_threads_range:
-                for repeat in range(num_repeats):
-                    for partitioner in partitioners:
-                        for part_method in partitioner_methods:
-                            n += 1
-                            job_id = str(n).zfill(3)
+    for repeat in range(num_repeats):
+        for item in iterables_labelled:
+            n += 1
+            job_id = str(n).zfill(3)
 
-                            if partitioner == "inertial":
-                                if part_method != "geom":
-                                    print("Skipping job {0}/{1}, '{2}' method incompatible with inertial partitioner".format(n, num_jobs, part_method))
-                                    continue
-                            elif partitioner == "ptscotch":
-                                if part_method != "kway":
-                                    print("Skipping job {0}/{1}, '{2}' method incompatible with PT-Scotch partitioner".format(n, num_jobs, part_method))
-                                    continue
+            num_nodes = item.get("num nodes", None)
+            num_tasks = item.get("num tasks", None)
+            num_tpn = item.get("num tpn", None)
+            num_thr = item.get("num threads", None)
+            num_nodes, num_tasks, num_tpn = infer_task_counts(num_nodes, num_tasks, num_tpn)
+            try:
+                ncpus_per_node = num_tpn * num_thr
+            except:
+                ncpus_per_node = None
+            ## Restore user-requested (or excluded) values:
+            num_nodes = item.get("num nodes", None)
+            num_tasks = item.get("num tasks", None)
+            num_tpn = item.get("num tpn", None)
+            num_thr = item.get("num threads", None)
 
-                            print("Creating job {0}/{1}".format(n, num_jobs))
+            partitioner = item.get("partitioner")
+            part_method = item.get("partitioner method", None)
+            if part_method is None:
+                part_method = part_method_defaults[partitioner]
+            if partitioner == "inertial":
+                if part_method != "geom":
+                    print("Skipping job {0}/{1}, '{2}' method incompatible with inertial partitioner".format(n, num_jobs, part_method))
+                    continue
+            elif partitioner == "ptscotch":
+                if part_method != "kway":
+                    print("Skipping job {0}/{1}, '{2}' method incompatible with PT-Scotch partitioner".format(n, num_jobs, part_method))
+                    continue
 
-                            job_dir = os.path.join(jobs_dir, job_id)
-                            if not os.path.isdir(job_dir):
-                                os.mkdir(job_dir)
+            print("Creating job {0}/{1}".format(n, num_jobs))
 
-                            ## Link to papi config file:
-                            papi_dest_filepath = os.path.join(job_dir, "papi.conf")
-                            if os.path.isfile(papi_dest_filepath):
-                                os.remove(papi_dest_filepath)
-                            os.symlink(os.path.join(jobs_dir, "papi.conf"), papi_dest_filepath)
+            job_dir = os.path.join(jobs_dir, job_id)
+            if not os.path.isdir(job_dir):
+                os.mkdir(job_dir)
 
-                            ## Instantiate MG-CFD run script:
-                            job_run_filepath = os.path.join(job_dir, "run-mgcfd.sh")
-                            shutil.copyfile(os.path.join(template_dirpath, "run-mgcfd.sh"), job_run_filepath)
+            if use_papi:
+                ## Link to papi config file:
+                papi_dest_filepath = os.path.join(job_dir, "papi.conf")
+                if os.path.isfile(papi_dest_filepath):
+                    os.remove(papi_dest_filepath)
+                os.symlink(os.path.join(jobs_dir, "papi.conf"), papi_dest_filepath)
 
-                            ## Instantiate job scheduling header:
-                            js_filepath = os.path.join(job_dir, js_filename)
-                            shutil.copyfile(os.path.join(template_dirpath, js_filename), js_filepath)
+            ## Instantiate MG-CFD run script:
+            job_run_filepath = os.path.join(job_dir, "run-mgcfd.sh")
+            shutil.copyfile(os.path.join(template_dirpath, "run-mgcfd.sh"), job_run_filepath)
 
-                            ## Combine into a single batch submission script:
-                            if js == "":
-                                batch_filename = "run.N={0}.sh".format(str(nt).zfill(4))
-                            else:
-                                batch_filename = js+".N={0}.batch".format(str(nt).zfill(4))
-                            batch_filepath = os.path.join(job_dir, batch_filename)
-                            with open(batch_filepath, "w") as f_out:
-                                if js_filepath != "":
-                                    with open(js_filepath, "r") as f_in:
-                                        for line in f_in.readlines():
-                                            f_out.write(line)
-                                    os.remove(js_filepath)
-                                else:
-                                    f_out.write("#!/bin/bash\n")
-                                f_out.write("\n\n")
-                                with open(job_run_filepath, "r") as f_in:
-                                    for line in f_in.readlines():
-                                        f_out.write(line)
-                                os.remove(job_run_filepath)
+            ## Instantiate job scheduling header:
+            js_filepath = os.path.join(job_dir, js_filename)
+            shutil.copyfile(os.path.join(template_dirpath, js_filename), js_filepath)
 
-                            ## Now replace variables in script:
+            ## Combine into a single batch submission script:
+            if js == "":
+                if not num_tasks is None:
+                    batch_filename = "run.N={0}.sh".format(str(num_tasks).zfill(4))
+                else:
+                    batch_filename = "run.N={0}.sh".format(str(num_nodes).zfill(3))
+            else:
+                if not num_tasks is None:
+                    batch_filename = js+".N={0}.batch".format(str(num_tasks).zfill(4))
+                else:
+                    batch_filename = js+".N={0}.batch".format(str(num_nodes).zfill(3))
+            batch_filepath = os.path.join(job_dir, batch_filename)
+            with open(batch_filepath, "w") as f_out:
+                if js_filepath != "":
+                    with open(js_filepath, "r") as f_in:
+                        for line in f_in.readlines():
+                            f_out.write(line)
+                    os.remove(js_filepath)
+                else:
+                    f_out.write("#!/bin/bash\n")
+                f_out.write("\n\n")
+                with open(job_run_filepath, "r") as f_in:
+                    for line in f_in.readlines():
+                        f_out.write(line)
+                os.remove(job_run_filepath)
 
-                            ## - File/dir paths:
-                            py_sed(batch_filepath, "<RUN_OUTDIR>", job_dir)
-                            py_sed(batch_filepath, "<APP_DIRPATH>", app_dirpath)
-                            py_sed(batch_filepath, "<DATA_DIRPATH>", data_dirpath)
+            ## Now replace variables in script:
 
-                            ## - Scheduling:
-                            py_sed(batch_filepath, "<RUN ID>", job_id)
-                            py_sed(batch_filepath, "<PARTITION>", job_queue, True)
-                            py_sed(batch_filepath, "<PROJECT CODE>", project_code, True)
+            ## - File/dir paths:
+            py_sed(batch_filepath, "<RUN_OUTDIR>", job_dir)
+            py_sed(batch_filepath, "<APP_DIRPATH>", app_dirpath)
+            py_sed(batch_filepath, "<DATA_DIRPATH>", data_dirpath)
 
-                            ## - Parallelism:
-                            py_sed(batch_filepath, "<TPN>", num_tpn)
-                            py_sed(batch_filepath, "<NODES>", num_nodes)
-                            py_sed(batch_filepath, "<NTHREADS>", num_thr)
-                            py_sed(batch_filepath, "<NTASKS>", nt)
-                            py_sed(batch_filepath, "<NCPUS_PER_NODE>", num_tpn*num_thr)
-                            py_sed(batch_filepath, "<NTHREADS>", num_thr)
+            ## - Scheduling:
+            py_sed(batch_filepath, "<RUN ID>", job_id)
+            py_sed(batch_filepath, "<PARTITION>", job_queue, True)
+            py_sed(batch_filepath, "<PROJECT CODE>", project_code, True)
 
-                            ## - Compilation:
-                            py_sed(batch_filepath, "<COMPILER>", compiler)
-                            py_sed(batch_filepath, "<DEBUG>", str(do_debug).lower())
-                            py_sed(batch_filepath, "<PAPI>", str(use_papi).lower())
-                            py_sed(batch_filepath, "<CPP_WRAPPER>", cpp_wrapper)
-                            py_sed(batch_filepath, "<MPICPP_WRAPPER>", mpicpp_wrapper)
-                            py_sed(batch_filepath, "<MPI>", str(use_mpi).lower())
-                            py_sed(batch_filepath, "<CUDA>", str(use_cuda).lower())
-                            py_sed(batch_filepath, "<OPENMP>", str(use_openmp).lower())
-                            py_sed(batch_filepath, "<OPENMP4>", str(use_openmp4).lower())
-                            py_sed(batch_filepath, "<OPENACC>", str(use_openacc).lower())
+            ## - Parallelism:
+            py_sed(batch_filepath, "<NODES>", num_nodes, True)
+            py_sed(batch_filepath, "<TPN>", num_tpn, True)
+            py_sed(batch_filepath, "<NTHREADS>", num_thr, True)
+            py_sed(batch_filepath, "<NTASKS>", num_tasks, True)
+            py_sed(batch_filepath, "<NCPUS_PER_NODE>", ncpus_per_node, True)
 
-                            ## - Execution:
-                            py_sed(batch_filepath, "<PARTITIONER>", partitioner)
-                            py_sed(batch_filepath, "<PARTITIONER_METHOD>", part_method)
-                            py_sed(batch_filepath, "<MG_CYCLES>", mg_cycles)
-                            if validate_solution:
-                                py_sed(batch_filepath, "<VALIDATE_SOLUTION>", "true")
-                            else:
-                                py_sed(batch_filepath, "<VALIDATE_SOLUTION>", "false")
+            ## - Compilation:
+            py_sed(batch_filepath, "<COMPILER>", compiler)
+            py_sed(batch_filepath, "<CPP_WRAPPER>", cpp_wrapper, True)
+            py_sed(batch_filepath, "<MPICPP_WRAPPER>", mpicpp_wrapper, True)
+            py_sed(batch_filepath, "<DEBUG>", str(do_debug).lower())
+            py_sed(batch_filepath, "<PAPI>", str(use_papi).lower())
+            py_sed(batch_filepath, "<MPI>", str(use_mpi).lower())
+            py_sed(batch_filepath, "<CUDA>", str(use_cuda).lower())
+            py_sed(batch_filepath, "<OPENMP>", str(use_openmp).lower())
+            py_sed(batch_filepath, "<OPENMP4>", str(use_openmp4).lower())
+            py_sed(batch_filepath, "<OPENACC>", str(use_openacc).lower())
 
-                            ## - Walltime estimation:
-                            if mgcfd_unit_runtime_secs == 0.0:
-                                est_runtime_hours = 0
-                                est_runtime_minutes = 30
-                            else:
-                                est_runtime_secs = float(mgcfd_unit_runtime_secs*mg_cycles) / math.sqrt(float(nt*num_thr))
-                                est_runtime_secs *= 1.2 ## Allow for estimation error
-                                est_runtime_secs += 60 ## Add time for file load
-                                est_runtime_secs += 10*math.sqrt(float(nt*num_thr)) ## Add time for partitioning
-                                est_runtime_secs = int(round(est_runtime_secs))
-                                est_runtime_hours = est_runtime_secs/60/60
-                                est_runtime_secs -= est_runtime_hours*60*60
-                                est_runtime_minutes = est_runtime_secs/60
-                                est_runtime_secs -= est_runtime_minutes*60
-                                if est_runtime_secs > 0:
-                                    est_runtime_minutes += 1
-                                    est_runtime_secs = 0
-                            py_sed(batch_filepath, "<HOURS>", str(est_runtime_hours).zfill(2))
-                            py_sed(batch_filepath, "<MINUTES>", str(est_runtime_minutes).zfill(2))
-                            py_sed(batch_filepath, "<RUN_ID>", job_id)
+            py_sed(batch_filepath, "<BIN_FILENAME>", bin_filename)
+            py_sed(batch_filepath, "<BIN_FILEPATH>", bin_filepath)
 
-                            ## Make batch script executable:
-                            os.chmod(batch_filepath, 0755)
+            ## - Execution:
+            py_sed(batch_filepath, "<PARTITIONER>", partitioner)
+            py_sed(batch_filepath, "<PARTITIONER_METHOD>", part_method)
+            py_sed(batch_filepath, "<MG_CYCLES>", mg_cycles)
+            if validate_solution:
+                py_sed(batch_filepath, "<VALIDATE_SOLUTION>", "true")
+            else:
+                py_sed(batch_filepath, "<VALIDATE_SOLUTION>", "false")
 
-                            # Copy template 'submit.sh' to a temp file:
-                            submit_tmp = NamedTemporaryFile(prefix='myprefix')
-                            if not os.path.isfile(submit_tmp.name):
-                                print("NamedTemporaryFile() failed to actually create the file")
-                                sys.exit(-1)
-                            submit_tmp_filepath = submit_tmp.name
-                            with open(os.path.join(template_dirpath, "submit.sh"), 'r+b') as f:
-                                shutil.copyfileobj(f, submit_tmp)
-                            submit_tmp.seek(0)
-                            # Instantiate and append to submit_all.sh: 
-                            py_sed(submit_tmp_filepath, "<RUN_DIRPATH>",    job_dir)
-                            py_sed(submit_tmp_filepath, "<BATCH_FILENAME>", batch_filename)
-                            py_sed(submit_tmp_filepath, "<BIN_FILEPATH>",   bin_filepath)
-                            py_sed(submit_tmp_filepath, "<JOB_NUM>", n)
-                            py_sed(submit_tmp_filepath, "<NUM_JOBS>", num_jobs)
-                            submit_all_file.write("\n\n")
-                            with open(submit_tmp_filepath, 'r') as f:
-                                for line in f:
-                                    # if not re.match(r''+"^[\s]*#", line):
-                                    submit_all_file.write(line)
+            ## - Walltime estimation:
+            if mgcfd_unit_runtime_secs == 0.0:
+                est_runtime_hours = 0
+                est_runtime_minutes = 30
+            else:
+                num_nodes, num_tasks, num_tpn = infer_task_counts(num_nodes, num_tasks, num_tpn)
+                try:
+                    est_runtime_secs = float(mgcfd_unit_runtime_secs*mg_cycles) / math.sqrt(float(num_tasks*num_thr))
+                    est_runtime_secs *= 1.2 ## Allow for estimation error
+                    est_runtime_secs += 60 ## Add time for file load
+                    est_runtime_secs += 10*math.sqrt(float(num_tasks*num_thr)) ## Add time for partitioning
+                except:
+                    est_runtime_secs = 60 * 10
+                est_runtime_secs = int(round(est_runtime_secs))
+                est_runtime_hours = est_runtime_secs/60/60
+                est_runtime_secs -= est_runtime_hours*60*60
+                est_runtime_minutes = est_runtime_secs/60
+                est_runtime_secs -= est_runtime_minutes*60
+                if est_runtime_secs > 0:
+                    est_runtime_minutes += 1
+                    est_runtime_secs = 0
+            py_sed(batch_filepath, "<HOURS>", str(est_runtime_hours).zfill(2))
+            py_sed(batch_filepath, "<MINUTES>", str(est_runtime_minutes).zfill(2))
+            py_sed(batch_filepath, "<RUN_ID>", job_id)
 
-                            ## Now close (and delete) submit_tmp file
-                            submit_tmp.close()
-                            if os.path.isfile(submit_tmp_filepath):
-                                os.unlink(submit_tmp_filepath)
+            ## Make batch script executable:
+            os.chmod(batch_filepath, 0755)
+
+            # Copy template 'submit.sh' to a temp file:
+            submit_tmp = NamedTemporaryFile(prefix='myprefix')
+            if not os.path.isfile(submit_tmp.name):
+                print("NamedTemporaryFile() failed to actually create the file")
+                sys.exit(-1)
+            submit_tmp_filepath = submit_tmp.name
+            with open(os.path.join(template_dirpath, "submit.sh"), 'r+b') as f:
+                shutil.copyfileobj(f, submit_tmp)
+            submit_tmp.seek(0)
+            # Instantiate and append to submit_all.sh: 
+            py_sed(submit_tmp_filepath, "<RUN_DIRPATH>",    job_dir)
+            py_sed(submit_tmp_filepath, "<BATCH_FILENAME>", batch_filename)
+            py_sed(submit_tmp_filepath, "<BIN_FILENAME>",   bin_filename)
+            py_sed(submit_tmp_filepath, "<BIN_FILEPATH>",   bin_filepath)
+            py_sed(submit_tmp_filepath, "<JOB_NUM>", n)
+            py_sed(submit_tmp_filepath, "<NUM_JOBS>", num_jobs)
+            submit_all_file.write("\n\n")
+            with open(submit_tmp_filepath, 'r') as f:
+                for line in f:
+                    # if not re.match(r''+"^[\s]*#", line):
+                    submit_all_file.write(line)
+
+            ## Now close (and delete) submit_tmp file
+            submit_tmp.close()
+            if os.path.isfile(submit_tmp_filepath):
+                os.unlink(submit_tmp_filepath)
 
 
     submit_all_file.close()

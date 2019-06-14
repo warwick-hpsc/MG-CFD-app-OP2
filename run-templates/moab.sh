@@ -5,6 +5,7 @@
 #MSUB -e moab.stderr
 
 #MSUB -l nodes=<NODES>
+#MSUB -l procs=<NTASKS>
 #MSUB -l ttc=<TPN>
 #MSUB -n
 

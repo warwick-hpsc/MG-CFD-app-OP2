@@ -57,7 +57,7 @@ def collate_csvs():
                 ## Need to infer partitioner for op2_performance_data.csv:
                 partitioner = ""
                 for f in run_filenames:
-                    if f.endswith(".batch") or f=="run.sh":
+                    if f.endswith(".batch") or (f.startswith("run") and f.endswith(".sh")):
                         fp = os.path.join(dp, f)
                         nranks = infer_nranks(fp)
                         partitioner = infer_partitioner(fp)

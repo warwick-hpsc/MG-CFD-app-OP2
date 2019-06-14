@@ -5,6 +5,7 @@
 #SBATCH --error=sbatch.stderr
 
 #SBATCH --nodes=<NODES>
+#SBATCH --ntasks=<NTASKS>
 #SBATCH --ntasks-per-node=<TPN>
 #SBATCH --cpus-per-task=<NTHREADS>
 #SBATCH --ntasks-per-core=1
