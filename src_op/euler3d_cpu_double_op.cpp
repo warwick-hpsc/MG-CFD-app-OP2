@@ -85,6 +85,13 @@ void op_par_loop_compute_flux_edge_kernel(char const *, op_set,
   op_arg,
   op_arg,
   op_arg,
+  op_arg );
+
+void op_par_loop_compute_flux_edge_kernel_instrumented(char const *, op_set,
+  op_arg,
+  op_arg,
+  op_arg,
+  op_arg,
   op_arg
   #ifdef VERIFY_OP2_TIMING
     , double* // compute time
@@ -616,15 +623,14 @@ int main(int argc, char** argv)
                 op_printf(" RK cycle %d / %d\n", rkCycle+1, RK);
             #endif
 
-            op_par_loop_compute_flux_edge_kernel("compute_flux_edge_kernel",op_edges[level],
+            op_par_loop_compute_flux_edge_kernel_instrumented("compute_flux_edge_kernel",op_edges[level],
                         op_arg_dat(p_variables[level],0,p_edge_to_nodes[level],5,"double",OP_READ),
                         op_arg_dat(p_variables[level],1,p_edge_to_nodes[level],5,"double",OP_READ),
                         op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                         op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
                         op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
                         #ifdef VERIFY_OP2_TIMING
-                          , &flux_kernel_compute_times[level]
-                          , &flux_kernel_sync_times[level]
+                          , &flux_kernel_compute_times[level], &flux_kernel_sync_times[level]
                         #endif
                         , &flux_kernel_iter_counts[level]
                         #ifdef PAPI

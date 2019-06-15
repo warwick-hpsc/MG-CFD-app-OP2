@@ -15,10 +15,25 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   op_arg arg1,
   op_arg arg2,
   op_arg arg3,
-  op_arg arg4
+  op_arg arg4){
+  
+  op_par_loop_compute_flux_edge_kernel_instrumented(name, set, 
+    arg0, arg1, arg2, arg3, arg4
+    #ifdef VERIFY_OP2_TIMING
+      , NULL, NULL
+    #endif
+    , NULL
+    #ifdef PAPI
+    , NULL, 0, 0
+    #endif
+    );
+};
+
+void op_par_loop_compute_flux_edge_kernel_instrumented(
+  char const *name, op_set set,
+  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
   #ifdef VERIFY_OP2_TIMING
-    , double* compute_time_ptr
-    , double* sync_time_ptr
+    , double* compute_time_ptr, double* sync_time_ptr
   #endif
   , long* iter_counts_ptr
   #ifdef PAPI
@@ -57,16 +72,20 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
 
     #ifdef PAPI
       // Init and start PAPI
-      long_long* temp_count_stores = (long_long*)malloc(sizeof(long_long)*num_events);
-      for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
-      my_papi_start(event_set);
+      long_long* temp_count_stores = NULL;
+      if (num_events > 0) {
+        temp_count_stores = (long_long*)malloc(sizeof(long_long)*num_events);
+        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+        my_papi_start(event_set);
+      }
     #endif
 
     op_timers_core(&inner_cpu_t1, &inner_wall_t1);
     for ( int n=0; n<set_size; n++ ){
       if (n==set->core_size) {
         #ifdef PAPI
-          my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
+          if (num_events > 0)
+            my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
         #endif
 
         op_timers_core(&inner_cpu_t2, &inner_wall_t2);
@@ -76,9 +95,11 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
         sync_time += inner_wall_t1 - inner_wall_t2;
 
         #ifdef PAPI
-          // Restart PAPI
-          for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
-          my_papi_start(event_set);
+          if (num_events > 0) {
+            // Restart PAPI
+            for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+            my_papi_start(event_set);
+        }
         #endif
       }
       int map0idx = arg0.map_data[n * arg0.map->dim + 0];
@@ -97,9 +118,11 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
     iter_counts += set_size;
 
     #ifdef PAPI
-      my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
-      for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
-      free(temp_count_stores);
+      if (num_events > 0) {
+        my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
+        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+        free(temp_count_stores);
+      }
     #endif
   }
 
@@ -123,8 +146,11 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   OP_kernels[9].transfer += (float)set->size * arg0.map->dim * 4.0f;
 
   #ifdef VERIFY_OP2_TIMING
-    *compute_time_ptr += compute_time;
-    *sync_time_ptr += sync_time;
+    if (compute_time_ptr != NULL)
+        *compute_time_ptr += compute_time;
+    if (sync_time_ptr != NULL)
+        *sync_time_ptr += sync_time;
   #endif
-  *iter_counts_ptr += iter_counts;
+  if (iter_counts_ptr != NULL)
+      *iter_counts_ptr += iter_counts;
 }

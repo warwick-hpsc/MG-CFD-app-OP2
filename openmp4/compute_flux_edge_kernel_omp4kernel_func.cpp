@@ -7,10 +7,6 @@
 #include "global.h"
 #include "config.h"
 
-#ifdef PAPI
-#include <papi.h>
-#endif
-
 void compute_flux_edge_kernel_omp4_kernel(
   int *map0,
   int map0size,
