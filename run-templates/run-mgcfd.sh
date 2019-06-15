@@ -39,6 +39,7 @@ fi
 
 bin_filename="<BIN_FILENAME>"
 bin_filepath="<BIN_FILEPATH>"
+make_target="<MAKE_TARGET>"
 
 recompile_required=false
 if [ -f "$bin_filepath" ]; then
@@ -56,7 +57,7 @@ if [[ `hostname` == *"login"* ]] || [ "`head -n1 "$0"`" = "#!/bin/bash" ]; then
   ## On login node, or executing local run script, so compile
   cd "${app_dirpath}"
   if $recompile_required ; then
-    make clean_"${bin_filename}"
+    make clean_"${make_target}"
   fi
   make_cmd="COMPILER=${compiler} "
   if [ ! -z ${cpp_wrapper+x} ] && [ "$cpp_wrapper" != "" ]; then
@@ -71,7 +72,7 @@ if [[ `hostname` == *"login"* ]] || [ "`head -n1 "$0"`" = "#!/bin/bash" ]; then
   if $debug ; then
     make_cmd+="DEBUG=1 "
   fi
-  make_cmd+="make -j4 $bin_filename"
+  make_cmd+="make -j4 $make_target"
   eval "$make_cmd"
   chmod a+x "$bin_filepath"
 elif [ ! -f "$bin_filepath" ]; then
