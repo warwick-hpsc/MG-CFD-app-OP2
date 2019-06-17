@@ -157,7 +157,7 @@ endif
 # set flags for NVCC compilation and linking
 #
 ifndef NV_ARCH
-  MESSAGE=select an NVIDA device to compile in CUDA, e.g. make NV_ARCH=KEPLER
+  MESSAGE=select an NVIDA device to compile in CUDA, e.g. make NV_ARCH=Pascal
   NV_ARCH=Pascal
 endif
 ifeq ($(NV_ARCH),Fermi)
@@ -175,7 +175,10 @@ endif
 endif
 endif
 endif
-
+NVCCFLAGS = 
+ifdef NVCC_BIN
+	NVCCFLAGS = -ccbin $(NVCC_BIN)
+endif
 NVCCFLAGS += $(CODE_GEN_CUDA) -m64 -Xptxas -dlcm=ca -Xptxas=-v -use_fast_math -O3
 
 
@@ -197,14 +200,12 @@ endif
 ## its compute and sync times.
 # MGCFD_INCS += -DDUMP_EXT_PERF_DATA
 
-
+all: seq openmp mpi mpi_vec mpi_openmp
+# all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda
+# all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda openacc openmp4
 
 parallel: N = $(shell nproc)
 parallel:; @$(MAKE) -j$(N) -l$(N) all
-
-# all: seq openmp mpi mpi_vec
-all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda
-# all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda openacc openmp4
 
 ## User-friendly wrappers around actual targets:
 seq: $(BIN_DIR)/mgcfd_seq
