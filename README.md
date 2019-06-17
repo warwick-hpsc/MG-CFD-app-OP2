@@ -37,13 +37,13 @@ Different binaries can be generated, depending on the mix of parallelism and per
 
 Intent | make rule | OP2 dependency (make rule)
 ------ | --------- | -----------------------------
-Sequential | mgcfd_seq | seq
-OpenMP | mgcfd_openmp | openmp
-MPI | mgcfd_mpi | mpi_seq
-MPI + OpenMP | mgcfd_mpi_openmp | mpi_seq
-MPI + SIMD | mgcfd_mpi_vec | mpi_seq
-CUDA | mgcfd_cuda | cuda
-MPI + CUDA | mgcfd_mpi_cuda | mpi_cuda
+Sequential | seq | seq
+OpenMP | openmp | openmp
+MPI | mpi | mpi_seq
+MPI + OpenMP | mpi_openmp | mpi_seq
+MPI + SIMD | mpi_vec | mpi_seq
+CUDA | cuda | cuda
+MPI + CUDA | mpi_cuda | mpi_cuda
 
 In future, OpenACC and OpenMP 4.5 ports will be available
 
