@@ -16,6 +16,10 @@
 #include "global.h"
 #include "config.h"
 
+#ifdef PAPI
+#include <papi.h>
+#endif
+
 inline void compute_boundary_flux_edge_kernel(
     const double *variables_b,
     const double *edge_weight,
@@ -513,10 +517,26 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   op_arg arg1,
   op_arg arg2,
   op_arg arg3,
-  op_arg arg4
+  op_arg arg4){
+
+  
+  op_par_loop_compute_flux_edge_kernel_instrumented(name, set, 
+    arg0, arg1, arg2, arg3, arg4
+    #ifdef VERIFY_OP2_TIMING
+      , NULL, NULL
+    #endif
+    , NULL
+    #ifdef PAPI
+    , NULL, 0, 0
+    #endif
+    );
+};
+
+void op_par_loop_compute_flux_edge_kernel_instrumented(
+  char const *name, op_set set,
+  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
   #ifdef VERIFY_OP2_TIMING
-    , double* compute_time_ptr
-    , double* sync_time_ptr
+    , double* compute_time_ptr, double* sync_time_ptr
   #endif
   , long* iter_counts_ptr
   #ifdef PAPI
