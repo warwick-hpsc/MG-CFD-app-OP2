@@ -22,13 +22,9 @@ import imp
 imp.load_source('data_utils', os.path.join(script_dirpath, "data-utils.py"))
 from data_utils import *
 
-def infer_nranks(slurm_filepath):
-    with open(slurm_filepath, "r") as f:
-        for line in f:
-            if line.startswith("ntasks"):
-                ntasks = int(line.replace('\n','').split('=')[1])
-                return ntasks
-    return -1
+def infer_nranks(op2_csv_filepath):
+    d = clean_pd_read_csv(op2_csv_filepath)
+    return d["nranks"][0]
 
 def infer_partitioner(slurm_filepath):
     with open(slurm_filepath, "r") as f:
@@ -56,16 +52,23 @@ def collate_csvs():
                 nranks = -1
                 ## Need to infer partitioner for op2_performance_data.csv:
                 partitioner = ""
+                batch_fp = ""
                 for f in run_filenames:
                     if f.endswith(".batch") or (f.startswith("run") and f.endswith(".sh")):
-                        fp = os.path.join(dp, f)
-                        nranks = infer_nranks(fp)
-                        partitioner = infer_partitioner(fp)
+                        batch_fp = os.path.join(dp, f)
+                        partitioner = infer_partitioner(batch_fp)
 
-                if nranks == -1:
+                if batch_fp == "":
                     raise Exception("Failed to find batch file in: " + dp)
                 if partitioner == "":
-                    raise Exception("Failed to infer partitioner in: " + dp)
+                    raise Exception("Failed to infer partitioner in: " + batch_fp)
+                op2_perf_data_filepath = os.path.join(dp, "op2_performance_data.csv")
+                if not os.path.isfile(op2_perf_data_filepath):
+                    print("WARNING: Job {0} failed, skipping".format(d))
+                    continue
+                nranks = infer_nranks(op2_perf_data_filepath)
+                if nranks == -1:
+                    raise Exception("Failed to infer nranks in: " + op2_perf_data_filepath)
 
                 for f in run_filenames:
                     if f.endswith("."+cat+".csv") or (f == cat+".csv"):
