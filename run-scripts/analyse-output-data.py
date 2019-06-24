@@ -90,73 +90,59 @@ op2_data.to_csv(os.path.join(output_dirpath, "op2_data.csv"), index=False)
 
 ## Plot:
 
-nranks_counts = Set(op2_data["nranks"])
-for n in nranks_counts:
-	n_data = op2_data[op2_data["nranks"]==n]
-	# rank vs sync:
+flux_data = op2_data.loc[op2_data["loop"]=="flux"]
+wall_data = op2_data.loc[op2_data["loop"]=="WALLTIME"]
+
+if "nranks" in op2_data.columns:
+	nranks_counts = Set(op2_data["nranks"])
+
+	# # rank vs flux sync:
+	# for n in nranks_counts:
+	# 	n_data = flux_data[flux_data["nranks"]==n]
+	# 	fig = plt.figure(figsize=fig_dims)
+	# 	x = "rank"
+	# 	y = "sync.percall"
+	# 	fig.suptitle("{0} vs {1}".format(x, y))
+	# 	ax = fig.add_subplot(1,1,1)
+	# 	ax.set_xlabel(x)
+	# 	ax.set_ylabel(y)
+	# 	loops_ranked_by_sync_cost = n_data[n_data["rank"]==0].sort_values(y, ascending=False)["loop"].values
+	# 	for loop in loops_ranked_by_sync_cost:
+	# 		loop_times = n_data[n_data["loop"]==loop]
+	# 		ax.plot(loop_times[x], loop_times[y], label=loop)
+	# 	ax.legend()
+	# 	png_filename = 'rank-vs-flux-sync.N={:05d}.png'.format(n)
+	# 	png_filepath = os.path.join(output_dirpath, png_filename)
+	# 	plt.savefig(png_filepath)
+	# 	plt.close(fig)
+
+	# ranks vs flux() sync (mean and stdev):
+	flux_data_grp = flux_data.groupby(["nranks"], as_index=False)
 	fig = plt.figure(figsize=fig_dims)
-	x = "rank"
+	x = "nranks"
 	y = "sync.percall"
 	fig.suptitle("{0} vs {1}".format(x, y))
 	ax = fig.add_subplot(1,1,1)
 	ax.set_xlabel(x)
 	ax.set_ylabel(y)
-	loops_ranked_by_sync_cost = n_data[n_data["rank"]==0].sort_values(y, ascending=False)["loop"].values
-	for loop in loops_ranked_by_sync_cost:
-		loop_times = n_data[n_data["loop"]==loop]
-		ax.plot(loop_times[x], loop_times[y], label=loop)
-	ax.legend()
-	# plt.savefig('rank-vs-sync.png')
-	png_filename = 'rank-vs-sync.N={:05d}.png'.format(n)
+	plt.errorbar(flux_data_grp.mean()[x], flux_data_grp.mean()[y], flux_data_grp.std()[y])
+	png_filename = 'nranks-vs-flux-sync.png'
 	png_filepath = os.path.join(output_dirpath, png_filename)
 	plt.savefig(png_filepath)
 	plt.close(fig)
 
-#####################
-
-# ## Now perform statistics across ranks of each run (worst case, median, sum etc):
-
-# group_col_names = deepcopy(job_id_colnames)
-# group_col_names.remove("rank")
-
-# op2_data_fluxes = op2_data[op2_data["kernel name"]=="compute_flux_edge_kernel"]
-# op2_data_wall = op2_data[op2_data["kernel name"]=="WALLTIME"]
-
-# op2_data_fluxes_grp = op2_data_fluxes.groupby(group_col_names, as_index=False)
-# op2_data_wall_grp = op2_data_wall.groupby(group_col_names, as_index=False)
-
-# # Worst case:
-# op2_data_mpi_wc_filepath = os.path.join(output_dirpath, "mpi_wc_runwise.csv")
-# if not os.path.isfile(op2_data_mpi_wc_filepath):
-# 	op2_data_fluxes_mpi_wc = op2_data_fluxes.loc[op2_data_fluxes_grp["sync"].idxmax()]
-# 	op2_data_wall_mpi_wc = op2_data_wall.loc[op2_data_wall_grp["sync"].idxmax()]
-# 	op2_data_mpi_wc = pd.concat([op2_data_fluxes_mpi_wc, op2_data_wall_mpi_wc])
-# 	op2_data_mpi_wc.to_csv(op2_data_mpi_wc_filepath, index=False)
-
-# # Sum across ranks:
-# op2_data_fluxes_mpi_sum = op2_data_fluxes_grp.sum()
-# op2_data_wall_mpi_sum = op2_data_wall_grp.sum()
-# op2_data_mpi_sum = pd.concat([op2_data_fluxes_mpi_sum, op2_data_wall_mpi_sum])
-# op2_data_mpi_sum["sync pct"] = op2_data_mpi_sum["sync"] / op2_data_mpi_sum["total time"]
-# op2_data_mpi_sum["sync pct"] = np.round(op2_data_mpi_sum["sync pct"], decimals=4)
-# op2_data_mpi_sum_filepath = os.path.join(output_dirpath, "mpi_sum_runwise.csv")
-# if not os.path.isfile(op2_data_mpi_sum_filepath):
-# 	unwanted_columns = ["GB used"]
-# 	for col in unwanted_columns:
-# 		if col in op2_data_mpi_sum.columns:
-# 			op2_data_mpi_sum = op2_data_mpi_sum.drop(columns=[col])
-# 	op2_data_mpi_sum.to_csv(op2_data_mpi_sum_filepath, index=False)
-
-# # Median across ranks:
-# op2_data_fluxes_mpi_median = op2_data_fluxes_grp.median()
-# op2_data_wall_mpi_median = op2_data_wall_grp.median()
-# op2_data_mpi_median = pd.concat([op2_data_fluxes_mpi_median, op2_data_wall_mpi_median])
-# op2_data_mpi_median["sync pct"] = op2_data_mpi_median["sync"] / op2_data_mpi_median["total time"]
-# op2_data_mpi_median["sync pct"] = np.round(op2_data_mpi_median["sync pct"], decimals=4)
-# op2_data_mpi_median_filepath = os.path.join(output_dirpath, "mpi_median_runwise.csv")
-# if not os.path.isfile(op2_data_mpi_median_filepath):
-# 	unwanted_columns = ["GB used"]
-# 	for col in unwanted_columns:
-# 		if col in op2_data_mpi_median.columns:
-# 			op2_data_mpi_median = op2_data_mpi_median.drop(columns=[col])
-# 	op2_data_mpi_median.to_csv(op2_data_mpi_median_filepath, index=False)
+	# nranks vs walltime:
+	wall_data_grp = wall_data.groupby(["nranks"], as_index=False)
+	fig = plt.figure(figsize=fig_dims)
+	x = "nranks"
+	y = "total time"
+	fig.suptitle("{0} vs {1}".format(x, y))
+	ax = fig.add_subplot(1,1,1)
+	ax.set_xlabel(x)
+	ax.set_ylabel(y)
+	plt.plot(wall_data_grp.max()[x], wall_data_grp.max()[y])
+	ax.set_ylim([0.0, 45.0])
+	png_filename = 'nranks-vs-walltime.png'
+	png_filepath = os.path.join(output_dirpath, png_filename)
+	plt.savefig(png_filepath)
+	plt.close(fig)
