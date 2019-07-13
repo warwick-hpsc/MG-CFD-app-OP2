@@ -133,12 +133,12 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
   if (exec_size >0) {
 
     #ifdef VECTORIZE
-    int dat0[SIMD_VEC];
-    for ( int i=0; i<SIMD_VEC; i++ ){
-      dat0[i] = *((int*)arg0.data);
-    }
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
+      int dat0[SIMD_VEC];
+      for ( int i=0; i<SIMD_VEC; i++ ){
+        dat0[i] = *((int*)arg0.data);
+      }
       #pragma omp simd simdlen(SIMD_VEC)
       for ( int i=0; i<SIMD_VEC; i++ ){
         time_step_kernel(

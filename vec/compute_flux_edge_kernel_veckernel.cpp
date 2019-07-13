@@ -513,17 +513,7 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   op_arg arg1,
   op_arg arg2,
   op_arg arg3,
-  op_arg arg4
-  #ifdef VERIFY_OP2_TIMING
-    , double* compute_time_ptr
-    , double* sync_time_ptr
-  #endif
-  , long* iter_counts_ptr
-  #ifdef PAPI
-  , long_long* restrict event_counts, int event_set, int num_events
-  #endif
-  )
-{
+  op_arg arg4){
 
   int nargs = 5;
   op_arg args[5];
