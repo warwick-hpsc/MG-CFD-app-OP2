@@ -182,22 +182,23 @@ if __name__=="__main__":
 
     if use_mpi:
         if use_cuda:
-            bin_filename = "mgcfd_mpi_cuda"
+            make_target = "mpi_cuda"
         elif use_openmp:
-            bin_filename = "mgcfd_mpi_openmp"
+            make_target = "mpi_openmp"
         else:
-            bin_filename = "mgcfd_mpi"
+            make_target = "mpi"
     else:
         if use_cuda:
-            bin_filename = "mgcfd_cuda"
+            make_target = "cuda"
         elif use_openmp:
-            bin_filename = "mgcfd_openmp"
+            make_target = "openmp"
         elif use_openmp4:
-            bin_filename = "mgcfd_openmp4"
+            make_target = "openmp4"
         elif use_openacc:
-            bin_filename = "mgcfd_openacc"
+            make_target = "openacc"
         else:
             bin_filename = "mgcfd_seq"
+    bin_filename = "mgcfd_" + make_target
     bin_filepath = os.path.join(app_dirpath, "bin", bin_filename)
 
     num_repeats = get_key_value(profile, "run", "num repeats")
@@ -232,7 +233,7 @@ if __name__=="__main__":
         for i in xrange(len(item)):
           item_dict[iteration_space.keys()[i]] = item[i]
         iterables_labelled.append(item_dict)
-    num_jobs = len(iterables_labelled)
+    num_jobs = len(iterables_labelled) * num_repeats
 
     submit_all_filepath = os.path.join(jobs_dir, "submit_all.sh")
     submit_all_file = open(submit_all_filepath, "w")
@@ -265,11 +266,6 @@ if __name__=="__main__":
                 ncpus_per_node = num_tpn * num_thr
             except:
                 ncpus_per_node = None
-            ## Restore user-requested (or excluded) values:
-            num_nodes = item.get("num nodes", None)
-            num_tasks = item.get("num tasks", None)
-            num_tpn = item.get("num tpn", None)
-            num_thr = item.get("num threads", None)
 
             partitioner = item.get("partitioner")
             part_method = item.get("partitioner method", None)
@@ -362,6 +358,7 @@ if __name__=="__main__":
             py_sed(batch_filepath, "<OPENMP4>", str(use_openmp4).lower())
             py_sed(batch_filepath, "<OPENACC>", str(use_openacc).lower())
 
+            py_sed(batch_filepath, "<MAKE_TARGET>", make_target)
             py_sed(batch_filepath, "<BIN_FILENAME>", bin_filename)
             py_sed(batch_filepath, "<BIN_FILEPATH>", bin_filepath)
 
@@ -369,10 +366,7 @@ if __name__=="__main__":
             py_sed(batch_filepath, "<PARTITIONER>", partitioner)
             py_sed(batch_filepath, "<PARTITIONER_METHOD>", part_method)
             py_sed(batch_filepath, "<MG_CYCLES>", mg_cycles)
-            if validate_solution:
-                py_sed(batch_filepath, "<VALIDATE_SOLUTION>", "true")
-            else:
-                py_sed(batch_filepath, "<VALIDATE_SOLUTION>", "false")
+            py_sed(batch_filepath, "<VALIDATE_SOLUTION>", str(validate_solution).lower())
 
             ## - Walltime estimation:
             if mgcfd_unit_runtime_secs == 0.0:

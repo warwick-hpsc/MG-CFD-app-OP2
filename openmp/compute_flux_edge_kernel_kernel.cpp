@@ -15,10 +15,26 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   op_arg arg1,
   op_arg arg2,
   op_arg arg3,
-  op_arg arg4
+  op_arg arg4){
+
+  
+  op_par_loop_compute_flux_edge_kernel_instrumented(name, set, 
+    arg0, arg1, arg2, arg3, arg4
+    #ifdef VERIFY_OP2_TIMING
+      , NULL, NULL
+    #endif
+    , NULL
+    #ifdef PAPI
+    , NULL, 0, 0
+    #endif
+    );
+};
+
+void op_par_loop_compute_flux_edge_kernel_instrumented(
+  char const *name, op_set set,
+  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
   #ifdef VERIFY_OP2_TIMING
-    , double* compute_time_ptr
-    , double* sync_time_ptr
+    , double* compute_time_ptr, double* sync_time_ptr
   #endif
   , long* iter_counts_ptr
   #ifdef PAPI
@@ -155,8 +171,11 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   OP_kernels[9].times[0] += non_thread_walltime;
 
   #ifdef VERIFY_OP2_TIMING
-    *compute_time_ptr += compute_time;
-    *sync_time_ptr += sync_time;
+    if (compute_time_ptr != NULL)
+        *compute_time_ptr += compute_time;
+    if (sync_time_ptr != NULL)
+        *sync_time_ptr += sync_time;
   #endif
-  *iter_counts_ptr += iter_counts;
+  if (iter_counts_ptr != NULL)
+    *iter_counts_ptr += iter_counts;
 }

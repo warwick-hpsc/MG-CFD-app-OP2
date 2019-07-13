@@ -37,13 +37,13 @@ Different binaries can be generated, depending on the mix of parallelism and per
 
 Intent | make rule | OP2 dependency (make rule)
 ------ | --------- | -----------------------------
-Sequential | mgcfd_seq | seq
-OpenMP | mgcfd_openmp | openmp
-MPI | mgcfd_mpi | mpi_seq
-MPI + OpenMP | mgcfd_mpi_openmp | mpi_seq
-MPI + SIMD | mgcfd_mpi_vec | mpi_seq
-CUDA | mgcfd_cuda | cuda
-MPI + CUDA | mgcfd_mpi_cuda | mpi_cuda
+Sequential | seq | seq
+OpenMP | openmp | openmp
+MPI | mpi | mpi_seq
+MPI + OpenMP | mpi_openmp | mpi_seq
+MPI + SIMD | mpi_vec | mpi_seq
+CUDA | cuda | cuda
+MPI + CUDA | mpi_cuda | mpi_cuda
 
 In future, OpenACC and OpenMP 4.5 ports will be available
 
@@ -101,7 +101,9 @@ Authorship
 
 Andrew Owenson: a.m.b.owenson@warwick.ac.uk
 
-If you wish to cite this work then please refer to our (pending) journal publication:
+For more information on the design of MG-CFD, please refer to our publication: http://wrap.warwick.ac.uk/119788
+
+If you wish to cite this work then please use the following:
 
 * Owenson A.M.B., Wright S.A., Bunt R.A., Ho Y.K., Street M.J., and Jarvis S.A. (2019), An Unstructured CFD Mini-Application for the Performance Prediction of a Production CFD Code, Concurrency Computat: Pract Exper., 2019
 

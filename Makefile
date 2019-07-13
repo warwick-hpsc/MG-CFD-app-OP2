@@ -157,7 +157,7 @@ endif
 # set flags for NVCC compilation and linking
 #
 ifndef NV_ARCH
-  MESSAGE=select an NVIDA device to compile in CUDA, e.g. make NV_ARCH=KEPLER
+  MESSAGE=select an NVIDA device to compile in CUDA, e.g. make NV_ARCH=Pascal
   NV_ARCH=Pascal
 endif
 ifeq ($(NV_ARCH),Fermi)
@@ -175,7 +175,10 @@ endif
 endif
 endif
 endif
-
+NVCCFLAGS = 
+ifdef NVCC_BIN
+	NVCCFLAGS = -ccbin $(NVCC_BIN)
+endif
 NVCCFLAGS += $(CODE_GEN_CUDA) -m64 -Xptxas -dlcm=ca -Xptxas=-v -use_fast_math -O3
 
 
@@ -197,23 +200,24 @@ endif
 ## its compute and sync times.
 # MGCFD_INCS += -DDUMP_EXT_PERF_DATA
 
+all: seq openmp mpi mpi_vec mpi_openmp
+# all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda
+# all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda openacc openmp4
 
-
-# all: mgcfd_seq mgcfd_openmp mgcfd_mpi mgcfd_mpi_vec mgcfd_mpi_openmp \
-# 	 mgcfd_cuda mgcfd_mpi_cuda \
-# 	 mgcfd_openacc mgcfd_openmp4
-all: mgcfd_seq mgcfd_openmp mgcfd_mpi
+parallel: N = $(shell nproc)
+parallel:; @$(MAKE) -j$(N) -l$(N) all
 
 ## User-friendly wrappers around actual targets:
-mgcfd_seq: $(BIN_DIR)/mgcfd_seq
-mgcfd_openmp: $(BIN_DIR)/mgcfd_openmp
-mgcfd_mpi: $(BIN_DIR)/mgcfd_mpi
-mgcfd_mpi_vec: $(BIN_DIR)/mgcfd_mpi_vec
-mgcfd_mpi_openmp: $(BIN_DIR)/mgcfd_mpi_openmp
-mgcfd_cuda: $(BIN_DIR)/mgcfd_cuda
-mgcfd_mpi_cuda: $(BIN_DIR)/mgcfd_mpi_cuda
-mgcfd_openmp4: $(BIN_DIR)/mgcfd_openmp4
-mgcfd_openacc: $(BIN_DIR)/mgcfd_openacc
+seq: $(BIN_DIR)/mgcfd_seq
+openmp: $(BIN_DIR)/mgcfd_openmp
+mpi: $(BIN_DIR)/mgcfd_mpi
+vec: mpi_vec
+mpi_vec: $(BIN_DIR)/mgcfd_mpi_vec
+mpi_openmp: $(BIN_DIR)/mgcfd_mpi_openmp
+cuda: $(BIN_DIR)/mgcfd_cuda
+mpi_cuda: $(BIN_DIR)/mgcfd_mpi_cuda
+openmp4: $(BIN_DIR)/mgcfd_openmp4
+openacc: $(BIN_DIR)/mgcfd_openacc
 
 
 OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
@@ -439,21 +443,21 @@ $(BIN_DIR)/mgcfd_openacc: $(OP2_OPENACC_OBJECTS)
 
 clean:
 	rm -f $(BIN_DIR)/* $(OBJ_DIR)/*
-clean_mgcfd_seq:
+clean_seq:
 	rm -f $(BIN_DIR)/mgcfd_seq $(OP2_SEQ_OBJECTS)
-clean_mgcfd_mpi:
+clean_mpi:
 	rm -f $(BIN_DIR)/mgcfd_mpi $(OP2_MPI_OBJECTS)
-clean_mgcfd_mpi_vec:
+clean_mpi_vec:
 	rm -f $(BIN_DIR)/mgcfd_mpi_vec $(OP2_MPI_VEC_OBJECTS)
-clean_mgcfd_openmp:
+clean_openmp:
 	rm -f $(BIN_DIR)/mgcfd_openmp $(OP2_OMP_OBJECTS)
-clean_mgcfd_mpi_openmp:
+clean_mpi_openmp:
 	rm -f $(BIN_DIR)/mgcfd_mpi_openmp $(OP2_MPI_OMP_OBJECTS)
-clean_mgcfd_cuda:
+clean_cuda:
 	rm -f $(BIN_DIR)/mgcfd_cuda $(OP2_CUDA_OBJECTS)
-clean_mgcfd_mpi_cuda:
+clean_mpi_cuda:
 	rm -f $(BIN_DIR)/mgcfd_mpi_cuda $(OP2_MPI_CUDA_OBJECTS)
-clean_mgcfd_openacc:
+clean_openacc:
 	rm -f $(BIN_DIR)/mgcfd_openacc $(OP2_OPENACC_OBJECTS)
-clean_mgcfd_openmp4:
+clean_openmp4:
 	rm -f $(BIN_DIR)/mgcfd_openmp4 $(OP2_OMP4_OBJECTS)
