@@ -417,6 +417,8 @@ int main(int argc, char** argv)
 
     op_printf("-----------------------------------------------------\n");
     op_printf("Compute beginning\n");
+    int memory_mb = get_memory_consumption_mb();
+    op_printf("Memory usage = %d MiB\n", memory_mb);
 
     op_timers(&cpu_t1, &wall_t1);
 
