@@ -666,7 +666,7 @@ int main(int argc, char** argv)
                 op_printf(" RK cycle %d / %d\n", rkCycle+1, RK);
             #endif
 
-            op_par_loop_compute_flux_edge_kernel_instrumented("compute_flux_edge_kernel",op_edges[level],
+            op_par_loop_compute_flux_edge_kernel("compute_flux_edge_kernel",op_edges[level],
                         op_arg_dat(p_variables[level],0,p_edge_to_nodes[level],5,"double",OP_READ),
                         op_arg_dat(p_variables[level],1,p_edge_to_nodes[level],5,"double",OP_READ),
                         op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
