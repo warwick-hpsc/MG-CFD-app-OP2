@@ -16,10 +16,6 @@
 #include "global.h"
 #include "config.h"
 
-#ifdef PAPI
-#include <papi.h>
-#endif
-
 inline void compute_boundary_flux_edge_kernel(
     const double *variables_b,
     const double *edge_weight,
