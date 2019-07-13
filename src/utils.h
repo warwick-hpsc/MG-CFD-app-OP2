@@ -92,4 +92,52 @@ inline void clean_level(int nel, double* volumes,
 //     return ! ( min_value <= value && value <= max_value );
 // }
 
+inline int get_memory_consumption_mb()
+{
+    int memory_mb = 0;
+
+    // FILE* mh_statm_file = fopen("/proc/self/statm","r");
+    // statm_t mh_statm;
+    // if (7 != fscanf(mh_statm_file,"%ld %ld %ld %ld %ld %ld %ld",
+    //     &mh_statm.size,&mh_statm.resident,&mh_statm.share,&mh_statm.text,&mh_statm.lib,&mh_statm.data,&mh_statm.dt))
+    // {
+    //     fprintf(stderr, "ERROR: Failed to parse /proc/self/statm\n");
+    //     exit(EXIT_FAILURE);
+    // }
+    // // printf("/proc/self/statm reports memory usage = %lu MiB\n", mh_statm.size/1024);
+    // memory_mb = (int)(mh_statm.size/1024);
+    // fclose(mh_statm_file);
+
+    char command_buffer[1024];
+    char line_buffer[1024];
+    sprintf(command_buffer, "pmap %d | tail -n1 | tr -s ' '", getpid());
+    FILE* cmd_pipe = popen(command_buffer, "r");
+    if (fgets(line_buffer, 2048, cmd_pipe) != NULL) {
+        long memory=0;
+        for (int i=0; i<1024; i++) {
+            char c = line_buffer[i];
+            if (c >= '0' && c <= '9') {
+                memory *= 10;
+                memory += c-'0';
+            }
+            else if (memory > 0 && (c < '0' || c > '9')) {
+                if (c == 'K') {
+                    memory *= 1024;
+                }
+                else if (c == 'M') {
+                    memory *= 1024*1024;
+                }
+                break;
+            }
+        }
+        memory_mb = memory/(1024*1024);
+        // printf("pmap reports memory usage = %lu MiB\n", memory_mb);
+        // if (conf.hbm_mode[0]=='Y' && memory_mb > (16*1024)) {
+        //     printf("  WARNING: this usage exceeds KNL's 16GB of HBM\n");
+        // }
+    }
+    int status = pclose(cmd_pipe);
+    return memory_mb;
+}
+
 #endif
