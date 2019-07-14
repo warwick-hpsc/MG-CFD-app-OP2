@@ -22,13 +22,9 @@ void dampen_ewt_omp4_kernel(
 
     //inline function
     
-
-
-
-
-      ewt[0] *= 5e-8;
-      ewt[1] *= 5e-8;
-      ewt[2] *= 5e-8;
+      ewt[0] *= 1e-7;
+      ewt[1] *= 1e-7;
+      ewt[2] *= 1e-7;
     //end inline func
   }
 
