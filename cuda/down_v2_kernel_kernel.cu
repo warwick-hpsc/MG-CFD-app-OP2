@@ -103,70 +103,40 @@ __global__ void op_cuda_down_v2_kernel(
   double *__restrict ind_arg4,
   const int *__restrict opDat0Map,
   const int *__restrict opDat2Map,
-  int    block_offset,
-  int   *blkmap,
-  int   *offset,
-  int   *nelems,
-  int   *ncolors,
-  int   *colors,
-  int   nblocks,
+  int start,
+  int end,
   int   set_size) {
   double arg6_l[5];
   double arg7_l[5];
   double arg8_l[1];
   double arg9_l[1];
-
-  __shared__ int    nelems2, ncolor;
-  __shared__ int    nelem, offset_b;
-
-  extern __shared__ char shared[];
-
-  if (blockIdx.x+blockIdx.y*gridDim.x >= nblocks) {
-    return;
-  }
-  if (threadIdx.x==0) {
-
-    //get sizes and shift pointers and direct-mapped data
-
-    int blockId = blkmap[blockIdx.x + blockIdx.y*gridDim.x  + block_offset];
-
-    nelem    = nelems[blockId];
-    offset_b = offset[blockId];
-
-    nelems2  = blockDim.x*(1+(nelem-1)/blockDim.x);
-    ncolor   = ncolors[blockId];
-
-  }
-  __syncthreads(); // make sure all of above completed
-
-  for ( int n=threadIdx.x; n<nelems2; n+=blockDim.x ){
-    int col2 = -1;
+  int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  if (tid + start < end) {
+    int n = tid + start;
+    //initialise local variables
+    for ( int d=0; d<5; d++ ){
+      arg6_l[d] = ZERO_double;
+    }
+    for ( int d=0; d<5; d++ ){
+      arg7_l[d] = ZERO_double;
+    }
+    for ( int d=0; d<1; d++ ){
+      arg8_l[d] = ZERO_double;
+    }
+    for ( int d=0; d<1; d++ ){
+      arg9_l[d] = ZERO_double;
+    }
     int map0idx;
     int map1idx;
     int map2idx;
     int map3idx;
-    if (n<nelem) {
-      //initialise local variables
-      for ( int d=0; d<5; d++ ){
-        arg6_l[d] = ZERO_double;
-      }
-      for ( int d=0; d<5; d++ ){
-        arg7_l[d] = ZERO_double;
-      }
-      for ( int d=0; d<1; d++ ){
-        arg8_l[d] = ZERO_double;
-      }
-      for ( int d=0; d<1; d++ ){
-        arg9_l[d] = ZERO_double;
-      }
-      map0idx = opDat0Map[n + offset_b + set_size * 0];
-      map1idx = opDat0Map[n + offset_b + set_size * 1];
-      map2idx = opDat2Map[n + offset_b + set_size * 0];
-      map3idx = opDat2Map[n + offset_b + set_size * 1];
+    map0idx = opDat0Map[n + set_size * 0];
+    map1idx = opDat0Map[n + set_size * 1];
+    map2idx = opDat2Map[n + set_size * 0];
+    map3idx = opDat2Map[n + set_size * 1];
 
-
-      //user-supplied kernel call
-      down_v2_kernel_gpu(ind_arg0+map0idx*3,
+    //user-supplied kernel call
+    down_v2_kernel_gpu(ind_arg0+map0idx*3,
                    ind_arg0+map1idx*3,
                    ind_arg1+map2idx*3,
                    ind_arg1+map3idx*3,
@@ -176,40 +146,18 @@ __global__ void op_cuda_down_v2_kernel(
                    arg7_l,
                    arg8_l,
                    arg9_l);
-      col2 = colors[n+offset_b];
-    }
-
-    //store local variables
-
-    for ( int col=0; col<ncolor; col++ ){
-      if (col2==col) {
-        arg6_l[0] += ind_arg3[0+map0idx*5];
-        arg6_l[1] += ind_arg3[1+map0idx*5];
-        arg6_l[2] += ind_arg3[2+map0idx*5];
-        arg6_l[3] += ind_arg3[3+map0idx*5];
-        arg6_l[4] += ind_arg3[4+map0idx*5];
-        ind_arg3[0+map0idx*5] = arg6_l[0];
-        ind_arg3[1+map0idx*5] = arg6_l[1];
-        ind_arg3[2+map0idx*5] = arg6_l[2];
-        ind_arg3[3+map0idx*5] = arg6_l[3];
-        ind_arg3[4+map0idx*5] = arg6_l[4];
-        arg7_l[0] += ind_arg3[0+map1idx*5];
-        arg7_l[1] += ind_arg3[1+map1idx*5];
-        arg7_l[2] += ind_arg3[2+map1idx*5];
-        arg7_l[3] += ind_arg3[3+map1idx*5];
-        arg7_l[4] += ind_arg3[4+map1idx*5];
-        ind_arg3[0+map1idx*5] = arg7_l[0];
-        ind_arg3[1+map1idx*5] = arg7_l[1];
-        ind_arg3[2+map1idx*5] = arg7_l[2];
-        ind_arg3[3+map1idx*5] = arg7_l[3];
-        ind_arg3[4+map1idx*5] = arg7_l[4];
-        arg8_l[0] += ind_arg4[0+map0idx*1];
-        ind_arg4[0+map0idx*1] = arg8_l[0];
-        arg9_l[0] += ind_arg4[0+map1idx*1];
-        ind_arg4[0+map1idx*1] = arg9_l[0];
-      }
-      __syncthreads();
-    }
+    atomicAdd(&ind_arg3[0+map0idx*5],arg6_l[0]);
+    atomicAdd(&ind_arg3[1+map0idx*5],arg6_l[1]);
+    atomicAdd(&ind_arg3[2+map0idx*5],arg6_l[2]);
+    atomicAdd(&ind_arg3[3+map0idx*5],arg6_l[3]);
+    atomicAdd(&ind_arg3[4+map0idx*5],arg6_l[4]);
+    atomicAdd(&ind_arg3[0+map1idx*5],arg7_l[0]);
+    atomicAdd(&ind_arg3[1+map1idx*5],arg7_l[1]);
+    atomicAdd(&ind_arg3[2+map1idx*5],arg7_l[2]);
+    atomicAdd(&ind_arg3[3+map1idx*5],arg7_l[3]);
+    atomicAdd(&ind_arg3[4+map1idx*5],arg7_l[4]);
+    atomicAdd(&ind_arg4[0+map0idx*1],arg8_l[0]);
+    atomicAdd(&ind_arg4[0+map1idx*1],arg9_l[0]);
   }
 }
 
@@ -255,35 +203,24 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
   if (OP_diags>2) {
     printf(" kernel routine with indirection: down_v2_kernel\n");
   }
-
-  //get plan
-  #ifdef OP_PART_SIZE_19
-    int part_size = OP_PART_SIZE_19;
-  #else
-    int part_size = OP_part_size;
-  #endif
-
   int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
   if (set->size > 0) {
 
-    op_plan *Plan = op_plan_get(name,set,part_size,nargs,args,ninds,inds);
+    //set CUDA execution parameters
+    #ifdef OP_BLOCK_SIZE_19
+      int nthread = OP_BLOCK_SIZE_19;
+    #else
+      int nthread = OP_block_size;
+    #endif
 
-    //execute plan
-
-    int block_offset = 0;
-    for ( int col=0; col<Plan->ncolors; col++ ){
-      if (col==Plan->ncolors_core) {
+    for ( int round=0; round<2; round++ ){
+      if (round==1) {
         op_mpi_wait_all_cuda(nargs, args);
       }
-      #ifdef OP_BLOCK_SIZE_19
-      int nthread = OP_BLOCK_SIZE_19;
-      #else
-      int nthread = OP_block_size;
-      #endif
-
-      dim3 nblocks = dim3(Plan->ncolblk[col] >= (1<<16) ? 65535 : Plan->ncolblk[col],
-      Plan->ncolblk[col] >= (1<<16) ? (Plan->ncolblk[col]-1)/65535+1: 1, 1);
-      if (Plan->ncolblk[col] > 0) {
+      int start = round==0 ? 0 : set->core_size;
+      int end = round==0 ? set->core_size : set->size + set->exec_size;
+      if (end-start>0) {
+        int nblocks = (end-start-1)/nthread+1;
         op_cuda_down_v2_kernel<<<nblocks,nthread>>>(
         (double *)arg0.data_d,
         (double *)arg2.data_d,
@@ -292,20 +229,9 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
         (double *)arg8.data_d,
         arg0.map_data_d,
         arg2.map_data_d,
-        block_offset,
-        Plan->blkmap,
-        Plan->offset,
-        Plan->nelems,
-        Plan->nthrcol,
-        Plan->thrcol,
-        Plan->ncolblk[col],
-        set->size+set->exec_size);
-
+        start,end,set->size+set->exec_size);
       }
-      block_offset += Plan->ncolblk[col];
     }
-    OP_kernels[19].transfer  += Plan->transfer;
-    OP_kernels[19].transfer2 += Plan->transfer2;
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   cutilSafeCall(cudaDeviceSynchronize());

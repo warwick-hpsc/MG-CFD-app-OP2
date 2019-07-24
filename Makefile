@@ -172,6 +172,9 @@ else
 ifeq ($(NV_ARCH),Pascal)
   CODE_GEN_CUDA=-gencode arch=compute_60,code=sm_60
 endif
+ifeq ($(NV_ARCH),Volta)
+  CODE_GEN_CUDA=-gencode arch=compute_70,code=sm_70
+endif
 endif
 endif
 endif
@@ -192,7 +195,7 @@ endif
 ## Enable VERIFY_OP2_TIMING to perform timing measurements external to
 ## those performed by OP2 internally. Intended to verify whether OP2 timers
 ## are correct, particularly for MPI sync time.
-# MGCFD_INCS += -DVERIFY_OP2_TIMING
+#MGCFD_INCS += -DVERIFY_OP2_TIMING
 
 ## Enable DUMP_EXT_PERF_DATA to write out externally-collected 
 ## performance data. Included number of loop iterations counts of 
@@ -200,8 +203,8 @@ endif
 ## its compute and sync times.
 # MGCFD_INCS += -DDUMP_EXT_PERF_DATA
 
-all: seq openmp mpi mpi_vec mpi_openmp
-# all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda
+#all: seq openmp mpi mpi_vec mpi_openmp
+all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda
 # all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda openacc openmp4
 
 parallel: N = $(shell nproc)

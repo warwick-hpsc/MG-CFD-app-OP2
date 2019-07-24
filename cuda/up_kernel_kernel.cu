@@ -25,80 +25,34 @@ __global__ void op_cuda_up_kernel(
   int *__restrict ind_arg1,
   const int *__restrict opDat1Map,
   const double *__restrict arg0,
-  int    block_offset,
-  int   *blkmap,
-  int   *offset,
-  int   *nelems,
-  int   *ncolors,
-  int   *colors,
-  int   nblocks,
+  int start,
+  int end,
   int   set_size) {
   double arg1_l[5];
   int arg2_l[1];
-
-  __shared__ int    nelems2, ncolor;
-  __shared__ int    nelem, offset_b;
-
-  extern __shared__ char shared[];
-
-  if (blockIdx.x+blockIdx.y*gridDim.x >= nblocks) {
-    return;
-  }
-  if (threadIdx.x==0) {
-
-    //get sizes and shift pointers and direct-mapped data
-
-    int blockId = blkmap[blockIdx.x + blockIdx.y*gridDim.x  + block_offset];
-
-    nelem    = nelems[blockId];
-    offset_b = offset[blockId];
-
-    nelems2  = blockDim.x*(1+(nelem-1)/blockDim.x);
-    ncolor   = ncolors[blockId];
-
-  }
-  __syncthreads(); // make sure all of above completed
-
-  for ( int n=threadIdx.x; n<nelems2; n+=blockDim.x ){
-    int col2 = -1;
+  int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  if (tid + start < end) {
+    int n = tid + start;
+    //initialise local variables
+    for ( int d=0; d<5; d++ ){
+      arg1_l[d] = ZERO_double;
+    }
+    for ( int d=0; d<1; d++ ){
+      arg2_l[d] = ZERO_int;
+    }
     int map1idx;
-    if (n<nelem) {
-      //initialise local variables
-      for ( int d=0; d<5; d++ ){
-        arg1_l[d] = ZERO_double;
-      }
-      for ( int d=0; d<1; d++ ){
-        arg2_l[d] = ZERO_int;
-      }
-      map1idx = opDat1Map[n + offset_b + set_size * 0];
+    map1idx = opDat1Map[n + set_size * 0];
 
-
-      //user-supplied kernel call
-      up_kernel_gpu(arg0+(n+offset_b)*5,
+    //user-supplied kernel call
+    up_kernel_gpu(arg0+n*5,
               arg1_l,
               arg2_l);
-      col2 = colors[n+offset_b];
-    }
-
-    //store local variables
-
-    for ( int col=0; col<ncolor; col++ ){
-      if (col2==col) {
-        arg1_l[0] += ind_arg0[0+map1idx*5];
-        arg1_l[1] += ind_arg0[1+map1idx*5];
-        arg1_l[2] += ind_arg0[2+map1idx*5];
-        arg1_l[3] += ind_arg0[3+map1idx*5];
-        arg1_l[4] += ind_arg0[4+map1idx*5];
-        ind_arg0[0+map1idx*5] = arg1_l[0];
-        ind_arg0[1+map1idx*5] = arg1_l[1];
-        ind_arg0[2+map1idx*5] = arg1_l[2];
-        ind_arg0[3+map1idx*5] = arg1_l[3];
-        ind_arg0[4+map1idx*5] = arg1_l[4];
-        arg2_l[0] += ind_arg1[0+map1idx*1];
-        ind_arg1[0+map1idx*1] = arg2_l[0];
-      }
-      __syncthreads();
-    }
+    atomicAdd(&ind_arg0[0+map1idx*5],arg1_l[0]);
+    atomicAdd(&ind_arg0[1+map1idx*5],arg1_l[1]);
+    atomicAdd(&ind_arg0[2+map1idx*5],arg1_l[2]);
+    atomicAdd(&ind_arg0[3+map1idx*5],arg1_l[3]);
+    atomicAdd(&ind_arg0[4+map1idx*5],arg1_l[4]);
+    atomicAdd(&ind_arg1[0+map1idx*1],arg2_l[0]);
   }
 }
 
@@ -130,54 +84,32 @@ void op_par_loop_up_kernel(char const *name, op_set set,
   if (OP_diags>2) {
     printf(" kernel routine with indirection: up_kernel\n");
   }
-
-  //get plan
-  #ifdef OP_PART_SIZE_16
-    int part_size = OP_PART_SIZE_16;
-  #else
-    int part_size = OP_part_size;
-  #endif
-
   int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
   if (set->size > 0) {
 
-    op_plan *Plan = op_plan_get(name,set,part_size,nargs,args,ninds,inds);
+    //set CUDA execution parameters
+    #ifdef OP_BLOCK_SIZE_16
+      int nthread = OP_BLOCK_SIZE_16;
+    #else
+      int nthread = OP_block_size;
+    #endif
 
-    //execute plan
-
-    int block_offset = 0;
-    for ( int col=0; col<Plan->ncolors; col++ ){
-      if (col==Plan->ncolors_core) {
+    for ( int round=0; round<2; round++ ){
+      if (round==1) {
         op_mpi_wait_all_cuda(nargs, args);
       }
-      #ifdef OP_BLOCK_SIZE_16
-      int nthread = OP_BLOCK_SIZE_16;
-      #else
-      int nthread = OP_block_size;
-      #endif
-
-      dim3 nblocks = dim3(Plan->ncolblk[col] >= (1<<16) ? 65535 : Plan->ncolblk[col],
-      Plan->ncolblk[col] >= (1<<16) ? (Plan->ncolblk[col]-1)/65535+1: 1, 1);
-      if (Plan->ncolblk[col] > 0) {
+      int start = round==0 ? 0 : set->core_size;
+      int end = round==0 ? set->core_size : set->size + set->exec_size;
+      if (end-start>0) {
+        int nblocks = (end-start-1)/nthread+1;
         op_cuda_up_kernel<<<nblocks,nthread>>>(
         (double *)arg1.data_d,
         (int *)arg2.data_d,
         arg1.map_data_d,
         (double*)arg0.data_d,
-        block_offset,
-        Plan->blkmap,
-        Plan->offset,
-        Plan->nelems,
-        Plan->nthrcol,
-        Plan->thrcol,
-        Plan->ncolblk[col],
-        set->size+set->exec_size);
-
+        start,end,set->size+set->exec_size);
       }
-      block_offset += Plan->ncolblk[col];
     }
-    OP_kernels[16].transfer  += Plan->transfer;
-    OP_kernels[16].transfer2 += Plan->transfer2;
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   cutilSafeCall(cudaDeviceSynchronize());

@@ -66,7 +66,6 @@ void op_par_loop_up_post_kernel(char const *name, op_set set,
       int nthread = OP_BLOCK_SIZE_17;
     #else
       int nthread = OP_block_size;
-    //  int nthread = 128;
     #endif
 
     int nblocks = 200;

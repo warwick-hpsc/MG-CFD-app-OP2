@@ -79,7 +79,6 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
       int nthread = OP_BLOCK_SIZE_14;
     #else
       int nthread = OP_block_size;
-    //  int nthread = 128;
     #endif
 
     int nblocks = 200;
