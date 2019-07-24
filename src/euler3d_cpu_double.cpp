@@ -280,7 +280,9 @@ int main(int argc, char** argv)
                 }
 
                 // TODO: Generate the mapping p_edge_to_mg_nodes, where 
-                //       p_edge_to_mg_nodes[i] == p_node_to_mg_node[p_edge_to_nodes[i]]
+                //         p_edge_to_mg_nodes[i][0] == p_node_to_mg_node[p_edge_to_nodes[i][0]]
+                //       and
+                //         p_edge_to_mg_nodes[i][1] == p_node_to_mg_node[p_edge_to_nodes[i][1]]
                 //       It may be necessary to assume that the input mesh is so large that 
                 //       it prevents generation of this mapping in a single compute node.
                 p_edge_to_mg_nodes[i-1] = NULL;
