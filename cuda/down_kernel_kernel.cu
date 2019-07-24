@@ -95,10 +95,10 @@ void op_par_loop_down_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(21);
+  op_timing_realloc(22);
   op_timers_core(&cpu_t1, &wall_t1);
-  OP_kernels[21].name      = name;
-  OP_kernels[21].count    += 1;
+  OP_kernels[22].name      = name;
+  OP_kernels[22].count    += 1;
 
 
   int    ninds   = 2;
@@ -109,8 +109,8 @@ void op_par_loop_down_kernel(char const *name, op_set set,
   }
 
   //get plan
-  #ifdef OP_PART_SIZE_21
-    int part_size = OP_PART_SIZE_21;
+  #ifdef OP_PART_SIZE_22
+    int part_size = OP_PART_SIZE_22;
   #else
     int part_size = OP_part_size;
   #endif
@@ -127,8 +127,8 @@ void op_par_loop_down_kernel(char const *name, op_set set,
       if (col==Plan->ncolors_core) {
         op_mpi_wait_all_cuda(nargs, args);
       }
-      #ifdef OP_BLOCK_SIZE_21
-      int nthread = OP_BLOCK_SIZE_21;
+      #ifdef OP_BLOCK_SIZE_22
+      int nthread = OP_BLOCK_SIZE_22;
       #else
       int nthread = OP_block_size;
       #endif
@@ -155,12 +155,12 @@ void op_par_loop_down_kernel(char const *name, op_set set,
       }
       block_offset += Plan->ncolblk[col];
     }
-    OP_kernels[21].transfer  += Plan->transfer;
-    OP_kernels[21].transfer2 += Plan->transfer2;
+    OP_kernels[22].transfer  += Plan->transfer;
+    OP_kernels[22].transfer2 += Plan->transfer2;
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   cutilSafeCall(cudaDeviceSynchronize());
   //update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[21].time     += wall_t2 - wall_t1;
+  OP_kernels[22].time     += wall_t2 - wall_t1;
 }

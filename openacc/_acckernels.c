@@ -21,7 +21,6 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
   , long_long* restrict event_counts, int event_set, int num_events
   #endif
 );
-
 void op_decl_const_char(int dim, char const *type,
 int size, char *dat, char const *name){}
 // user kernel files
@@ -37,6 +36,7 @@ int size, char *dat, char const *name){}
 #include "compute_flux_edge_kernel_acckernel.c"
 #include "compute_bnd_node_flux_kernel_acckernel.c"
 #include "time_step_kernel_acckernel.c"
+#include "indirect_rw_kernel_acckernel.c"
 #include "residual_kernel_acckernel.c"
 #include "calc_rms_kernel_acckernel.c"
 #include "count_bad_vals_acckernel.c"

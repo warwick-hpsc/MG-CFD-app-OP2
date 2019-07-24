@@ -3,37 +3,41 @@
 //
 
 //user function
-#include ".././src/Kernels/mg.h"
+#include ".././src/Kernels/indirect_rw.h"
 
 // host stub function
-void op_par_loop_up_kernel(char const *name, op_set set,
+void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
   op_arg arg0,
   op_arg arg1,
-  op_arg arg2){
+  op_arg arg2,
+  op_arg arg3,
+  op_arg arg4){
 
-  int nargs = 3;
-  op_arg args[3];
+  int nargs = 5;
+  op_arg args[5];
 
   args[0] = arg0;
   args[1] = arg1;
   args[2] = arg2;
+  args[3] = arg3;
+  args[4] = arg4;
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc_manytime(17, omp_get_max_threads());
+  op_timing_realloc_manytime(12, omp_get_max_threads());
   op_timers_core(&cpu_t1, &wall_t1);
   double non_thread_walltime = 0.0;
 
   int  ninds   = 2;
-  int  inds[3] = {-1,0,1};
+  int  inds[5] = {0,0,-1,1,1};
 
   if (OP_diags>2) {
-    printf(" kernel routine with indirection: up_kernel\n");
+    printf(" kernel routine with indirection: indirect_rw_kernel\n");
   }
 
   // get plan
-  #ifdef OP_PART_SIZE_17
-    int part_size = OP_PART_SIZE_17;
+  #ifdef OP_PART_SIZE_12
+    int part_size = OP_PART_SIZE_12;
   #else
     int part_size = OP_part_size;
   #endif
@@ -70,18 +74,21 @@ void op_par_loop_up_kernel(char const *name, op_set set,
           int nelem    = Plan->nelems[blockId];
           int offset_b = Plan->offset[blockId];
           for ( int n=offset_b; n<offset_b+nelem; n++ ){
-            int map1idx = arg1.map_data[n * arg1.map->dim + 0];
+            int map0idx = arg0.map_data[n * arg0.map->dim + 0];
+            int map1idx = arg0.map_data[n * arg0.map->dim + 1];
 
 
-            up_kernel(
-              &((double*)arg0.data)[5 * n],
-              &((double*)arg1.data)[5 * map1idx],
-              &((int*)arg2.data)[1 * map1idx]);
+            indirect_rw_kernel(
+              &((double*)arg0.data)[5 * map0idx],
+              &((double*)arg0.data)[5 * map1idx],
+              &((double*)arg2.data)[3 * n],
+              &((double*)arg3.data)[5 * map0idx],
+              &((double*)arg3.data)[5 * map1idx]);
           }
         }
 
         op_timers_core(&thr_cpu_t2, &thr_wall_t2);
-        OP_kernels[17].times[thr]  += thr_wall_t2 - thr_wall_t1;
+        OP_kernels[12].times[thr]  += thr_wall_t2 - thr_wall_t1;
       }
 
       // Revert to process-level timing:
@@ -89,8 +96,8 @@ void op_par_loop_up_kernel(char const *name, op_set set,
 
       block_offset += nblocks;
     }
-    OP_kernels[17].transfer  += Plan->transfer;
-    OP_kernels[17].transfer2 += Plan->transfer2;
+    OP_kernels[12].transfer  += Plan->transfer;
+    OP_kernels[12].transfer2 += Plan->transfer2;
   }
 
   if (set_size == 0 || set_size == set->core_size) {
@@ -102,7 +109,7 @@ void op_par_loop_up_kernel(char const *name, op_set set,
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
   non_thread_walltime += wall_t2 - wall_t1;
-  OP_kernels[17].name      = name;
-  OP_kernels[17].count    += 1;
-  OP_kernels[17].times[0] += non_thread_walltime;
+  OP_kernels[12].name      = name;
+  OP_kernels[12].count    += 1;
+  OP_kernels[12].times[0] += non_thread_walltime;
 }
