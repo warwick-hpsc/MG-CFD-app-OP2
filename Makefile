@@ -145,8 +145,8 @@ ifeq ($(OP2_COMPILER),sycl)
   CCFLAGS       = -O3 -g
   CPPFLAGS      = $(CCFLAGS)
   #SYCL_FLAGS      = -fsycl
-  SYCL_FLAGS    = --hipsycl-gpu-arch=sm_60
-  MPICPP        = CC
+  SYCL_FLAGS    = --hipsycl-gpu-arch=sm_60  -Wdeprecated-declarations
+  MPICPP        = $(CC)
   MPIFLAGS      = $(CPPFLAGS)
 else
   $(error unrecognised value for COMPILER: $(COMPILER))
@@ -325,17 +325,17 @@ $(BIN_DIR)/mgcfd_seq: $(OP2_SEQ_OBJECTS)
 ## SYCL
 $(OBJ_DIR)/mgcfd_sycl_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
-	$(CPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
-	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) \
+	$(MPICPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
 		-c -o $@ $^
 $(OBJ_DIR)/mgcfd_sycl_kernels.o: $(SRC_DIR)/../sycl/_kernels.cpp $(SYCL_KERNELS)
 	mkdir -p $(OBJ_DIR)
-	$(CPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
-	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) \
+	$(MPICPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
 		-c -o $@ $(SRC_DIR)/../sycl/_kernels.cpp
 $(BIN_DIR)/mgcfd_sycl: $(OP2_SYCL_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(CPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+	$(MPICPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_sycl -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
 		-o $@
 
