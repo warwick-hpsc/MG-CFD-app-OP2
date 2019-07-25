@@ -114,15 +114,19 @@ __global__ void op_cuda_down_v2_kernel(
   if (tid + start < end) {
     int n = tid + start;
     //initialise local variables
+    double arg6_l[5];
     for ( int d=0; d<5; d++ ){
       arg6_l[d] = ZERO_double;
     }
+    double arg7_l[5];
     for ( int d=0; d<5; d++ ){
       arg7_l[d] = ZERO_double;
     }
+    double arg8_l[1];
     for ( int d=0; d<1; d++ ){
       arg8_l[d] = ZERO_double;
     }
+    double arg9_l[1];
     for ( int d=0; d<1; d++ ){
       arg9_l[d] = ZERO_double;
     }

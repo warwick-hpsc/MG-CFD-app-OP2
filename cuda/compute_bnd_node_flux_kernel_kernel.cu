@@ -179,6 +179,7 @@ __global__ void op_cuda_compute_bnd_node_flux_kernel(
   if (tid + start < end) {
     int n = tid + start;
     //initialise local variables
+    double arg3_l[5];
     for ( int d=0; d<5; d++ ){
       arg3_l[d] = ZERO_double;
     }

@@ -34,9 +34,11 @@ __global__ void op_cuda_up_kernel(
   if (tid + start < end) {
     int n = tid + start;
     //initialise local variables
+    double arg1_l[5];
     for ( int d=0; d<5; d++ ){
       arg1_l[d] = ZERO_double;
     }
+    int arg2_l[1];
     for ( int d=0; d<1; d++ ){
       arg2_l[d] = ZERO_int;
     }

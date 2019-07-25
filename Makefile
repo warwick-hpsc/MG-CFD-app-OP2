@@ -139,7 +139,18 @@ ifeq ($(COMPILER),cray)
   MPICPP        = CC
   MPIFLAGS      = $(CPPFLAGS)
 else
+ifeq ($(OP2_COMPILER),sycl)
+  CPP           = syclcc-clang
+  CC            = syclcc-clang
+  CCFLAGS       = -O3 -g
+  CPPFLAGS      = $(CCFLAGS)
+  #SYCL_FLAGS      = -fsycl
+  SYCL_FLAGS    = --hipsycl-gpu-arch=sm_60
+  MPICPP        = CC
+  MPIFLAGS      = $(CPPFLAGS)
+else
   $(error unrecognised value for COMPILER: $(COMPILER))
+endif
 endif
 endif
 endif
@@ -178,7 +189,7 @@ endif
 endif
 endif
 endif
-NVCCFLAGS = 
+NVCCFLAGS =
 ifdef NVCC_BIN
 	NVCCFLAGS = -ccbin $(NVCC_BIN)
 endif
@@ -197,14 +208,14 @@ endif
 ## are correct, particularly for MPI sync time.
 #MGCFD_INCS += -DVERIFY_OP2_TIMING
 
-## Enable DUMP_EXT_PERF_DATA to write out externally-collected 
-## performance data. Included number of loop iterations counts of 
-## each kernel, and if VERIFY_OP2_TIMING is enabled then also 
+## Enable DUMP_EXT_PERF_DATA to write out externally-collected
+## performance data. Included number of loop iterations counts of
+## each kernel, and if VERIFY_OP2_TIMING is enabled then also
 ## its compute and sync times.
 # MGCFD_INCS += -DDUMP_EXT_PERF_DATA
 
 #all: seq openmp mpi mpi_vec mpi_openmp
-all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda
+all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda sycl
 # all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda openacc openmp4
 
 parallel: N = $(shell nproc)
@@ -212,6 +223,7 @@ parallel:; @$(MAKE) -j$(N) -l$(N) all
 
 ## User-friendly wrappers around actual targets:
 seq: $(BIN_DIR)/mgcfd_seq
+sycl: $(BIN_DIR)/mgcfd_sycl
 openmp: $(BIN_DIR)/mgcfd_openmp
 mpi: $(BIN_DIR)/mgcfd_mpi
 vec: mpi_vec
@@ -227,6 +239,9 @@ OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
 
 OP2_SEQ_OBJECTS := $(OBJ_DIR)/mgcfd_seq_main.o \
                    $(OBJ_DIR)/mgcfd_seq_kernels.o
+
+OP2_SYCL_OBJECTS := $(OBJ_DIR)/mgcfd_sycl_main.o \
+                   $(OBJ_DIR)/mgcfd_sycl_kernels.o
 
 OP2_MPI_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_main.o \
                    $(OBJ_DIR)/mgcfd_mpi_kernels.o
@@ -279,6 +294,7 @@ KERNELS := calc_rms_kernel \
 	zero_1d_array_kernel \
 	zero_5d_array_kernel
 SEQ_KERNELS := $(patsubst %, $(SRC_DIR)/../seq/%_seqkernel.cpp, $(KERNELS))
+SYCL_KERNELS := $(patsubst %, $(SRC_DIR)/../sycl/%_kernel.cpp, $(KERNELS))
 OMP_KERNELS := $(patsubst %, $(SRC_DIR)/../openmp/%_kernel.cpp, $(KERNELS))
 CUDA_KERNELS := $(patsubst %, $(SRC_DIR)/../cuda/%_kernel.cu, $(KERNELS))
 VEC_KERNELS := $(patsubst %, $(SRC_DIR)/../vec/%_veckernel.cpp, $(KERNELS))
@@ -305,6 +321,23 @@ $(BIN_DIR)/mgcfd_seq: $(OP2_SEQ_OBJECTS)
 		-lm $(OP2_LIB) -lop2_seq -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
 		-o $@
 
+
+## SYCL
+$(OBJ_DIR)/mgcfd_sycl_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(CPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) \
+		-c -o $@ $^
+$(OBJ_DIR)/mgcfd_sycl_kernels.o: $(SRC_DIR)/../sycl/_kernels.cpp $(SYCL_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(CPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) \
+		-c -o $@ $(SRC_DIR)/../sycl/_kernels.cpp
+$(BIN_DIR)/mgcfd_sycl: $(OP2_SYCL_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(CPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+		-lm $(OP2_LIB) -lop2_sycl -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
+		-o $@
 
 ## OPENMP
 $(OBJ_DIR)/mgcfd_openmp_main.o: $(OP2_MAIN_SRC)
