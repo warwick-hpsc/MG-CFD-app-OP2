@@ -14,7 +14,7 @@ __device__ void compute_flux_edge_kernel_gpu(
     const double *edge_weight,
     double *fluxes_a,
     double *fluxes_b) {
-  double ewt = std::sqrt(edge_weight[0]*edge_weight[0] +
+  double ewt = sqrt(edge_weight[0]*edge_weight[0] +
                          edge_weight[1]*edge_weight[1] +
                          edge_weight[2]*edge_weight[2]);
 
@@ -43,7 +43,7 @@ __device__ void compute_flux_edge_kernel_gpu(
   #endif
 
   double speed_sqd_b = compute_speed_sqd(velocity_b);
-  double speed_b = std::sqrt(speed_sqd_b);
+  double speed_b = sqrt(speed_sqd_b);
 
   pressure_b = compute_pressure(p_b, pe_b, speed_sqd_b);
 
@@ -87,7 +87,7 @@ __device__ void compute_flux_edge_kernel_gpu(
   #endif
 
   double speed_sqd_a = compute_speed_sqd(velocity_a);
-  double speed_a = std::sqrt(speed_sqd_a);
+  double speed_a = sqrt(speed_sqd_a);
   pressure_a = compute_pressure(p_a, pe_a, speed_sqd_a);
 
   #ifdef IDIVIDE
@@ -104,11 +104,11 @@ __device__ void compute_flux_edge_kernel_gpu(
                             flux_contribution_i_density_energy_a);
 
   factor_a = -ewt*smoothing_coefficient_cuda*0.5
-             *(speed_a + std::sqrt(speed_sqd_b)
+             *(speed_a + sqrt(speed_sqd_b)
              + speed_of_sound_a + speed_of_sound_b);
 
   factor_b = -ewt*smoothing_coefficient_cuda*0.5
-             *(speed_b + std::sqrt(speed_sqd_a)
+             *(speed_b + sqrt(speed_sqd_a)
              + speed_of_sound_b + speed_of_sound_a);
 
   double factor_x = -0.5*edge_weight[0], factor_y = -0.5*edge_weight[1], factor_z = -0.5*edge_weight[2];

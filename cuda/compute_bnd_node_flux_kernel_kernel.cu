@@ -56,7 +56,7 @@ __device__ void compute_bnd_node_flux_kernel_gpu(
           #endif
       
           double speed_sqd_b = compute_speed_sqd(velocity_b);
-          double speed_b = std::sqrt(speed_sqd_b);
+          double speed_b = sqrt(speed_sqd_b);
           pressure_b = compute_pressure(p_b, pe_b, speed_sqd_b);
       
           #ifdef IDIVIDE
@@ -114,7 +114,7 @@ __device__ void compute_bnd_node_flux_kernel_gpu(
           #endif
       
           double speed_sqd_b = compute_speed_sqd(velocity_b);
-          double speed_b = std::sqrt(speed_sqd_b);
+          double speed_b = sqrt(speed_sqd_b);
           pressure_b = compute_pressure(p_b, pe_b, speed_sqd_b);
       
           #ifdef IDIVIDE
