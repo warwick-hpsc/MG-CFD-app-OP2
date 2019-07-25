@@ -76,8 +76,6 @@ void op_par_loop_calculate_dt_kernel(char const *name, op_set set,
             double speed_of_sound = compute_speed_of_sound(density, pressure);
         
             *dt = double(0.5) * (cl::sycl::cbrt(*volume) / (cl::sycl::sqrt(speed_sqd) + speed_of_sound));
-            //*dt = double(0.5) * (pow((*volume), 0.33333333) / (cl::sycl::sqrt(speed_sqd) + speed_of_sound));
-
         
         };
         

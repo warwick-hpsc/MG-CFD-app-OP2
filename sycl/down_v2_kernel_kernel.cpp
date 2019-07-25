@@ -60,7 +60,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
   op_mpi_halo_exchanges_cuda(set, nargs, args);
   if (set->size > 0) {
 
-    op_plan *Plan = op_plan_get_stage(name,set,part_size,nargs,args,ninds,inds,OP_COLOR2);
+    op_plan *Plan = op_plan_get_stage(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_INC);
 
     cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
     cl::sycl::buffer<double,1> *arg2_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg2.data_d);
@@ -69,9 +69,19 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
     cl::sycl::buffer<double,1> *arg8_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg8.data_d);
     cl::sycl::buffer<int,1> *map0_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)arg0.map_data_d);
     cl::sycl::buffer<int,1> *map2_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)arg2.map_data_d);
-    cl::sycl::buffer<int,1> *col_reord_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->col_reord);
+    cl::sycl::buffer<int,1> *ind_map_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->ind_map);
+    cl::sycl::buffer<short,1> *arg_map_buffer = static_cast<cl::sycl::buffer<short,1>*>((void*)Plan->loc_map);
+    cl::sycl::buffer<int,1> *ind_arg_sizes_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->ind_sizes);
+    cl::sycl::buffer<int,1> *ind_arg_offs_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->ind_offs);
+    cl::sycl::buffer<int,1> *blkmap_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->blkmap);
+    cl::sycl::buffer<int,1> *offset_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->offset);
+    cl::sycl::buffer<int,1> *nelems_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nelems);
+    cl::sycl::buffer<int,1> *ncolors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nthrcol);
+    cl::sycl::buffer<int,1> *colors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->thrcol);
     int set_size = set->size+set->exec_size;
     //execute plan
+
+    int block_offset = 0;
     for ( int col=0; col<Plan->ncolors; col++ ){
       if (col==Plan->ncolors_core) {
         op_mpi_wait_all_cuda(nargs, args);
@@ -82,144 +92,258 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
       int nthread = OP_block_size;
       #endif
 
-      int start = Plan->col_offsets[0][col];
-      int end = Plan->col_offsets[0][col+1];
-      int nblocks = (end - start - 1)/nthread + 1;
-      try {
-      op2_queue->submit([&](cl::sycl::handler& cgh) {
-        auto ind_arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-        auto ind_arg1 = (*arg2_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-        auto ind_arg2 = (*arg4_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-        auto ind_arg3 = (*arg6_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-        auto ind_arg4 = (*arg8_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-        auto opDat0Map =  (*map0_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-        auto opDat2Map =  (*map2_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-        auto col_reord = (*col_reord_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+      int nblocks = Plan->ncolblk[col];
+      if (Plan->ncolblk[col] > 0) {
+
+        int ind_arg3_shmem = Plan->nsharedColInd[col+Plan->ncolors*0];
+        int ind_arg4_shmem = Plan->nsharedColInd[col+Plan->ncolors*2];
+        try {
+        op2_queue->submit([&](cl::sycl::handler& cgh) {
+          auto ind_arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
+          auto ind_arg1 = (*arg2_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
+          auto ind_arg2 = (*arg4_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
+          auto ind_arg3 = (*arg6_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
+          auto ind_arg4 = (*arg8_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
+          auto opDat0Map =  (*map0_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+          auto opDat2Map =  (*map2_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+          auto ind_map = (*ind_map_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+          auto arg_map = (*arg_map_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+          auto ind_arg_sizes = (*ind_arg_sizes_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+          auto ind_arg_offs = (*ind_arg_offs_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+          auto blkmap    = (*blkmap_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+          auto offset    = (*offset_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+          auto nelems    = (*nelems_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+          auto ncolors   = (*ncolors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+          auto colors    = (*colors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
 
 
-        //user fun as lambda
-        auto down_v2_kernel_gpu = [=]( 
-              const double* coord2a,
-              const double* coord2b,
-              const double* coord1a,
-              const double* coord1b,
-              const double* residuals1a,
-              const double* residuals1b,
-              double* residuals1a_prolonged,
-              double* residuals1b_prolonged,
-              double* residuals1a_prolonged_wsum,
-              double* residuals1b_prolonged_wsum) {
-          
-          
-          
-          
-          
-          
-          
-              double dx_a1a2 = coord2a[0] - coord1a[0];
-              double dy_a1a2 = coord2a[1] - coord1a[1];
-              double dz_a1a2 = coord2a[2] - coord1a[2];
-              if (dx_a1a2 == 0.0 && dy_a1a2 == 0.0 && dz_a1a2 == 0.0) {
-          
-                  residuals1a_prolonged[VAR_DENSITY]        = residuals1a[VAR_DENSITY];
-                  residuals1a_prolonged[VAR_MOMENTUM+0]     = residuals1a[VAR_MOMENTUM+0];
-                  residuals1a_prolonged[VAR_MOMENTUM+1]     = residuals1a[VAR_MOMENTUM+1];
-                  residuals1a_prolonged[VAR_MOMENTUM+2]     = residuals1a[VAR_MOMENTUM+2];
-                  residuals1a_prolonged[VAR_DENSITY_ENERGY] = residuals1a[VAR_DENSITY_ENERGY];
-                  *residuals1a_prolonged_wsum = 1.0;
-              } else {
-          
-                  const double idist_a1a2 = 1.0/cl::sycl::sqrt(dx_a1a2*dx_a1a2 + dy_a1a2*dy_a1a2 + dz_a1a2*dz_a1a2);
-                  residuals1a_prolonged[VAR_DENSITY]        += idist_a1a2*residuals1a[VAR_DENSITY];
-                  residuals1a_prolonged[VAR_MOMENTUM+0]     += idist_a1a2*residuals1a[VAR_MOMENTUM+0];
-                  residuals1a_prolonged[VAR_MOMENTUM+1]     += idist_a1a2*residuals1a[VAR_MOMENTUM+1];
-                  residuals1a_prolonged[VAR_MOMENTUM+2]     += idist_a1a2*residuals1a[VAR_MOMENTUM+2];
-                  residuals1a_prolonged[VAR_DENSITY_ENERGY] += idist_a1a2*residuals1a[VAR_DENSITY_ENERGY];
-                  *residuals1a_prolonged_wsum += idist_a1a2;
-          
-                  double dx_b1a2 = coord1b[0] - coord2a[0];
-                  double dy_b1a2 = coord1b[1] - coord2a[1];
-                  double dz_b1a2 = coord1b[2] - coord2a[2];
-          
-                  const double idist_b1a2 = 1.0/cl::sycl::sqrt(dx_b1a2*dx_b1a2 + dy_b1a2*dy_b1a2 + dz_b1a2*dz_b1a2);
-                  residuals1a_prolonged[VAR_DENSITY]        += idist_b1a2*residuals1b[VAR_DENSITY];
-                  residuals1a_prolonged[VAR_MOMENTUM+0]     += idist_b1a2*residuals1b[VAR_MOMENTUM+0];
-                  residuals1a_prolonged[VAR_MOMENTUM+1]     += idist_b1a2*residuals1b[VAR_MOMENTUM+1];
-                  residuals1a_prolonged[VAR_MOMENTUM+2]     += idist_b1a2*residuals1b[VAR_MOMENTUM+2];
-                  residuals1a_prolonged[VAR_DENSITY_ENERGY] += idist_b1a2*residuals1b[VAR_DENSITY_ENERGY];
-                  *residuals1a_prolonged_wsum += idist_b1a2;
-              }
-          
-              double dx_b1b2 = coord2b[0] - coord1b[0];
-              double dy_b1b2 = coord2b[1] - coord1b[1];
-              double dz_b1b2 = coord2b[2] - coord1b[2];
-              if (dx_b1b2 == 0.0 && dy_b1b2 == 0.0 && dz_b1b2 == 0.0) {
-          
-                  residuals1b_prolonged[VAR_DENSITY]        = residuals1b[VAR_DENSITY];
-                  residuals1b_prolonged[VAR_MOMENTUM+0]      = residuals1b[VAR_MOMENTUM+0];
-                  residuals1b_prolonged[VAR_MOMENTUM+1]      = residuals1b[VAR_MOMENTUM+1];
-                  residuals1b_prolonged[VAR_MOMENTUM+2]      = residuals1b[VAR_MOMENTUM+2];
-                  residuals1b_prolonged[VAR_DENSITY_ENERGY] = residuals1b[VAR_DENSITY_ENERGY];
-                  *residuals1b_prolonged_wsum = 1.0;
-              } else {
-          
-                  const double idist_b1b2 = 1.0/cl::sycl::sqrt(dx_b1b2*dx_b1b2 + dy_b1b2*dy_b1b2 + dz_b1b2*dz_b1b2);
-                  residuals1b_prolonged[VAR_DENSITY]        += idist_b1b2*residuals1b[VAR_DENSITY];
-                  residuals1b_prolonged[VAR_MOMENTUM+0]     += idist_b1b2*residuals1b[VAR_MOMENTUM+0];
-                  residuals1b_prolonged[VAR_MOMENTUM+1]     += idist_b1b2*residuals1b[VAR_MOMENTUM+1];
-                  residuals1b_prolonged[VAR_MOMENTUM+2]     += idist_b1b2*residuals1b[VAR_MOMENTUM+2];
-                  residuals1b_prolonged[VAR_DENSITY_ENERGY] += idist_b1b2*residuals1b[VAR_DENSITY_ENERGY];
-                  *residuals1b_prolonged_wsum += idist_b1b2;
-          
-                  double dx_a1b2 = coord1a[0] - coord2b[0];
-                  double dy_a1b2 = coord1a[1] - coord2b[1];
-                  double dz_a1b2 = coord1a[2] - coord2b[2];
-          
-                  const double idist_a1b2 = 1.0/cl::sycl::sqrt(dx_a1b2*dx_a1b2 + dy_a1b2*dy_a1b2 + dz_a1b2*dz_a1b2);
-                  residuals1b_prolonged[VAR_DENSITY]        += idist_a1b2*residuals1b[VAR_DENSITY];
-                  residuals1b_prolonged[VAR_MOMENTUM+0]     += idist_a1b2*residuals1b[VAR_MOMENTUM+0];
-                  residuals1b_prolonged[VAR_MOMENTUM+1]     += idist_a1b2*residuals1b[VAR_MOMENTUM+1];
-                  residuals1b_prolonged[VAR_MOMENTUM+2]     += idist_a1b2*residuals1b[VAR_MOMENTUM+2];
-                  residuals1b_prolonged[VAR_DENSITY_ENERGY] += idist_a1b2*residuals1b[VAR_DENSITY_ENERGY];
-                  *residuals1b_prolonged_wsum += idist_a1b2;
-              }
-          
-          };
-          
-        auto kern = [=](cl::sycl::nd_item<1> item) {
-          int tid = item.get_global_linear_id();
-          if (tid + start < end) {
-            int n = col_reord[tid + start];
-            //initialise local variables
-            int map0idx;
-            int map1idx;
-            int map2idx;
-            int map3idx;
-            map0idx = opDat0Map[n + set_size * 0];
-            map1idx = opDat0Map[n + set_size * 1];
-            map2idx = opDat2Map[n + set_size * 0];
-            map3idx = opDat2Map[n + set_size * 1];
+          cl::sycl::accessor<double, 1, cl::sycl::access::mode::read_write,
+             cl::sycl::access::target::local> ind_arg3_s(ind_arg3_shmem, cgh);
+          cl::sycl::accessor<double, 1, cl::sycl::access::mode::read_write,
+             cl::sycl::access::target::local> ind_arg4_s(ind_arg4_shmem, cgh);
 
-            //user-supplied kernel call
-            down_v2_kernel_gpu(&ind_arg0[map0idx*3],
+
+          //user fun as lambda
+          auto down_v2_kernel_gpu = [=]( 
+                const double* coord2a,
+                const double* coord2b,
+                const double* coord1a,
+                const double* coord1b,
+                const double* residuals1a,
+                const double* residuals1b,
+                double* residuals1a_prolonged,
+                double* residuals1b_prolonged,
+                double* residuals1a_prolonged_wsum,
+                double* residuals1b_prolonged_wsum) {
+            
+            
+            
+            
+            
+            
+            
+                double dx_a1a2 = coord2a[0] - coord1a[0];
+                double dy_a1a2 = coord2a[1] - coord1a[1];
+                double dz_a1a2 = coord2a[2] - coord1a[2];
+                if (dx_a1a2 == 0.0 && dy_a1a2 == 0.0 && dz_a1a2 == 0.0) {
+            
+                    residuals1a_prolonged[VAR_DENSITY]        = residuals1a[VAR_DENSITY];
+                    residuals1a_prolonged[VAR_MOMENTUM+0]     = residuals1a[VAR_MOMENTUM+0];
+                    residuals1a_prolonged[VAR_MOMENTUM+1]     = residuals1a[VAR_MOMENTUM+1];
+                    residuals1a_prolonged[VAR_MOMENTUM+2]     = residuals1a[VAR_MOMENTUM+2];
+                    residuals1a_prolonged[VAR_DENSITY_ENERGY] = residuals1a[VAR_DENSITY_ENERGY];
+                    *residuals1a_prolonged_wsum = 1.0;
+                } else {
+            
+                    const double idist_a1a2 = 1.0/cl::sycl::sqrt(dx_a1a2*dx_a1a2 + dy_a1a2*dy_a1a2 + dz_a1a2*dz_a1a2);
+                    residuals1a_prolonged[VAR_DENSITY]        += idist_a1a2*residuals1a[VAR_DENSITY];
+                    residuals1a_prolonged[VAR_MOMENTUM+0]     += idist_a1a2*residuals1a[VAR_MOMENTUM+0];
+                    residuals1a_prolonged[VAR_MOMENTUM+1]     += idist_a1a2*residuals1a[VAR_MOMENTUM+1];
+                    residuals1a_prolonged[VAR_MOMENTUM+2]     += idist_a1a2*residuals1a[VAR_MOMENTUM+2];
+                    residuals1a_prolonged[VAR_DENSITY_ENERGY] += idist_a1a2*residuals1a[VAR_DENSITY_ENERGY];
+                    *residuals1a_prolonged_wsum += idist_a1a2;
+            
+                    double dx_b1a2 = coord1b[0] - coord2a[0];
+                    double dy_b1a2 = coord1b[1] - coord2a[1];
+                    double dz_b1a2 = coord1b[2] - coord2a[2];
+            
+                    const double idist_b1a2 = 1.0/cl::sycl::sqrt(dx_b1a2*dx_b1a2 + dy_b1a2*dy_b1a2 + dz_b1a2*dz_b1a2);
+                    residuals1a_prolonged[VAR_DENSITY]        += idist_b1a2*residuals1b[VAR_DENSITY];
+                    residuals1a_prolonged[VAR_MOMENTUM+0]     += idist_b1a2*residuals1b[VAR_MOMENTUM+0];
+                    residuals1a_prolonged[VAR_MOMENTUM+1]     += idist_b1a2*residuals1b[VAR_MOMENTUM+1];
+                    residuals1a_prolonged[VAR_MOMENTUM+2]     += idist_b1a2*residuals1b[VAR_MOMENTUM+2];
+                    residuals1a_prolonged[VAR_DENSITY_ENERGY] += idist_b1a2*residuals1b[VAR_DENSITY_ENERGY];
+                    *residuals1a_prolonged_wsum += idist_b1a2;
+                }
+            
+                double dx_b1b2 = coord2b[0] - coord1b[0];
+                double dy_b1b2 = coord2b[1] - coord1b[1];
+                double dz_b1b2 = coord2b[2] - coord1b[2];
+                if (dx_b1b2 == 0.0 && dy_b1b2 == 0.0 && dz_b1b2 == 0.0) {
+            
+                    residuals1b_prolonged[VAR_DENSITY]        = residuals1b[VAR_DENSITY];
+                    residuals1b_prolonged[VAR_MOMENTUM+0]      = residuals1b[VAR_MOMENTUM+0];
+                    residuals1b_prolonged[VAR_MOMENTUM+1]      = residuals1b[VAR_MOMENTUM+1];
+                    residuals1b_prolonged[VAR_MOMENTUM+2]      = residuals1b[VAR_MOMENTUM+2];
+                    residuals1b_prolonged[VAR_DENSITY_ENERGY] = residuals1b[VAR_DENSITY_ENERGY];
+                    *residuals1b_prolonged_wsum = 1.0;
+                } else {
+            
+                    const double idist_b1b2 = 1.0/cl::sycl::sqrt(dx_b1b2*dx_b1b2 + dy_b1b2*dy_b1b2 + dz_b1b2*dz_b1b2);
+                    residuals1b_prolonged[VAR_DENSITY]        += idist_b1b2*residuals1b[VAR_DENSITY];
+                    residuals1b_prolonged[VAR_MOMENTUM+0]     += idist_b1b2*residuals1b[VAR_MOMENTUM+0];
+                    residuals1b_prolonged[VAR_MOMENTUM+1]     += idist_b1b2*residuals1b[VAR_MOMENTUM+1];
+                    residuals1b_prolonged[VAR_MOMENTUM+2]     += idist_b1b2*residuals1b[VAR_MOMENTUM+2];
+                    residuals1b_prolonged[VAR_DENSITY_ENERGY] += idist_b1b2*residuals1b[VAR_DENSITY_ENERGY];
+                    *residuals1b_prolonged_wsum += idist_b1b2;
+            
+                    double dx_a1b2 = coord1a[0] - coord2b[0];
+                    double dy_a1b2 = coord1a[1] - coord2b[1];
+                    double dz_a1b2 = coord1a[2] - coord2b[2];
+            
+                    const double idist_a1b2 = 1.0/cl::sycl::sqrt(dx_a1b2*dx_a1b2 + dy_a1b2*dy_a1b2 + dz_a1b2*dz_a1b2);
+                    residuals1b_prolonged[VAR_DENSITY]        += idist_a1b2*residuals1b[VAR_DENSITY];
+                    residuals1b_prolonged[VAR_MOMENTUM+0]     += idist_a1b2*residuals1b[VAR_MOMENTUM+0];
+                    residuals1b_prolonged[VAR_MOMENTUM+1]     += idist_a1b2*residuals1b[VAR_MOMENTUM+1];
+                    residuals1b_prolonged[VAR_MOMENTUM+2]     += idist_a1b2*residuals1b[VAR_MOMENTUM+2];
+                    residuals1b_prolonged[VAR_DENSITY_ENERGY] += idist_a1b2*residuals1b[VAR_DENSITY_ENERGY];
+                    *residuals1b_prolonged_wsum += idist_a1b2;
+                }
+            
+            };
+            
+          auto kern = [=](cl::sycl::nd_item<1> item) {
+            double arg6_l[5];
+            double arg7_l[5];
+            double arg8_l[1];
+            double arg9_l[1];
+
+
+            //get sizes and shift pointers and direct-mapped data
+
+            int blockId = blkmap[item.get_group_linear_id()  + block_offset];
+
+            int nelem    = nelems[blockId];
+            int offset_b = offset[blockId];
+
+            int nelems2  = item.get_local_range()[0]*(1+(nelem-1)/item.get_local_range()[0]);
+            int ncolor   = ncolors[blockId];
+
+            int ind_arg3_size = ind_arg_sizes[0+blockId*2];
+            int ind_arg4_size = ind_arg_sizes[1+blockId*2];
+
+            int ind_arg3_map = 0*set_size + ind_arg_offs[0+blockId*2];
+            int ind_arg4_map = 2*set_size + ind_arg_offs[1+blockId*2];
+
+
+            for ( int n=item.get_local_id(0); n<ind_arg3_size*5; n+=item.get_local_range()[0] ){
+              ind_arg3_s[n] = ZERO_double;
+            }
+            for ( int n=item.get_local_id(0); n<ind_arg4_size*1; n+=item.get_local_range()[0] ){
+              ind_arg4_s[n] = ZERO_double;
+            }
+
+            item.barrier(cl::sycl::access::fence_space::local_space);
+
+            for ( int n=item.get_local_id(0); n<nelems2; n+=item.get_local_range()[0] ){
+              int col2 = -1;
+              int map0idx;
+              int map1idx;
+              int map2idx;
+              int map3idx;
+              if (n<nelem) {
+                //initialise local variables
+                for ( int d=0; d<5; d++ ){
+                  arg6_l[d] = ZERO_double;
+                }
+                for ( int d=0; d<5; d++ ){
+                  arg7_l[d] = ZERO_double;
+                }
+                for ( int d=0; d<1; d++ ){
+                  arg8_l[d] = ZERO_double;
+                }
+                for ( int d=0; d<1; d++ ){
+                  arg9_l[d] = ZERO_double;
+                }
+                map0idx = opDat0Map[n + offset_b + set_size * 0];
+                map1idx = opDat0Map[n + offset_b + set_size * 1];
+                map2idx = opDat2Map[n + offset_b + set_size * 0];
+                map3idx = opDat2Map[n + offset_b + set_size * 1];
+
+
+                //user-supplied kernel call
+                down_v2_kernel_gpu(&ind_arg0[map0idx*3],
                    &ind_arg0[map1idx*3],
                    &ind_arg1[map2idx*3],
                    &ind_arg1[map3idx*3],
                    &ind_arg2[map2idx*5],
                    &ind_arg2[map3idx*5],
-                   &ind_arg3[map0idx*5],
-                   &ind_arg3[map1idx*5],
-                   &ind_arg4[map0idx*1],
-                   &ind_arg4[map1idx*1]);
-          }
+                   arg6_l,
+                   arg7_l,
+                   arg8_l,
+                   arg9_l);
+                col2 = colors[n+offset_b];
+              }
 
-        };
-        cgh.parallel_for<class down_v2_kernel_kernel>(cl::sycl::nd_range<1>(nthread*nblocks,nthread), kern);
-      });
-      }catch(cl::sycl::exception const &e) {
-      std::cout << e.what() << std::endl;exit(-1);
+              //store local variables
+
+              int arg6_map;
+              int arg7_map;
+              int arg8_map;
+              int arg9_map;
+              if (col2>=0) {
+                arg6_map = arg_map[0*set_size+n+offset_b];
+                arg7_map = arg_map[1*set_size+n+offset_b];
+                arg8_map = arg_map[2*set_size+n+offset_b];
+                arg9_map = arg_map[3*set_size+n+offset_b];
+              }
+
+              for ( int col=0; col<ncolor; col++ ){
+                if (col2==col) {
+                  arg6_l[0] += ind_arg3_s[0+arg6_map*5];
+                  arg6_l[1] += ind_arg3_s[1+arg6_map*5];
+                  arg6_l[2] += ind_arg3_s[2+arg6_map*5];
+                  arg6_l[3] += ind_arg3_s[3+arg6_map*5];
+                  arg6_l[4] += ind_arg3_s[4+arg6_map*5];
+                  ind_arg3_s[0+arg6_map*5] = arg6_l[0];
+                  ind_arg3_s[1+arg6_map*5] = arg6_l[1];
+                  ind_arg3_s[2+arg6_map*5] = arg6_l[2];
+                  ind_arg3_s[3+arg6_map*5] = arg6_l[3];
+                  ind_arg3_s[4+arg6_map*5] = arg6_l[4];
+                  arg7_l[0] += ind_arg3_s[0+arg7_map*5];
+                  arg7_l[1] += ind_arg3_s[1+arg7_map*5];
+                  arg7_l[2] += ind_arg3_s[2+arg7_map*5];
+                  arg7_l[3] += ind_arg3_s[3+arg7_map*5];
+                  arg7_l[4] += ind_arg3_s[4+arg7_map*5];
+                  ind_arg3_s[0+arg7_map*5] = arg7_l[0];
+                  ind_arg3_s[1+arg7_map*5] = arg7_l[1];
+                  ind_arg3_s[2+arg7_map*5] = arg7_l[2];
+                  ind_arg3_s[3+arg7_map*5] = arg7_l[3];
+                  ind_arg3_s[4+arg7_map*5] = arg7_l[4];
+                  arg8_l[0] += ind_arg4_s[0+arg8_map*1];
+                  ind_arg4_s[0+arg8_map*1] = arg8_l[0];
+                  arg9_l[0] += ind_arg4_s[0+arg9_map*1];
+                  ind_arg4_s[0+arg9_map*1] = arg9_l[0];
+                }
+                item.barrier(cl::sycl::access::fence_space::local_space);
+              }
+            }
+            for ( int n=item.get_local_id(0); n<ind_arg3_size*5; n+=item.get_local_range()[0] ){
+              ind_arg3[n%5+ind_map[ind_arg3_map+n/5]*5] += ind_arg3_s[n];
+            }
+            for ( int n=item.get_local_id(0); n<ind_arg4_size*1; n+=item.get_local_range()[0] ){
+              ind_arg4[n%1+ind_map[ind_arg4_map+n/1]*1] += ind_arg4_s[n];
+            }
+
+          };
+          cgh.parallel_for<class down_v2_kernel_kernel>(cl::sycl::nd_range<1>(nthread*nblocks,nthread), kern);
+        });
+        }catch(cl::sycl::exception const &e) {
+        std::cout << e.what() << std::endl;exit(-1);
+        }
+
       }
-
+      block_offset += Plan->ncolblk[col];
     }
     OP_kernels[19].transfer  += Plan->transfer;
     OP_kernels[19].transfer2 += Plan->transfer2;
