@@ -59,9 +59,11 @@ __global__ void op_cuda_calculate_cell_volumes(
   if (tid + start < end) {
     int n = tid + start;
     //initialise local variables
+    double arg3_l[1];
     for ( int d=0; d<1; d++ ){
       arg3_l[d] = ZERO_double;
     }
+    double arg4_l[1];
     for ( int d=0; d<1; d++ ){
       arg4_l[d] = ZERO_double;
     }
