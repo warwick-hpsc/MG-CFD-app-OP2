@@ -379,21 +379,30 @@ $(BIN_DIR)/mgcfd_seq: $(OP2_SEQ_OBJECTS)
 
 
 ## SYCL
-$(OBJ_DIR)/mgcfd_sycl_main.o: $(OP2_MAIN_SRC)
-	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
-	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
-		-c -o $@ $^
-$(OBJ_DIR)/mgcfd_sycl_kernels.o: $(SRC_DIR)/../sycl/_kernels.cpp $(SYCL_KERNELS)
-	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
-	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
-		-c -o $@ $(SRC_DIR)/../sycl/_kernels.cpp
-$(BIN_DIR)/mgcfd_sycl: $(OP2_SYCL_OBJECTS)
-	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_sycl -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
-		-o $@
+#$(OBJ_DIR)/mgcfd_sycl_main.o: $(OP2_MAIN_SRC)
+#	mkdir -p $(OBJ_DIR)
+#	$(MPICPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+#	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
+#		-c -o $@ $^
+#$(OBJ_DIR)/mgcfd_sycl_kernels.o: $(SRC_DIR)/../sycl/_kernels.cpp $(SYCL_KERNELS)
+#	mkdir -p $(OBJ_DIR)
+#	$(MPICPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+#	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
+#		-c -o $@ $(SRC_DIR)/../sycl/_kernels.cpp
+#$(BIN_DIR)/mgcfd_sycl: $(OP2_SYCL_OBJECTS)
+#	mkdir -p $(BIN_DIR)
+#	$(MPICPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+#		-lm $(OP2_LIB) -lop2_sycl -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
+#		-o $@
+
+$(BIN_DIR)/mgcfd_sycl: src_op/euler3d_cpu_double_op.cpp sycl/_kernels.cpp
+	     $(CPP) $(CPPFLAGS) $(SYCL_FLAGS) src_op/euler3d_cpu_double_op.cpp sycl/_kernels.cpp -Isycl -I. \
+	     $(MGCFD_INCS) \
+	     $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
+	     $(OP2_LIB) -lm -lop2_sycl -lop2_hdf5 \
+	     $(HDF5_LIB) \
+	     -o mgcfd_sycl
+
 
 ## OPENMP
 $(OBJ_DIR)/mgcfd_openmp_main.o: $(OP2_MAIN_SRC)
