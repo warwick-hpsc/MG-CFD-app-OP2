@@ -35,7 +35,6 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
   , long_long* restrict event_counts, int event_set, int num_events
   #endif
 );
-
 // user kernel files
 #include "initialize_variables_kernel_veckernel.cpp"
 #include "zero_5d_array_kernel_veckernel.cpp"
@@ -49,6 +48,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 #include "compute_flux_edge_kernel_veckernel.cpp"
 #include "compute_bnd_node_flux_kernel_veckernel.cpp"
 #include "time_step_kernel_veckernel.cpp"
+#include "indirect_rw_kernel_veckernel.cpp"
 #include "residual_kernel_veckernel.cpp"
 #include "calc_rms_kernel_veckernel.cpp"
 #include "count_bad_vals_veckernel.cpp"
