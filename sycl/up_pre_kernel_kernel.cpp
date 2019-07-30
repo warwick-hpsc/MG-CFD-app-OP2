@@ -34,53 +34,33 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
     printf(" kernel routine with indirection: up_pre_kernel\n");
   }
 
-  //get plan
-  #ifdef OP_PART_SIZE_15
-    int part_size = OP_PART_SIZE_15;
-  #else
-    int part_size = OP_part_size;
-  #endif
-
   op_mpi_halo_exchanges_cuda(set, nargs, args);
   if (set->size > 0) {
 
-    op_plan *Plan = op_plan_get_stage(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_ALL);
+    //set SYCL execution parameters
+    #ifdef OP_BLOCK_SIZE_15
+      int nthread = OP_BLOCK_SIZE_15;
+    #else
+      int nthread = OP_block_size;
+    #endif
 
     cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
     cl::sycl::buffer<int,1> *arg1_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)arg1.data_d);
     cl::sycl::buffer<int,1> *map0_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)arg0.map_data_d);
-    cl::sycl::buffer<int,1> *blkmap_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->blkmap);
-    cl::sycl::buffer<int,1> *offset_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->offset);
-    cl::sycl::buffer<int,1> *nelems_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nelems);
-    cl::sycl::buffer<int,1> *ncolors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nthrcol);
-    cl::sycl::buffer<int,1> *colors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->thrcol);
     int set_size = set->size+set->exec_size;
-    //execute plan
-
-    int block_offset = 0;
-    for ( int col=0; col<Plan->ncolors; col++ ){
-      if (col==Plan->ncolors_core) {
+    for ( int round=0; round<2; round++ ){
+      if (round==1) {
         op_mpi_wait_all_cuda(nargs, args);
       }
-      #ifdef OP_BLOCK_SIZE_15
-      int nthread = OP_BLOCK_SIZE_15;
-      #else
-      int nthread = OP_block_size;
-      #endif
-
-      int nblocks = Plan->ncolblk[col];
-      if (Plan->ncolblk[col] > 0) {
+      int start = round==0 ? 0 : set->core_size;
+      int end = round==0 ? set->core_size : set->size + set->exec_size;
+      if (end-start>0) {
+        int nblocks = (end-start-1)/nthread+1;
         try {
         op2_queue->submit([&](cl::sycl::handler& cgh) {
           auto ind_arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
           auto ind_arg1 = (*arg1_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
           auto opDat0Map =  (*map0_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto blkmap    = (*blkmap_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto offset    = (*offset_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto nelems    = (*nelems_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto ncolors   = (*ncolors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto colors    = (*colors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-
 
 
 
@@ -98,20 +78,12 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
             };
             
           auto kern = [=](cl::sycl::nd_item<1> item) {
-
-
-            //get sizes and shift pointers and direct-mapped data
-
-            int blockId = blkmap[item.get_group_linear_id()  + block_offset];
-
-            int nelem    = nelems[blockId];
-            int offset_b = offset[blockId];
-
-
-            for ( int n=item.get_local_id(0); n<nelem; n+=item.get_local_range()[0] ){
+            int tid = item.get_global_linear_id();
+            if (tid + start < end) {
+              int n = tid+start;
+              //initialise local variables
               int map0idx;
-              map0idx = opDat0Map[n + offset_b + set_size * 0];
-
+              map0idx = opDat0Map[n + set_size * 0];
 
               //user-supplied kernel call
               up_pre_kernel_gpu(&ind_arg0[map0idx*5],
@@ -126,10 +98,7 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
         }
 
       }
-      block_offset += Plan->ncolblk[col];
     }
-    OP_kernels[15].transfer  += Plan->transfer;
-    OP_kernels[15].transfer2 += Plan->transfer2;
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   op2_queue->wait();

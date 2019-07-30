@@ -140,16 +140,27 @@ ifeq ($(COMPILER),cray)
   MPIFLAGS      = $(CPPFLAGS)
 else
 ifeq ($(OP2_COMPILER),sycl)
+  CPP		= g++
+  CC		= g++
+  CCFLAGS       = -O3 
+  CPPFLAGS      = $(CCFLAGS)
+  SYCL_FLAGS    = -std=c++11 -fsycl
+  NVCCFLAGS     = -ccbin=$(NVCC_HOST_COMPILER)
+  MPICPP        = $(CC)
+  MPIFLAGS      = $(CPPFLAGS)
+else
+ifeq ($(OP2_COMPILER),hipsycl)
   CPP           = syclcc-clang
   CC            = syclcc-clang
-  CCFLAGS       = -O3 -g
+  CCFLAGS       = -O3 
   CPPFLAGS      = $(CCFLAGS)
-  #SYCL_FLAGS      = -fsycl
   SYCL_FLAGS    = --hipsycl-gpu-arch=sm_60  -Wdeprecated-declarations
+  NVCCFLAGS = -ccbin=$(NVCC_HOST_COMPILER)
   MPICPP        = $(CC)
   MPIFLAGS      = $(CPPFLAGS)
 else
   $(error unrecognised value for COMPILER: $(COMPILER))
+endif
 endif
 endif
 endif
@@ -167,28 +178,40 @@ endif
 #
 # set flags for NVCC compilation and linking
 #
+
 ifndef NV_ARCH
-  MESSAGE=select an NVIDA device to compile in CUDA, e.g. make NV_ARCH=Pascal
-  NV_ARCH=Pascal
+  MESSAGE=select an NVIDA device to compile in CUDA, e.g. make NV_ARCH=KEPLER
+  NV_ARCH=Kepler
 endif
 ifeq ($(NV_ARCH),Fermi)
-  CODE_GEN_CUDA=-arch=sm_20
+  CODE_GEN_CUDA=-gencode arch=compute_20,code=sm_21
 else
 ifeq ($(NV_ARCH),Kepler)
   CODE_GEN_CUDA=-gencode arch=compute_35,code=sm_35
+ifeq ($(OP2_COMPILER),hipsycl)
+  SYCL_FLAGS = --hipsycl-gpu-arch=sm_35
+endif
 else
 ifeq ($(NV_ARCH),Maxwell)
   CODE_GEN_CUDA=-gencode arch=compute_50,code=sm_50
 else
 ifeq ($(NV_ARCH),Pascal)
   CODE_GEN_CUDA=-gencode arch=compute_60,code=sm_60
+ifeq ($(OP2_COMPILER),hipsycl)
+  SYCL_FLAGS = --hipsycl-gpu-arch=sm_60
 endif
+else
 ifeq ($(NV_ARCH),Volta)
   CODE_GEN_CUDA=-gencode arch=compute_70,code=sm_70
+ifeq ($(OP2_COMPILER),hipsycl)
+  SYCL_FLAGS = --hipsycl-gpu-arch=sm_70
 endif
 endif
 endif
 endif
+endif
+endif
+
 NVCCFLAGS =
 ifdef NVCC_BIN
 	NVCCFLAGS = -ccbin $(NVCC_BIN)
@@ -342,7 +365,7 @@ $(BIN_DIR)/mgcfd_sycl: $(OP2_SYCL_OBJECTS)
 #$(BIN_DIR)/mgcfd_sycl: src_op/euler3d_cpu_double_op.cpp sycl/_kernels.cpp
 #	     $(CPP) $(CPPFLAGS) $(SYCL_FLAGS) src_op/euler3d_cpu_double_op.cpp sycl/_kernels.cpp -Isycl -I. \
 #	     $(MGCFD_INCS) \
-#	     $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
+#	     $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -Isycl -I$(MPI_INSTALL_PATH)/include/ \
 #	     $(OP2_LIB) -lm -lop2_sycl -lop2_hdf5 \
 #	     $(HDF5_LIB) \
 #	     -o mgcfd_sycl
