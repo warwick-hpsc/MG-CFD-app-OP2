@@ -159,7 +159,24 @@ ifeq ($(OP2_COMPILER),hipsycl)
   MPICPP        = $(CC)
   MPIFLAGS      = $(CPPFLAGS)
 else
+ifeq ($(OP2_COMPILER),intel-sycl)
+  ifdef DEBUG
+    CCFLAGS  = -g -O0
+  else
+    CCFLAGS  = -O3
+  endif
+  CXX       = g++
+  SYCLCXX   = clang++ 
+  CXXFLAGS  = $(CCFLAGS)
+  MPICXX    = $(MPI_INSTALL_PATH)/bin/mpicxx 
+  MPIFLAGS  = $(CXXFLAGS)
+  SYCL_LIB   = -L$(SYCL_INSTALL_PATH)/lib -lOpenCL
+  NVCCFLAGS = -ccbin=$(NVCC_HOST_COMPILER)
+  SYCL_FLAGS = -std=c++11 -fsycl -I$(SYCL_INSTALL_PATH)/include -I$(SYCL_INSTALL_PATH)/include #intel sycl
+  #SYCL_FLAGS = -std=c++11 -fsycl #intel sycl
+else
   $(error unrecognised value for COMPILER: $(COMPILER))
+endif
 endif
 endif
 endif
@@ -348,27 +365,27 @@ $(BIN_DIR)/mgcfd_seq: $(OP2_SEQ_OBJECTS)
 ## SYCL
 $(OBJ_DIR)/mgcfd_sycl_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+	$(SYCLCXX) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
 		-c -o $@ $^
 $(OBJ_DIR)/mgcfd_sycl_kernels.o: $(SRC_DIR)/../sycl/_kernels.cpp $(SYCL_KERNELS)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+	$(SYCLCXX) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
 		-c -o $@ $(SRC_DIR)/../sycl/_kernels.cpp
 $(BIN_DIR)/mgcfd_sycl: $(OP2_SYCL_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+	$(SYCLCXX) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_sycl -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
 		-o $@
 
 #$(BIN_DIR)/mgcfd_sycl: src_op/euler3d_cpu_double_op.cpp sycl/_kernels.cpp
-#	     $(CPP) $(CPPFLAGS) $(SYCL_FLAGS) src_op/euler3d_cpu_double_op.cpp sycl/_kernels.cpp -Isycl -I. \
-#	     $(MGCFD_INCS) \
-#	     $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -Isycl -I$(MPI_INSTALL_PATH)/include/ \
-#	     $(OP2_LIB) -lm -lop2_sycl -lop2_hdf5 \
-#	     $(HDF5_LIB) \
-#	     -o mgcfd_sycl
+#	     $(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(OP2_INC) $(MGCFD_INCS) -Isycl -I. \
+	     src_op/euler3d_cpu_double_op.cpp sycl/_kernels.cpp \
+	     $(OP2_LIB) -lop2_sycl -lop2_hdf5 $(SYCL_LIB) \
+	     $(HDF5_LIB) \
+	     -o mgcfd_sycl
+
 
 
 ## OPENMP

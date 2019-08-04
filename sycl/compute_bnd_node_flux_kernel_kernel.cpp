@@ -40,235 +40,236 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
     printf(" kernel routine with indirection: compute_bnd_node_flux_kernel\n");
   }
 
+  //get plan
+  #ifdef OP_PART_SIZE_10
+    int part_size = OP_PART_SIZE_10;
+  #else
+    int part_size = OP_part_size;
+  #endif
+
   op_mpi_halo_exchanges_cuda(set, nargs, args);
   if (set->size > 0) {
 
-    //set SYCL execution parameters
-    #ifdef OP_BLOCK_SIZE_10
-      int nthread = OP_BLOCK_SIZE_10;
-    #else
-      int nthread = OP_block_size;
-    #endif
+    op_plan *Plan = op_plan_get_stage(name,set,part_size,nargs,args,ninds,inds,OP_COLOR2);
 
     cl::sycl::buffer<double,1> *arg2_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg2.data_d);
     cl::sycl::buffer<double,1> *arg3_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg3.data_d);
     cl::sycl::buffer<int,1> *map2_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)arg2.map_data_d);
     cl::sycl::buffer<int,1> *arg0_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)arg0.data_d);
     cl::sycl::buffer<double,1> *arg1_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg1.data_d);
+    cl::sycl::buffer<int,1> *col_reord_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->col_reord);
     int set_size = set->size+set->exec_size;
-    for ( int round=0; round<2; round++ ){
-      if (round==1) {
+    //execute plan
+    for ( int col=0; col<Plan->ncolors; col++ ){
+      if (col==Plan->ncolors_core) {
         op_mpi_wait_all_cuda(nargs, args);
       }
-      int start = round==0 ? 0 : set->core_size;
-      int end = round==0 ? set->core_size : set->size + set->exec_size;
-      if (end-start>0) {
-        int nblocks = (end-start-1)/nthread+1;
-        try {
-        op2_queue->submit([&](cl::sycl::handler& cgh) {
-          auto ind_arg0 = (*arg2_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-          auto ind_arg1 = (*arg3_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-          auto opDat2Map =  (*map2_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+      #ifdef OP_BLOCK_SIZE_10
+      int nthread = OP_BLOCK_SIZE_10;
+      #else
+      int nthread = OP_block_size;
+      #endif
 
-          auto arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-          auto arg1 = (*arg1_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
+      int start = Plan->col_offsets[0][col];
+      int end = Plan->col_offsets[0][col+1];
+      int nblocks = (end - start - 1)/nthread + 1;
+      try {
+      op2_queue->submit([&](cl::sycl::handler& cgh) {
+        auto ind_arg0 = (*arg2_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
+        auto ind_arg1 = (*arg3_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
+        auto opDat2Map =  (*map2_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+        auto col_reord = (*col_reord_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
 
-          auto ff_variable_sycl = (*ff_variable_p).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto ff_flux_contribution_momentum_x_sycl = (*ff_flux_contribution_momentum_x_p).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto ff_flux_contribution_momentum_y_sycl = (*ff_flux_contribution_momentum_y_p).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto ff_flux_contribution_momentum_z_sycl = (*ff_flux_contribution_momentum_z_p).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto ff_flux_contribution_density_energy_sycl = (*ff_flux_contribution_density_energy_p).template get_access<cl::sycl::access::mode::read>(cgh);
+        auto arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
+        auto arg1 = (*arg1_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
+        auto ff_variable_sycl = (*ff_variable_p).template get_access<cl::sycl::access::mode::read>(cgh);
+        auto ff_flux_contribution_momentum_x_sycl = (*ff_flux_contribution_momentum_x_p).template get_access<cl::sycl::access::mode::read>(cgh);
+        auto ff_flux_contribution_momentum_y_sycl = (*ff_flux_contribution_momentum_y_p).template get_access<cl::sycl::access::mode::read>(cgh);
+        auto ff_flux_contribution_momentum_z_sycl = (*ff_flux_contribution_momentum_z_p).template get_access<cl::sycl::access::mode::read>(cgh);
+        auto ff_flux_contribution_density_energy_sycl = (*ff_flux_contribution_density_energy_p).template get_access<cl::sycl::access::mode::read>(cgh);
 
-          //user fun as lambda
-          auto compute_bnd_node_flux_kernel_gpu = [=]( 
-              const int *g,
-              const double *edge_weight,
-              const double *variables_b,
-              double *fluxes_b) {
-            
-            
-            
-            
-            
-            
-            
-            
-                if ((*g) <= 2) {
-            
-                  
-                  
-                  
-                  
-                  
-                  
-                  
-                  
-                      double p_b = variables_b[VAR_DENSITY];
-                  
-                      #ifdef IDIVIDE
-                      double ip_b = 1.0 / p_b;
-                      #endif
-                  
-                      double pe_b, pressure_b;
-                      double3 velocity_b, momentum_b;
-                      double flux_contribution_i_momentum_x_b[NDIM],
-                             flux_contribution_i_momentum_y_b[NDIM],
-                             flux_contribution_i_momentum_z_b[NDIM],
-                             flux_contribution_i_density_energy_b[NDIM];
-                  
-                      momentum_b.x = variables_b[VAR_MOMENTUM+0];
-                      momentum_b.y = variables_b[VAR_MOMENTUM+1];
-                      momentum_b.z = variables_b[VAR_MOMENTUM+2];
-                      pe_b = variables_b[VAR_DENSITY_ENERGY];
-                  
-                      #ifdef IDIVIDE
-                      compute_velocity(ip_b, momentum_b, velocity_b);
-                      #else
-                      compute_velocity(p_b, momentum_b, velocity_b);
-                      #endif
-                  
-                      double speed_sqd_b = compute_speed_sqd(velocity_b);
-                      double speed_b = cl::sycl::sqrt(speed_sqd_b);
-                      pressure_b = compute_pressure(p_b, pe_b, speed_sqd_b);
-                  
-                      #ifdef IDIVIDE
-                      double speed_of_sound_b = compute_speed_of_sound(ip_b, pressure_b);
-                      #else
-                      double speed_of_sound_b = compute_speed_of_sound(p_b, pressure_b);
-                      #endif
-                  
-                      compute_flux_contribution(p_b, momentum_b, pe_b,
-                          pressure_b, velocity_b,
-                          flux_contribution_i_momentum_x_b,
-                          flux_contribution_i_momentum_y_b,
-                          flux_contribution_i_momentum_z_b,
-                          flux_contribution_i_density_energy_b);
-                  
-                      fluxes_b[VAR_DENSITY]        += 0;
-                      fluxes_b[VAR_MOMENTUM +0]    += edge_weight[0]*pressure_b;
-                      fluxes_b[VAR_MOMENTUM +1]    += edge_weight[1]*pressure_b;
-                      fluxes_b[VAR_MOMENTUM +2]    += edge_weight[2]*pressure_b;
-                      fluxes_b[VAR_DENSITY_ENERGY] += 0;
-                  
-            
-                } else if ((*g) == 3 || ((*g) >= 4 && (*g) <= 7) ) {
-            
-            
-                  
-                  
-                  
-                  
-                  
-                  
-                  
-                      double p_b = variables_b[VAR_DENSITY];
-                  
-                      #ifdef IDIVIDE
-                      double ip_b = 1.0 / p_b;
-                      #endif
-                  
-                      double pe_b, pressure_b;
-                      double3 velocity_b, momentum_b;
-                      double flux_contribution_i_momentum_x_b[NDIM],
-                             flux_contribution_i_momentum_y_b[NDIM],
-                             flux_contribution_i_momentum_z_b[NDIM],
-                             flux_contribution_i_density_energy_b[NDIM];
-                  
-                      momentum_b.x = variables_b[VAR_MOMENTUM+0];
-                      momentum_b.y = variables_b[VAR_MOMENTUM+1];
-                      momentum_b.z = variables_b[VAR_MOMENTUM+2];
-                      pe_b = variables_b[VAR_DENSITY_ENERGY];
-                  
-                      #ifdef IDIVIDE
-                      compute_velocity(ip_b, momentum_b, velocity_b);
-                      #else
-                      compute_velocity(p_b, momentum_b, velocity_b);
-                      #endif
-                  
-                      double speed_sqd_b = compute_speed_sqd(velocity_b);
-                      double speed_b = cl::sycl::sqrt(speed_sqd_b);
-                      pressure_b = compute_pressure(p_b, pe_b, speed_sqd_b);
-                  
-                      #ifdef IDIVIDE
-                      double speed_of_sound_b = compute_speed_of_sound(ip_b, pressure_b);
-                      #else
-                      double speed_of_sound_b = compute_speed_of_sound(p_b, pressure_b);
-                      #endif
-                  
-                      compute_flux_contribution(p_b, momentum_b, pe_b,
-                                                pressure_b, velocity_b,
-                                                flux_contribution_i_momentum_x_b,
-                                                flux_contribution_i_momentum_y_b,
-                                                flux_contribution_i_momentum_z_b,
-                                                flux_contribution_i_density_energy_b);
-                  
-                      double factor_x = 0.5 * edge_weight[0],
-                             factor_y = 0.5 * edge_weight[1],
-                             factor_z = 0.5 * edge_weight[2];
-                  
-                      fluxes_b[VAR_DENSITY] +=
-                            factor_x*(ff_variable_sycl[VAR_MOMENTUM+0] + momentum_b.x)
-                          + factor_y*(ff_variable_sycl[VAR_MOMENTUM+1] + momentum_b.y)
-                          + factor_z*(ff_variable_sycl[VAR_MOMENTUM+2] + momentum_b.z);
-                  
-                      fluxes_b[VAR_DENSITY_ENERGY] += 
-                            factor_x*(ff_flux_contribution_density_energy_sycl[0] + flux_contribution_i_density_energy_b[0])
-                          + factor_y*(ff_flux_contribution_density_energy_sycl[1] + flux_contribution_i_density_energy_b[1])
-                          + factor_z*(ff_flux_contribution_density_energy_sycl[2] + flux_contribution_i_density_energy_b[2]);
-                  
-                      fluxes_b[VAR_MOMENTUM + 0] += 
-                            factor_x*(ff_flux_contribution_momentum_x_sycl[0] + flux_contribution_i_momentum_x_b[0])
-                          + factor_y*(ff_flux_contribution_momentum_x_sycl[1] + flux_contribution_i_momentum_x_b[1])
-                          + factor_z*(ff_flux_contribution_momentum_x_sycl[2] + flux_contribution_i_momentum_x_b[2]);
-                  
-                      fluxes_b[VAR_MOMENTUM + 1] += 
-                            factor_x*(ff_flux_contribution_momentum_y_sycl[0] + flux_contribution_i_momentum_y_b[0])
-                          + factor_y*(ff_flux_contribution_momentum_y_sycl[1] + flux_contribution_i_momentum_y_b[1])
-                          + factor_z*(ff_flux_contribution_momentum_y_sycl[2] + flux_contribution_i_momentum_y_b[2]);
-                  
-                      fluxes_b[VAR_MOMENTUM + 2] += 
-                            factor_x*(ff_flux_contribution_momentum_z_sycl[0] + flux_contribution_i_momentum_z_b[0])
-                          + factor_y*(ff_flux_contribution_momentum_z_sycl[1] + flux_contribution_i_momentum_z_b[1])
-                          + factor_z*(ff_flux_contribution_momentum_z_sycl[2] + flux_contribution_i_momentum_z_b[2]);
-                  
-                }
-            
-            
-            };
-            
-          auto kern = [=](cl::sycl::nd_item<1> item) {
-            double arg3_l[5];
-            for ( int d=0; d<5; d++ ){
-              arg3_l[d] = ZERO_double;
-            }
-            int tid = item.get_global_linear_id();
-            if (tid + start < end) {
-              int n = tid+start;
-              //initialise local variables
-              int map2idx;
-              map2idx = opDat2Map[n + set_size * 0];
+        //user fun as lambda
+        auto compute_bnd_node_flux_kernel_gpu = [=]( 
+            const int *g,
+            const double *edge_weight,
+            const double *variables_b,
+            double *fluxes_b) {
+          
+          
+          
+          
+          
+          
+          
+          
+              if ((*g) <= 2) {
+          
+                
+                
+                
+                
+                
+                
+                
+                
+                    double p_b = variables_b[VAR_DENSITY];
+                
+                    #ifdef IDIVIDE
+                    double ip_b = 1.0 / p_b;
+                    #endif
+                
+                    double pe_b, pressure_b;
+                    double3 velocity_b, momentum_b;
+                    double flux_contribution_i_momentum_x_b[NDIM],
+                           flux_contribution_i_momentum_y_b[NDIM],
+                           flux_contribution_i_momentum_z_b[NDIM],
+                           flux_contribution_i_density_energy_b[NDIM];
+                
+                    momentum_b.x = variables_b[VAR_MOMENTUM+0];
+                    momentum_b.y = variables_b[VAR_MOMENTUM+1];
+                    momentum_b.z = variables_b[VAR_MOMENTUM+2];
+                    pe_b = variables_b[VAR_DENSITY_ENERGY];
+                
+                    #ifdef IDIVIDE
+                    compute_velocity(ip_b, momentum_b, velocity_b);
+                    #else
+                    compute_velocity(p_b, momentum_b, velocity_b);
+                    #endif
+                
+                    double speed_sqd_b = compute_speed_sqd(velocity_b);
+                    double speed_b = cl::sycl::sqrt(speed_sqd_b);
+                    pressure_b = compute_pressure(p_b, pe_b, speed_sqd_b);
+                
+                    #ifdef IDIVIDE
+                    double speed_of_sound_b = compute_speed_of_sound(ip_b, pressure_b);
+                    #else
+                    double speed_of_sound_b = compute_speed_of_sound(p_b, pressure_b);
+                    #endif
+                
+                    compute_flux_contribution(p_b, momentum_b, pe_b,
+                        pressure_b, velocity_b,
+                        flux_contribution_i_momentum_x_b,
+                        flux_contribution_i_momentum_y_b,
+                        flux_contribution_i_momentum_z_b,
+                        flux_contribution_i_density_energy_b);
+                
+                    fluxes_b[VAR_DENSITY]        += 0;
+                    fluxes_b[VAR_MOMENTUM +0]    += edge_weight[0]*pressure_b;
+                    fluxes_b[VAR_MOMENTUM +1]    += edge_weight[1]*pressure_b;
+                    fluxes_b[VAR_MOMENTUM +2]    += edge_weight[2]*pressure_b;
+                    fluxes_b[VAR_DENSITY_ENERGY] += 0;
+                
+          
+              } else if ((*g) == 3 || ((*g) >= 4 && (*g) <= 7) ) {
+          
+          
+                
+                
+                
+                
+                
+                
+                
+                    double p_b = variables_b[VAR_DENSITY];
+                
+                    #ifdef IDIVIDE
+                    double ip_b = 1.0 / p_b;
+                    #endif
+                
+                    double pe_b, pressure_b;
+                    double3 velocity_b, momentum_b;
+                    double flux_contribution_i_momentum_x_b[NDIM],
+                           flux_contribution_i_momentum_y_b[NDIM],
+                           flux_contribution_i_momentum_z_b[NDIM],
+                           flux_contribution_i_density_energy_b[NDIM];
+                
+                    momentum_b.x = variables_b[VAR_MOMENTUM+0];
+                    momentum_b.y = variables_b[VAR_MOMENTUM+1];
+                    momentum_b.z = variables_b[VAR_MOMENTUM+2];
+                    pe_b = variables_b[VAR_DENSITY_ENERGY];
+                
+                    #ifdef IDIVIDE
+                    compute_velocity(ip_b, momentum_b, velocity_b);
+                    #else
+                    compute_velocity(p_b, momentum_b, velocity_b);
+                    #endif
+                
+                    double speed_sqd_b = compute_speed_sqd(velocity_b);
+                    double speed_b = cl::sycl::sqrt(speed_sqd_b);
+                    pressure_b = compute_pressure(p_b, pe_b, speed_sqd_b);
+                
+                    #ifdef IDIVIDE
+                    double speed_of_sound_b = compute_speed_of_sound(ip_b, pressure_b);
+                    #else
+                    double speed_of_sound_b = compute_speed_of_sound(p_b, pressure_b);
+                    #endif
+                
+                    compute_flux_contribution(p_b, momentum_b, pe_b,
+                                              pressure_b, velocity_b,
+                                              flux_contribution_i_momentum_x_b,
+                                              flux_contribution_i_momentum_y_b,
+                                              flux_contribution_i_momentum_z_b,
+                                              flux_contribution_i_density_energy_b);
+                
+                    double factor_x = 0.5 * edge_weight[0],
+                           factor_y = 0.5 * edge_weight[1],
+                           factor_z = 0.5 * edge_weight[2];
+                
+                    fluxes_b[VAR_DENSITY] +=
+                          factor_x*(ff_variable_sycl[VAR_MOMENTUM+0] + momentum_b.x)
+                        + factor_y*(ff_variable_sycl[VAR_MOMENTUM+1] + momentum_b.y)
+                        + factor_z*(ff_variable_sycl[VAR_MOMENTUM+2] + momentum_b.z);
+                
+                    fluxes_b[VAR_DENSITY_ENERGY] += 
+                          factor_x*(ff_flux_contribution_density_energy_sycl[0] + flux_contribution_i_density_energy_b[0])
+                        + factor_y*(ff_flux_contribution_density_energy_sycl[1] + flux_contribution_i_density_energy_b[1])
+                        + factor_z*(ff_flux_contribution_density_energy_sycl[2] + flux_contribution_i_density_energy_b[2]);
+                
+                    fluxes_b[VAR_MOMENTUM + 0] += 
+                          factor_x*(ff_flux_contribution_momentum_x_sycl[0] + flux_contribution_i_momentum_x_b[0])
+                        + factor_y*(ff_flux_contribution_momentum_x_sycl[1] + flux_contribution_i_momentum_x_b[1])
+                        + factor_z*(ff_flux_contribution_momentum_x_sycl[2] + flux_contribution_i_momentum_x_b[2]);
+                
+                    fluxes_b[VAR_MOMENTUM + 1] += 
+                          factor_x*(ff_flux_contribution_momentum_y_sycl[0] + flux_contribution_i_momentum_y_b[0])
+                        + factor_y*(ff_flux_contribution_momentum_y_sycl[1] + flux_contribution_i_momentum_y_b[1])
+                        + factor_z*(ff_flux_contribution_momentum_y_sycl[2] + flux_contribution_i_momentum_y_b[2]);
+                
+                    fluxes_b[VAR_MOMENTUM + 2] += 
+                          factor_x*(ff_flux_contribution_momentum_z_sycl[0] + flux_contribution_i_momentum_z_b[0])
+                        + factor_y*(ff_flux_contribution_momentum_z_sycl[1] + flux_contribution_i_momentum_z_b[1])
+                        + factor_z*(ff_flux_contribution_momentum_z_sycl[2] + flux_contribution_i_momentum_z_b[2]);
+                
+              }
+          
+          
+          };
+          
+        auto kern = [=](cl::sycl::nd_item<1> item) {
+          int tid = item.get_global_linear_id();
+          if (tid + start < end) {
+            int n = col_reord[tid + start];
+            //initialise local variables
+            int map2idx;
+            map2idx = opDat2Map[n + set_size * 0];
 
-              //user-supplied kernel call
-              compute_bnd_node_flux_kernel_gpu(&arg0[n*1],
+            //user-supplied kernel call
+            compute_bnd_node_flux_kernel_gpu(&arg0[n*1],
                                  &arg1[n*3],
                                  &ind_arg0[map2idx*5],
-                                 arg3_l);
-              {cl::sycl::atomic<double> a{cl::sycl::global_ptr<double>{&ind_arg1[0+map2idx*5]}}; a.fetch_add(arg3_l[0]);}
-              {cl::sycl::atomic<double> a{cl::sycl::global_ptr<double>{&ind_arg1[1+map2idx*5]}}; a.fetch_add(arg3_l[1]);}
-              {cl::sycl::atomic<double> a{cl::sycl::global_ptr<double>{&ind_arg1[2+map2idx*5]}}; a.fetch_add(arg3_l[2]);}
-              {cl::sycl::atomic<double> a{cl::sycl::global_ptr<double>{&ind_arg1[3+map2idx*5]}}; a.fetch_add(arg3_l[3]);}
-              {cl::sycl::atomic<double> a{cl::sycl::global_ptr<double>{&ind_arg1[4+map2idx*5]}}; a.fetch_add(arg3_l[4]);}
-            }
+                                 &ind_arg1[map2idx*5]);
+          }
 
-          };
-          cgh.parallel_for<class compute_bnd_node_flux_kernel_kernel>(cl::sycl::nd_range<1>(nthread*nblocks,nthread), kern);
-        });
-        }catch(cl::sycl::exception const &e) {
-        std::cout << e.what() << std::endl;exit(-1);
-        }
-
+        };
+        cgh.parallel_for<class compute_bnd_node_flux_kernel_kernel>(cl::sycl::nd_range<1>(nthread*nblocks,nthread), kern);
+      });
+      }catch(cl::sycl::exception const &e) {
+      std::cout << e.what() << std::endl;exit(-1);
       }
+
     }
+    OP_kernels[10].transfer  += Plan->transfer;
+    OP_kernels[10].transfer2 += Plan->transfer2;
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   op2_queue->wait();

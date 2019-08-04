@@ -8,7 +8,6 @@
 #endif
 
 //header
-#define HIPSYCL_EXT_FP_ATOMICS
 #include "op_lib_cpp.h"
 #include "op_sycl_rt_support.h"
 #include "op_sycl_reduction.h"
