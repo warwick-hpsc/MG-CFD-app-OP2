@@ -70,10 +70,10 @@ inline void down_kernel(
     const double* residual_above, 
     const double* coord_above)
 {
-    double dx = fabs(coord[0] - coord_above[0]);
-    double dy = fabs(coord[1] - coord_above[1]);
-    double dz = fabs(coord[2] - coord_above[2]);
-    double dm = sqrt(dx*dx + dy*dy + dz*dz);
+    double dx = cl::sycl::fabs(coord[0] - coord_above[0]);
+    double dy = cl::sycl::fabs(coord[1] - coord_above[1]);
+    double dz = cl::sycl::fabs(coord[2] - coord_above[2]);
+    double dm = cl::sycl::sqrt(dx*dx + dy*dy + dz*dz);
 
     variable[VAR_DENSITY]        -= dm* (residual_above[VAR_DENSITY]        - residual[VAR_DENSITY]);
     variable[VAR_MOMENTUM+0]     -= dx* (residual_above[VAR_MOMENTUM+0]     - residual[VAR_MOMENTUM+0]);
