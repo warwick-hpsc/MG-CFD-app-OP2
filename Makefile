@@ -367,17 +367,17 @@ $(BIN_DIR)/mgcfd_seq: $(OP2_SEQ_OBJECTS)
 ## SYCL
 $(OBJ_DIR)/mgcfd_sycl_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
-	$(SYCLCXX) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+	$(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
 		-c -o $@ $^
 $(OBJ_DIR)/mgcfd_sycl_kernels.o: $(SRC_DIR)/../sycl/_kernels.cpp $(SYCL_KERNELS)
 	mkdir -p $(OBJ_DIR)
-	$(SYCLCXX) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+	$(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
 		-c -o $@ $(SRC_DIR)/../sycl/_kernels.cpp
 $(BIN_DIR)/mgcfd_sycl: $(OP2_SYCL_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(SYCLCXX) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+	$(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_sycl $(SYCL_LINK_SEQ) -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
 		-o $@
 
