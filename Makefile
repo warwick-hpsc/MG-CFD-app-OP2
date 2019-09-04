@@ -96,7 +96,7 @@ ifeq ($(COMPILER),gnu)
 else
 ifeq ($(COMPILER),intel)
   CPP = icpc
-  CFLAGS = -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -DVECTORIZE -qopt-report=5
+  CFLAGS = -pg -g -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -DVECTORIZE -qopt-report=5
   CFLAGS += -restrict
   # CFLAGS += -parallel ## This flag intoduces a significant slowdown into 'vec' app
   # CFLAGS += -fno-alias ## This flag causes 'vec' app to fail validation, do not enable
@@ -152,6 +152,7 @@ else
 ifeq ($(OP2_COMPILER),hipsycl)
   CPP           = syclcc-clang
   CC            = syclcc-clang
+  SYCLCXX	= syclcc-clang
   CCFLAGS       = -O3 
   CPPFLAGS      = $(CCFLAGS)
   SYCL_FLAGS    = --hipsycl-gpu-arch=sm_60  -Wdeprecated-declarations
@@ -174,6 +175,7 @@ ifeq ($(OP2_COMPILER),intel-sycl)
   NVCCFLAGS = -ccbin=$(NVCC_HOST_COMPILER)
   SYCL_FLAGS = -std=c++11 -fsycl -I$(SYCL_INSTALL_PATH)/include -I$(SYCL_INSTALL_PATH)/include #intel sycl
   #SYCL_FLAGS = -std=c++11 -fsycl #intel sycl
+  SYCL_LINK_SEQ = -foffload-static-lib=$(OP2_INSTALL_PATH)/c/lib/libop2_sycl.a
 else
   $(error unrecognised value for COMPILER: $(COMPILER))
 endif
@@ -376,14 +378,15 @@ $(OBJ_DIR)/mgcfd_sycl_kernels.o: $(SRC_DIR)/../sycl/_kernels.cpp $(SYCL_KERNELS)
 $(BIN_DIR)/mgcfd_sycl: $(OP2_SYCL_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(SYCLCXX) $(CPPFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_sycl -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
+		-lm $(OP2_LIB) -lop2_sycl $(SYCL_LINK_SEQ) -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
 		-o $@
 
 #$(BIN_DIR)/mgcfd_sycl: src_op/euler3d_cpu_double_op.cpp sycl/_kernels.cpp
-#	     $(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(OP2_INC) $(MGCFD_INCS) -Isycl -I. \
-	     src_op/euler3d_cpu_double_op.cpp sycl/_kernels.cpp \
-	     $(OP2_LIB) -lop2_sycl -lop2_hdf5 $(SYCL_LIB) \
-	     $(HDF5_LIB) \
+#	     $(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(OP2_INC) $(MGCFD_INCS) \
+             $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include  \
+             -Isycl -I. src_op/euler3d_cpu_double_op.cpp sycl/_kernels.cpp -lm \
+	     $(OP2_LIB) -lop2_sycl $(SYCL_LINK_SEQ) $(SYCL_LIB) \
+	     $(HDF5_LIB) -lop2_hdf5 \
 	     -o mgcfd_sycl
 
 
