@@ -79,7 +79,7 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
         
             #else
                 for (int v=0; v<NVAR; v++) {
-                    if (isnan(value[v]) || isinf(value[v])) {
+                    if (cl::sycl::isnan(value[v]) || cl::sycl::isinf(value[v])) {
                         *count += 1;
                     }
                 }
