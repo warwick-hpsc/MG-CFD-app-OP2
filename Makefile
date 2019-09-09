@@ -46,7 +46,7 @@ PTSCOTCH_LIB += -lptscotch -lscotch -lptscotcherr
 ifdef DEBUG
   OPTIMISE := -pg -g -O0
 else
-  OPTIMISE := -O3
+  OPTIMISE := -O3 -DVECTORIZE
 endif
 
 BIN_DIR = bin
@@ -195,6 +195,17 @@ ifeq ($(COMPILER),cray)
   OMPFLAGS      = -h omp
   MPIFLAGS      = $(CPPFLAGS)
 else
+ifeq ($(OP2_COMPILER),clang)
+  CPP           = clang++
+  CCFLAGS       = -O3 -ffast-math
+  CPPFLAGS      = $(CCFLAGS)
+  OMPFLAGS      = -I$(OMPTARGET_LIBS)/../include -fopenmp=libomp -Rpass-analysis
+  OMPOFFLOAD    = $(OMPFLAGS) -fopenmp-targets=nvptx64-nvidia-cuda -ffp-contract=fast -Xcuda-ptxas -v 
+  MPICC         = $(MPI_INSTALL_PATH)/bin/mpicc
+  MPICPP        = $(MPI_INSTALL_PATH)/bin/mpicxx
+  MPIFLAGS      = $(CPPFLAGS)
+  NVCCFLAGS     = -ccbin=$(NVCC_HOST_COMPILER)
+else
 ifeq ($(OP2_COMPILER),sycl)
   CPP		= g++
   CC		= g++
@@ -224,9 +235,10 @@ ifeq ($(OP2_COMPILER),intel-sycl)
   endif
   CXX       = g++
   SYCLCXX   = clang++ 
-  CXXFLAGS  = $(CCFLAGS)
+  CXXFLAGS  = $(CCFLAGS) 
   MPICXX    = $(MPI_INSTALL_PATH)/bin/mpicxx 
   MPIFLAGS  = $(CXXFLAGS)
+  OMPFLAGS      = -I$(OMPTARGET_LIBS)/../include -fopenmp
   SYCL_LIB   = -L$(SYCL_INSTALL_PATH)/lib -lOpenCL
   NVCCFLAGS = -ccbin=$(NVCC_HOST_COMPILER)
   SYCL_FLAGS = -std=c++11 -fsycl -I$(SYCL_INSTALL_PATH)/include -I$(SYCL_INSTALL_PATH)/include #intel sycl
@@ -234,6 +246,7 @@ ifeq ($(OP2_COMPILER),intel-sycl)
   SYCL_LINK_SEQ = -foffload-static-lib=$(OP2_INSTALL_PATH)/c/lib/libop2_sycl.a
 else
   $(error unrecognised value for COMPILER: $(COMPILER))
+endif
 endif
 endif
 endif

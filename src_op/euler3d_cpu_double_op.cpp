@@ -32,7 +32,6 @@
 
 // OP2:
 #include  "op_lib_cpp.h"
-#include "op_sycl_rt_support.h"
 
 //
 // op_par_loop declarations
