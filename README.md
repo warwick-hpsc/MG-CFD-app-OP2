@@ -35,7 +35,7 @@ All MG-CFD variants need two particular OP2 libraries, created by executing thes
 
 Different binaries can be generated, depending on the mix of parallelism and performance portability desired:
 
-Intent | make rule | OP2 dependency (make rule)
+Intent | MG-CFD make rule | OP2 dependency make rule
 ------ | --------- | -----------------------------
 Sequential | seq | seq
 OpenMP | openmp | openmp
