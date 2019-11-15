@@ -49,7 +49,7 @@ In future, OpenACC and OpenMP 4.5 ports will be available
 
 ### Quick run:
 
-Want to execute asap? Navigate to a folder containing input HDF5 files and execute:
+Want to execute immediately? Navigate to a folder containing input HDF5 files and execute:
 
 ```Shell
      $ ./path/to/mgcfd_* -i input.dat
