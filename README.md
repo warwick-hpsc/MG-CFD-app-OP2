@@ -84,7 +84,7 @@ MG-CFD has more command-line arguments to ease file/directory interaction, and c
 Datasets
 ==========================================
 
-A release is provided that includes the [Onera M6 wing](https://www.grc.nasa.gov/WWW/wind/valid/m6wing/m6wing.html). It consists of 300K nodes (930K edges), and three additional multigrid meshes with respective node counts of 165K, 111K, and 81K. 
+A [release](https://github.com/warwick-hpsc/MG-CFD-app-OP2/releases) is provided that includes the [Onera M6 wing](https://www.grc.nasa.gov/WWW/wind/valid/m6wing/m6wing.html). It consists of 300K nodes (930K edges), and three additional multigrid meshes with respective node counts of 165K, 111K, and 81K. 
 
 Additional larger meshes are available at request:
 * Rotor 37 1M nodes (multigrid)
