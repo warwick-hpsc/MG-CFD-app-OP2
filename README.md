@@ -35,7 +35,7 @@ All MG-CFD variants need two particular OP2 libraries, created by executing thes
 
 Different binaries can be generated, depending on the mix of parallelism and performance portability desired:
 
-Intent | make rule | OP2 dependency (make rule)
+Intent | MG-CFD make rule | OP2 dependency make rule
 ------ | --------- | -----------------------------
 Sequential | seq | seq
 OpenMP | openmp | openmp
@@ -49,7 +49,7 @@ In future, OpenACC and OpenMP 4.5 ports will be available
 
 ### Quick run:
 
-Want to execute asap? Navigate to a folder containing input HDF5 files and execute:
+Want to execute immediately? Navigate to a folder containing input HDF5 files and execute:
 
 ```Shell
      $ ./path/to/mgcfd_* -i input.dat
@@ -84,7 +84,7 @@ MG-CFD has more command-line arguments to ease file/directory interaction, and c
 Datasets
 ==========================================
 
-A release is provided that includes the [Onera M6 wing](https://www.grc.nasa.gov/WWW/wind/valid/m6wing/m6wing.html). It consists of 300K nodes (930K edges), and three additional multigrid meshes with respective node counts of 165K, 111K, and 81K. 
+A [release](https://github.com/warwick-hpsc/MG-CFD-app-OP2/releases) is provided that includes the [Onera M6 wing](https://www.grc.nasa.gov/WWW/wind/valid/m6wing/m6wing.html). It consists of 300K nodes (930K edges), and three additional multigrid meshes with respective node counts of 165K, 111K, and 81K. 
 
 Additional larger meshes are available at request:
 * Rotor 37 1M nodes (multigrid)
@@ -101,7 +101,7 @@ Authorship
 
 Andrew Owenson: a.m.b.owenson@warwick.ac.uk
 
-For more information on the design of MG-CFD, please refer to our publication: http://wrap.warwick.ac.uk/119788
+For more information on the design of MG-CFD, please refer to our publication: https://onlinelibrary.wiley.com/doi/10.1002/cpe.5443
 
 If you wish to cite this work then please use the following:
 
