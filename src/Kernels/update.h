@@ -5,13 +5,13 @@
 #define UPDATE_H
 
 inline void update_internal_kernel(
-    const double* mx,
-    const double* my, 
-    const double* mz, 
-    const double* p, 
-    const double* pe, 
-    double* fluxes_a, 
-    double* fluxes_b)
+    const float* mx,
+    const float* my, 
+    const float* mz, 
+    const float* p, 
+    const float* pe, 
+    float* fluxes_a, 
+    float* fluxes_b)
 {
     fluxes_a[VAR_DENSITY]        += p[0];
     fluxes_a[VAR_MOMENTUM]       += mx[0];
@@ -27,12 +27,12 @@ inline void update_internal_kernel(
 }
 
 inline void update_noninternal_kernel(
-    const double* mx,
-    const double* my, 
-    const double* mz, 
-    const double* p, 
-    const double* pe, 
-    double* fluxes_b)
+    const float* mx,
+    const float* my, 
+    const float* mz, 
+    const float* p, 
+    const float* pe, 
+    float* fluxes_b)
 {
     fluxes_b[VAR_DENSITY] += p[0];
     fluxes_b[VAR_MOMENTUM] += mx[0];

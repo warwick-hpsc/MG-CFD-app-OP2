@@ -13,9 +13,9 @@
 
 inline void compute_bnd_node_flux_kernel(
   const int *g, 
-  const double *edge_weight, 
-  const double *variables_b, 
-  double *fluxes_b)
+  const float *edge_weight, 
+  const float *variables_b, 
+  float *fluxes_b)
 {
   // if (conf.legacy_mode) {
   //   if (mesh_name == MESH_LA_CASCADE && ((*g)==0 || (*g)==1 || (*g)==2)) {
@@ -39,25 +39,25 @@ inline void compute_bnd_node_flux_kernel(
 }
 
 inline void compute_flux_edge_kernel(
-    const double *variables_a,
-    const double *variables_b,
-    const double *edge_weight,
-    double *fluxes_a, 
-    double *fluxes_b)
+    const float *variables_a,
+    const float *variables_b,
+    const float *edge_weight,
+    float *fluxes_a, 
+    float *fluxes_b)
 {
   double ewt = std::sqrt(edge_weight[0]*edge_weight[0] +
                          edge_weight[1]*edge_weight[1] +
                          edge_weight[2]*edge_weight[2]);
 
-  double p_b = variables_b[VAR_DENSITY];
+  float p_b = variables_b[VAR_DENSITY];
 
   #ifdef IDIVIDE
-  double ip_b = 1.0 / p_b;
+  float ip_b = 1.0f / p_b;
   #endif
 
-  double pe_b, pressure_b;
-  double3 velocity_b, momentum_b;
-  double flux_contribution_i_momentum_x_b[NDIM],
+  float pe_b, pressure_b;
+  float3 velocity_b, momentum_b;
+  float flux_contribution_i_momentum_x_b[NDIM],
          flux_contribution_i_momentum_y_b[NDIM],
          flux_contribution_i_momentum_z_b[NDIM],
          flux_contribution_i_density_energy_b[NDIM];
@@ -73,15 +73,15 @@ inline void compute_flux_edge_kernel(
   compute_velocity(p_b, momentum_b, velocity_b);
   #endif
 
-  double speed_sqd_b = compute_speed_sqd(velocity_b);
-  double speed_b = std::sqrt(speed_sqd_b);
+  float speed_sqd_b = compute_speed_sqd(velocity_b);
+  float speed_b = std::sqrt(speed_sqd_b);
 
   pressure_b = compute_pressure(p_b, pe_b, speed_sqd_b);
 
   #ifdef IDIVIDE
-  double speed_of_sound_b = compute_speed_of_sound(ip_b, pressure_b);
+  float speed_of_sound_b = compute_speed_of_sound(ip_b, pressure_b);
   #else
-  double speed_of_sound_b = compute_speed_of_sound(p_b, pressure_b);
+  float speed_of_sound_b = compute_speed_of_sound(p_b, pressure_b);
   #endif
 
   compute_flux_contribution(p_b, momentum_b, pe_b,
@@ -91,12 +91,12 @@ inline void compute_flux_edge_kernel(
       flux_contribution_i_momentum_z_b,
       flux_contribution_i_density_energy_b);
 
-  double factor_a, factor_b;
+  float factor_a, factor_b;
 
   //a
-  double p_a, pe_a, pressure_a;
-  double3 velocity_a, momentum_a;
-  double flux_contribution_i_momentum_x_a[NDIM],
+  float p_a, pe_a, pressure_a;
+  float3 velocity_a, momentum_a;
+  float flux_contribution_i_momentum_x_a[NDIM],
          flux_contribution_i_momentum_y_a[NDIM],
          flux_contribution_i_momentum_z_a[NDIM],
          flux_contribution_i_density_energy_a[NDIM];
@@ -104,7 +104,7 @@ inline void compute_flux_edge_kernel(
   p_a = variables_a[VAR_DENSITY];
 
   #ifdef IDIVIDE
-  double ip_a = 1.0 / p_a;
+  float ip_a = 1.0f / p_a;
   #endif
 
   momentum_a.x = variables_a[VAR_MOMENTUM+0];
@@ -118,14 +118,14 @@ inline void compute_flux_edge_kernel(
   compute_velocity(p_a, momentum_a, velocity_a);
   #endif
 
-  double speed_sqd_a = compute_speed_sqd(velocity_a);
-  double speed_a = std::sqrt(speed_sqd_a);
+  float speed_sqd_a = compute_speed_sqd(velocity_a);
+  float speed_a = std::sqrt(speed_sqd_a);
   pressure_a = compute_pressure(p_a, pe_a, speed_sqd_a);
 
   #ifdef IDIVIDE
-  double speed_of_sound_a = compute_speed_of_sound(ip_a, pressure_a);
+  float speed_of_sound_a = compute_speed_of_sound(ip_a, pressure_a);
   #else
-  double speed_of_sound_a = compute_speed_of_sound(p_a, pressure_a);
+  float speed_of_sound_a = compute_speed_of_sound(p_a, pressure_a);
   #endif
 
   compute_flux_contribution(p_a, momentum_a, pe_a,
@@ -136,15 +136,15 @@ inline void compute_flux_edge_kernel(
                             flux_contribution_i_density_energy_a);
 
   //b
-  factor_a = -ewt*smoothing_coefficient*0.5
+  factor_a = -ewt*smoothing_coefficient*0.5f
              *(speed_a + std::sqrt(speed_sqd_b)
              + speed_of_sound_a + speed_of_sound_b);
 
-  factor_b = -ewt*smoothing_coefficient*0.5
+  factor_b = -ewt*smoothing_coefficient*0.5f
              *(speed_b + std::sqrt(speed_sqd_a)
              + speed_of_sound_b + speed_of_sound_a);
 
-  double factor_x = -0.5*edge_weight[0], factor_y = -0.5*edge_weight[1], factor_z = -0.5*edge_weight[2];
+  float factor_x = -0.5f*edge_weight[0], factor_y = -0.5f*edge_weight[1], factor_z = -0.5f*edge_weight[2];
 
   fluxes_a[VAR_DENSITY] += 
       factor_a*(p_a - p_b)
