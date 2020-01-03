@@ -228,7 +228,7 @@ void read_mg_connectivity(const char* file_name, int** mg_connectivity, int* mgc
 }
 
 void dump_double_array(
-    double* array, 
+    float* array, 
     int n, 
     int dim, 
     const char* name,

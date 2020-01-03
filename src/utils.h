@@ -55,18 +55,18 @@ inline bool detectLittleEndian() {
     return (*(char *)&n == 1);
 }
 
-inline void clean_level(int nel, double* volumes,
-        int* neighbours, double* variables, double* old_variables,
-        double* fluxes, double* step_factors, edge_neighbour* edges,
-        edge* edge_mx, edge* edge_my, edge* edge_mz, edge* edge_p, edge* edge_pe, double* coords)
+inline void clean_level(int nel, float* volumes,
+        int* neighbours, float* variables, float* old_variables,
+        float* fluxes, float* step_factors, edge_neighbour* edges,
+        edge* edge_mx, edge* edge_my, edge* edge_mz, edge* edge_p, edge* edge_pe, float* coords)
 {
-    dealloc<double>(volumes);
+    dealloc<float>(volumes);
     dealloc<int>(neighbours);
 
-    dealloc<double>(variables);
-    dealloc<double>(old_variables);
-    dealloc<double>(fluxes);
-    dealloc<double>(step_factors);
+    dealloc<float>(variables);
+    dealloc<float>(old_variables);
+    dealloc<float>(fluxes);
+    dealloc<float>(step_factors);
 
     dealloc<edge_neighbour>(edges);
     dealloc<edge>(edge_mx);
@@ -75,7 +75,7 @@ inline void clean_level(int nel, double* volumes,
     dealloc<edge>(edge_p);
     dealloc<edge>(edge_pe);
 
-    dealloc<double>(coords);
+    dealloc<float>(coords);
 }
 
 // template<typename T>

@@ -11,8 +11,8 @@
 
 #define DEBUGGABLE_ABORT fprintf(stderr, "%s:%d\n", __FILE__, __LINE__); fflush(stderr); fflush(stdout); exit(EXIT_FAILURE);
 
-// inline void zero_array(int nelr, double* variables)
-static inline OP_FUN_PREFIX void zero_array(int nelr, double* variables)
+// inline void zero_array(int nelr, float* variables)
+static inline OP_FUN_PREFIX void zero_array(int nelr, float* variables)
 {
     #ifdef OMP
     #pragma omp parallel for schedule(static)
@@ -68,14 +68,14 @@ static inline OP_FUN_PREFIX void zero_edges(int nelr, edge* mx, edge* my, edge* 
 
 // inline void compute_flux_contribution(
 static inline OP_FUN_PREFIX void compute_flux_contribution(
-    double& density, double3& momentum, 
-    double& density_energy, 
-    double& pressure, 
-    double3& velocity, 
-    double* fc_momentum_x, 
-    double* fc_momentum_y, 
-    double* fc_momentum_z, 
-    double* fc_density_energy)
+    float& density, float3& momentum, 
+    float& density_energy, 
+    float& pressure, 
+    float3& velocity, 
+    float* fc_momentum_x, 
+    float* fc_momentum_y, 
+    float* fc_momentum_z, 
+    float* fc_density_energy)
 {
     fc_momentum_x[0] = velocity.x*momentum.x + pressure;
     fc_momentum_x[1] = velocity.x*momentum.y;
@@ -89,43 +89,43 @@ static inline OP_FUN_PREFIX void compute_flux_contribution(
     fc_momentum_z[1] = fc_momentum_y[2];
     fc_momentum_z[2] = velocity.z*momentum.z + pressure;
 
-    double de_p = density_energy+pressure;
+    float de_p = density_energy+pressure;
     fc_density_energy[0] = velocity.x*de_p;
     fc_density_energy[1] = velocity.y*de_p;
     fc_density_energy[2] = velocity.z*de_p;
 }
 
-static inline OP_FUN_PREFIX double compute_speed_sqd(double3& velocity)
+static inline OP_FUN_PREFIX float compute_speed_sqd(float3& velocity)
 {
     return velocity.x*velocity.x + velocity.y*velocity.y + velocity.z*velocity.z;
 }
 
-static inline OP_FUN_PREFIX double compute_pressure(double& density, double& density_energy, double& speed_sqd)
+static inline OP_FUN_PREFIX float compute_pressure(float& density, float& density_energy, float& speed_sqd)
 {
-    return (double(GAMMA)-double(1.0))*(density_energy - double(0.5)*density*speed_sqd);
+    return (float(GAMMA)-float(1.0))*(density_energy - float(0.5)*density*speed_sqd);
 }
 
 #ifdef IDIVIDE
-    static inline OP_FUN_PREFIX void compute_velocity(double& inverse_density, double3& momentum, double3& velocity)
+    static inline OP_FUN_PREFIX void compute_velocity(float& inverse_density, float3& momentum, float3& velocity)
     {
         velocity.x = momentum.x*inverse_density;
         velocity.y = momentum.y*inverse_deinlined_funcs.hnsity;
         velocity.z = momentum.z*inverse_density;
     }
-    static inline OP_FUN_PREFIX double compute_speed_of_sound(double& inverse_density, double& pressure)
+    static inline OP_FUN_PREFIX float compute_speed_of_sound(float& inverse_density, float& pressure)
     {
-        return sqrt((double(GAMMA)*pressure)*inverse_density);
+        return sqrt((float(GAMMA)*pressure)*inverse_density);
     }
 #else
-    static OP_FUN_PREFIX inline void compute_velocity(double& density, double3& momentum, double3& velocity)
+    static OP_FUN_PREFIX inline void compute_velocity(float& density, float3& momentum, float3& velocity)
     {
         velocity.x = momentum.x / density;
         velocity.y = momentum.y / density;
         velocity.z = momentum.z / density;
     }
-    static inline OP_FUN_PREFIX double compute_speed_of_sound(double& density, double& pressure)
+    static inline OP_FUN_PREFIX float compute_speed_of_sound(float& density, float& pressure)
     {
-        return sqrt(double(GAMMA)*pressure / density);
+        return sqrt(float(GAMMA)*pressure / density);
     }
 #endif
 
