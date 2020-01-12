@@ -357,5 +357,69 @@ inline void dump_perf_data_to_file(
     outfile.close();
 }
 
+inline void dump_file_io_perf_data_to_file(
+    int rank, 
+    int num_levels, 
+    double walltime, 
+    double* file_io_times,
+    int number_of_file_io_writes,
+    char* output_file_prefix)
+{
+    std::string filepath = std::string(output_file_prefix);
+    if (filepath.length() > 1 && filepath.at(filepath.size()-1) != '/') {
+        filepath += ".";
+    }
+    filepath += std::string("P=") + number_to_string(rank);
+    filepath += ".FileIoTimes.csv";
+
+    bool write_header = false;
+    std::ifstream f(filepath.c_str());
+    if (!f || f.peek() == std::ifstream::traits_type::eof()) {
+        write_header = true;
+    }
+    f.close();
+
+    std::ostringstream header;
+
+    if (write_header) {
+        header << "rank";
+        header << ",partitioner";
+        header << ",level";
+        header << ",writeInterval";
+        header << ",numberOfWrites";
+        header << ",fileIoTime";
+        header << ",wallTime";
+    }
+
+    std::ofstream outfile;
+
+    // outfile.open(filepath.c_str(), std::ios_base::app);
+    outfile.open(filepath.c_str(), std::ios_base::out);
+    write_header = true;
+
+    if (write_header) outfile << header.str() << std::endl;
+
+    // for (int l=0; l<num_levels; l++) {
+    // Currently, only benchmark file I/O performance on 
+    // base level:
+    for (int l=0; l<1; l++) {
+        std::ostringstream data_line;
+
+        data_line << rank;
+        data_line << ',' << conf.partitioner_string;
+        data_line << ',' << l;
+
+        data_line << ',' << conf.output_intermediate_flows_interval;
+        data_line << ',' << number_of_file_io_writes;
+        data_line << ',' << file_io_times[l];
+
+        data_line << ',' << walltime;
+
+        outfile << data_line.str() << std::endl;
+    }
+
+    outfile.close();
+}
+
 #endif
 

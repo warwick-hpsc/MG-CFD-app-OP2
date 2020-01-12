@@ -150,6 +150,11 @@ int main(int argc, char** argv)
         int* events;
         load_papi_events(num_events, &event_set, &events);
     #endif
+    double file_io_times[levels];
+    for (int i=0; i<levels; i++) {
+      file_io_times[i] = 0.0;
+    }
+    int number_of_file_io_writes = 0;
 
     // set far field conditions
     {
@@ -416,6 +421,10 @@ int main(int argc, char** argv)
                     op_arg_dat(p_bnd_node_weights[l], -1, OP_ID, NDIM, "double", OP_INC));
     }
 
+    char* h5_out_name = alloc<char>(100);
+    std::string prefix(conf.output_file_prefix);
+    std::string suffix;
+
     op_printf("-----------------------------------------------------\n");
     op_printf("Compute beginning\n");
 
@@ -525,6 +534,27 @@ int main(int argc, char** argv)
             op_printf("\n");
         }
 
+        if (conf.output_intermediate_flows_interval > 0 &&
+            ((i+1) % conf.output_intermediate_flows_interval) == 0 &&
+            level == 0)
+        {
+            const char* old_name = p_variables[level]->name;
+            sprintf(op_name, "p_variables");
+            p_variables[level]->name = strdup(op_name);
+            suffix = std::string(".L") + number_to_string(level) + "." + "cycle=" + number_to_string(i+1);
+            sprintf(h5_out_name, "%svariables%s.h5", prefix.c_str(), suffix.c_str());
+
+            double cpu_tmp1, wall_tmp1;
+            op_timers(&cpu_tmp1, &wall_tmp1);
+            op_fetch_data_hdf5_file(p_variables[level], h5_out_name);
+            double cpu_tmp2, wall_tmp2;
+            op_timers(&cpu_tmp2, &wall_tmp2);
+            file_io_times[level] += wall_tmp2 - wall_tmp1;
+            number_of_file_io_writes++;
+
+            p_variables[level]->name = old_name;
+        }
+
         if (levels <= 1) {
             i++;
         }
@@ -598,7 +628,8 @@ int main(int argc, char** argv)
 	op_printf("Compute complete\n");
 
     op_timers(&cpu_t2, &wall_t2);
-    op_printf("Max total runtime = %f\n", wall_t2 - wall_t1);
+    double walltime = wall_t2 - wall_t1;
+    op_printf("Max total runtime = %f\n", walltime);
 
     // Write summary performance data to stdout:
     op_timing_output();
@@ -669,19 +700,20 @@ int main(int argc, char** argv)
         }
     }
 
-    if (conf.output_anything) {
+    if (conf.output_final_anything) {
         op_printf("-----------------------------------------------------\n");
         op_printf("Writing out data...\n");
-        char* h5_out_name = alloc<char>(100);
-        std::string prefix(conf.output_file_prefix);
         for (int l=0; l<levels; l++)
         {
-            std::string suffix = std::string(".L") + number_to_string(l) 
+            suffix = std::string(".L") + number_to_string(l) 
                                + "." + "cycles=" + number_to_string(conf.num_cycles);
 
             int number_of_edges = op_get_size(op_edges[l]);
             int nel     = op_get_size(op_nodes[l]);
 
+            double cpu_tmp1, wall_tmp1;
+            op_timers(&cpu_tmp1, &wall_tmp1);
+            
             // Dump volumes:
             if (conf.output_volumes) {
                 const char* old_name = p_volumes[l]->name;
@@ -721,6 +753,11 @@ int main(int argc, char** argv)
                 op_fetch_data_hdf5_file(p_variables[l], h5_out_name);
                 p_variables[l]->name = old_name;
             }
+
+            double cpu_tmp2, wall_tmp2;
+            op_timers(&cpu_tmp2, &wall_tmp2);
+            file_io_times[level] += wall_tmp2 - wall_tmp1;
+            number_of_file_io_writes++;
         }
     }
 
@@ -748,6 +785,23 @@ int main(int argc, char** argv)
             #endif
             flux_kernel_iter_counts, 
             conf.output_file_prefix);
+    #endif
+
+    #ifndef DUMP_EXT_PERF_DATA
+        // Should only need file IO performance data for 
+        // one rank; in my brief experience, all ranks report 
+        // the same time.
+        if (my_rank == 0) {
+    #endif
+    dump_file_io_perf_data_to_file(
+        my_rank, 
+        levels, 
+        walltime, 
+        file_io_times, 
+        number_of_file_io_writes, 
+        conf.output_file_prefix);
+    #ifndef DUMP_EXT_PERF_DATA
+        }
     #endif
 
     op_printf("-----------------------------------------------------\n");
