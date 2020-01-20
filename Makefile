@@ -218,6 +218,7 @@ cuda: $(BIN_DIR)/mgcfd_cuda
 mpi_cuda: $(BIN_DIR)/mgcfd_mpi_cuda
 openmp4: $(BIN_DIR)/mgcfd_openmp4
 openacc: $(BIN_DIR)/mgcfd_openacc
+mpi_cpx: $(BIN_DIR)/mgcfd_cpx.a
 
 
 OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
@@ -227,6 +228,9 @@ OP2_SEQ_OBJECTS := $(OBJ_DIR)/mgcfd_seq_main.o \
 
 OP2_MPI_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_main.o \
                    $(OBJ_DIR)/mgcfd_mpi_kernels.o
+
+OP2_MPI_CPX_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_cpx_main.o \
+                   $(OBJ_DIR)/mgcfd_mpi_cpx_kernels.o
 
 OP2_MPI_VEC_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_vec_main.o \
                        $(OBJ_DIR)/mgcfd_mpi_vec_kernels.o
@@ -336,6 +340,19 @@ $(BIN_DIR)/mgcfd_mpi: $(OP2_MPI_OBJECTS)
 		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
 
+## MPI_CPX
+$(OBJ_DIR)/mgcfd_mpi_cpx_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	     -DMPI_ON -c -o $@ $^ 
+$(OBJ_DIR)/mgcfd_mpi_cpx_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(SEQ_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	     -DMPI_ON -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
+
+$(BIN_DIR)/mgcfd_cpx.a: $(OP2_MPI_CPX_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	ar rcs $(BIN_DIR)/mgcfd_cpx.a $(OP2_MPI_CPX_OBJECTS)
 
 ## MPI_VEC
 $(OBJ_DIR)/mgcfd_mpi_vec_main.o: $(OP2_MAIN_SRC)
@@ -447,6 +464,8 @@ clean_seq:
 	rm -f $(BIN_DIR)/mgcfd_seq $(OP2_SEQ_OBJECTS)
 clean_mpi:
 	rm -f $(BIN_DIR)/mgcfd_mpi $(OP2_MPI_OBJECTS)
+clean_mpi_cpx:
+	rm -f $(BIN_DIR)/mgcfd_cpx.a $(OP2_MPI_CPX_OBJECTS)
 clean_mpi_vec:
 	rm -f $(BIN_DIR)/mgcfd_mpi_vec $(OP2_MPI_VEC_OBJECTS)
 clean_openmp:
@@ -461,3 +480,4 @@ clean_openacc:
 	rm -f $(BIN_DIR)/mgcfd_openacc $(OP2_OPENACC_OBJECTS)
 clean_openmp4:
 	rm -f $(BIN_DIR)/mgcfd_openmp4 $(OP2_OMP4_OBJECTS)
+
