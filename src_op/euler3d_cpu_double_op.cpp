@@ -265,7 +265,7 @@ int main(int argc, char** argv)
 
       char** new_argv = (char**)malloc((argc+1)*sizeof(char*));
       for (int i=0; i<argc; i++) {
-        new_argv[i] = (char*)malloc((strlen(argv[i]+1))*sizeof(char));
+        new_argv[i] = (char*)malloc((strlen(argv[i])+1)*sizeof(char));
         strcpy(new_argv[i], argv[i]);
       }
       new_argv[argc] = (char*)malloc((strlen("OP_MAPS_BASE_INDEX=0")+1)*sizeof(char));
