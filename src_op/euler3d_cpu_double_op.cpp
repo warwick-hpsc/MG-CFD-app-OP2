@@ -225,7 +225,7 @@ config conf;
 #include "validation.h"
 #include "indirect_rw.h"
 
-int main(int argc, char** argv)
+int main_mgcfd(int argc, char** argv)
 {
     #ifdef NANCHECK
         feenableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
