@@ -356,7 +356,7 @@ $(BIN_DIR)/mgcfd_cpx.a: $(OP2_MPI_CPX_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	ar rcs $(BIN_DIR)/mgcfd_cpx.a $(OP2_MPI_CPX_OBJECTS)
 
-$(BIN_DIR)/mgcfd_cpx_runtime: $(OP2_MPI_CPX_MAIN)
+$(BIN_DIR)/mgcfd_cpx_runtime: $(OP2_MPI_CPX_MAIN) $(BIN_DIR)/mgcfd_cpx.a
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(BIN_DIR)/mgcfd_cpx.a $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
