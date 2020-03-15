@@ -197,7 +197,7 @@ if __name__=="__main__":
         elif use_openacc:
             make_target = "openacc"
         else:
-            bin_filename = "mgcfd_seq"
+            make_target = "seq"
     bin_filename = "mgcfd_" + make_target
     bin_filepath = os.path.join(app_dirpath, "bin", bin_filename)
 
