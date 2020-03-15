@@ -8,15 +8,11 @@ import argparse
 script_dirpath = os.path.dirname(os.path.realpath(__file__))
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--job-runs-dirpath', required=True, help="Dirpath to MG-CFD runs output data")
-parser.add_argument('--output-dirpath', required=False, help="Dirpath to generated processed data")
+parser.add_argument('--data-dirpaths', nargs='+', default=[], required=True, help="Dirpath(s) to output data of MG-CFD runs")
+parser.add_argument('--output-dirpath', required=True, help="Dirpath to generated processed data")
 args = parser.parse_args()
-mg_cfd_output_dirpath = args.job_runs_dirpath
-
-if not args.output_dirpath is None:
-    prepared_output_dirpath = args.output_dirpath
-else:
-    prepared_output_dirpath = mg_cfd_output_dirpath +".aggregated"
+mg_cfd_output_dirpaths = args.data_dirpaths
+prepared_output_dirpath = args.output_dirpath
 
 import imp
 imp.load_source('data_utils', os.path.join(script_dirpath, "data-utils.py"))
@@ -27,67 +23,92 @@ def infer_nranks(op2_csv_filepath):
     return d["nranks"][0]
 
 def infer_partitioner(slurm_filepath):
+    partitioner = ""
+    method = ""
     with open(slurm_filepath, "r") as f:
         for line in f:
-            if line.startswith("partitioner"):
+            if line.startswith("partitioner="):
                 partitioner = line.replace('\n','').split('=')[1]
-                return partitioner
+            elif line.startswith("partitioner_method="):
+                method = line.replace('\n', '').split('=')[1]
+
+    if partitioner != "" and method != "":
+        return partitioner + "-" + method
+
     return ""
 
 def collate_csvs():
     cats = ["PerfData", "PAPI", "op2_performance_data"]
 
+    dirpaths = mg_cfd_output_dirpaths
+
     for cat in cats:
         print("Collating " + cat)
-        df_agg = None
+        df_all = None
 
-        sub_dirnames = [i for i in os.listdir(mg_cfd_output_dirpath) if os.path.isdir(os.path.join(mg_cfd_output_dirpath, i))]
-        if len(sub_dirnames) == 0:
-            raise Exception("No subfolders detected in job directory: " + mg_cfd_output_dirpath)
+        for mg_cfd_output_dirpath in dirpaths:
+            sub_dirnames = [i for i in os.listdir(mg_cfd_output_dirpath) if os.path.isdir(os.path.join(mg_cfd_output_dirpath, i))]
+            if len(sub_dirnames) == 0:
+                raise Exception("No subfolders detected in job directory: " + mg_cfd_output_dirpath)
 
-        for d in sub_dirnames:
-            dp = os.path.join(mg_cfd_output_dirpath, d)
+            for d in sub_dirnames:
+                dp = os.path.join(mg_cfd_output_dirpath, d)
 
-            for run_root, run_dirnames, run_filenames in os.walk(dp):
-                nranks = -1
-                ## Need to infer partitioner for op2_performance_data.csv:
-                partitioner = ""
-                batch_fp = ""
-                for f in run_filenames:
-                    if f.endswith(".batch") or (f.startswith("run") and f.endswith(".sh")):
-                        batch_fp = os.path.join(dp, f)
-                        partitioner = infer_partitioner(batch_fp)
+                for run_root, run_dirnames, run_filenames in os.walk(dp):
+                    nranks = -1
+                    ## Need to infer partitioner for op2_performance_data.csv:
+                    partitioner = ""
+                    batch_fp = ""
+                    for f in run_filenames:
+                        if f.endswith(".batch") or (f.startswith("run") and f.endswith(".sh")):
+                            batch_fp = os.path.join(dp, f)
+                            partitioner = infer_partitioner(batch_fp)
 
-                if batch_fp == "":
-                    raise Exception("Failed to find batch file in: " + dp)
-                if partitioner == "":
-                    raise Exception("Failed to infer partitioner in: " + batch_fp)
-                op2_perf_data_filepath = os.path.join(dp, "op2_performance_data.csv")
-                if not os.path.isfile(op2_perf_data_filepath):
-                    print("WARNING: Job {0} failed, skipping".format(d))
-                    continue
-                nranks = infer_nranks(op2_perf_data_filepath)
-                if nranks == -1:
-                    raise Exception("Failed to infer nranks in: " + op2_perf_data_filepath)
+                    if batch_fp == "":
+                        raise Exception("Failed to find batch file in: " + dp)
+                    if partitioner == "":
+                        raise Exception("Failed to infer partitioner in: " + batch_fp)
+                    op2_perf_data_filepath = os.path.join(dp, "op2_performance_data.csv")
+                    if not os.path.isfile(op2_perf_data_filepath):
+                        print("WARNING: Job {0} failed, skipping".format(d))
+                        continue
+                    nranks = infer_nranks(op2_perf_data_filepath)
+                    if nranks == -1:
+                        raise Exception("Failed to infer nranks in: " + op2_perf_data_filepath)
 
-                for f in run_filenames:
-                    if f.endswith("."+cat+".csv") or (f == cat+".csv"):
-                        df_filepath = os.path.join(dp, f)
-                        df = clean_pd_read_csv(df_filepath)
-                        df["nranks"] = nranks
-                        if not "partitioner" in df.columns.values:
-                            df["partitioner"] = partitioner
-                        if df_agg is None:
-                            df_agg = df
-                        else:
-                            # df_agg = df_agg.append(df, sort=True)
-                            df_agg = df_agg.append(df)
+                    for f in run_filenames:
+                        if f.endswith("."+cat+".csv") or (f == cat+".csv"):
+                            df_filepath = os.path.join(dp, f)
+                            df = clean_pd_read_csv(df_filepath)
+                            df["nranks"] = nranks
+                            if not "partitioner" in df.columns.values and not "Partitioner" in df.columns.values:
+                                df["partitioner"] = partitioner
 
-        if not df_agg is None:
+                            df = df.rename(index=str, columns={"Partitioner":"partitioner"})
+                            df = df.rename(index=str, columns={"Rank":"rank"})
+                            df = df.rename(index=str, columns={"kernel name":"kernel"})
+
+                            if "level" in df.columns.values:
+                                ## Currently, OP2 cannot measure performance of individual
+                                ## multigrid levels. Until that changes, I must aggregate 
+                                ## my externally-collected per-level measurements:
+                                job_id_colnames = get_job_id_colnames(df)
+                                job_id_colnames.remove("level")
+                                df_agg = df.groupby([c for c in job_id_colnames if c!="level"], as_index=False)
+                                df = df_agg.sum()
+                                df = df.drop(columns=["level"])
+
+                            if df_all is None:
+                                df_all = df
+                            else:
+                                df_all = df_all.append(df, sort=True)
+                                # df_all = df_all.append(df)
+
+        if not df_all is None:
             agg_fp = os.path.join(prepared_output_dirpath,cat+".csv")
             if not os.path.isdir(prepared_output_dirpath):
                 os.mkdir(prepared_output_dirpath)
-            df_agg.to_csv(agg_fp, index=False)
+            df_all.to_csv(agg_fp, index=False)
 
 def aggregate():
     for cat in ["PerfData", "PAPI", "op2_performance_data"]:
