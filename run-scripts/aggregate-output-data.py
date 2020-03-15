@@ -23,11 +23,18 @@ def infer_nranks(op2_csv_filepath):
     return d["nranks"][0]
 
 def infer_partitioner(slurm_filepath):
+    partitioner = ""
+    method = ""
     with open(slurm_filepath, "r") as f:
         for line in f:
-            if line.startswith("partitioner"):
+            if line.startswith("partitioner="):
                 partitioner = line.replace('\n','').split('=')[1]
-                return partitioner
+            elif line.startswith("partitioner_method="):
+                method = line.replace('\n', '').split('=')[1]
+
+    if partitioner != "" and method != "":
+        return partitioner + "-" + method
+
     return ""
 
 def collate_csvs():
@@ -74,7 +81,7 @@ def collate_csvs():
                             df_filepath = os.path.join(dp, f)
                             df = clean_pd_read_csv(df_filepath)
                             df["nranks"] = nranks
-                            if not "partitioner" in df.columns.values:
+                            if not "partitioner" in df.columns.values and not "Partitioner" in df.columns.values:
                                 df["partitioner"] = partitioner
                             if df_all is None:
                                 df_all = df
