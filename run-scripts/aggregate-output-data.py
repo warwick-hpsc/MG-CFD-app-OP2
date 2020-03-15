@@ -83,6 +83,21 @@ def collate_csvs():
                             df["nranks"] = nranks
                             if not "partitioner" in df.columns.values and not "Partitioner" in df.columns.values:
                                 df["partitioner"] = partitioner
+
+                            df = df.rename(index=str, columns={"Partitioner":"partitioner"})
+                            df = df.rename(index=str, columns={"Rank":"rank"})
+                            df = df.rename(index=str, columns={"kernel name":"kernel"})
+
+                            if "level" in df.columns.values:
+                                ## Currently, OP2 cannot measure performance of individual
+                                ## multigrid levels. Until that changes, I must aggregate 
+                                ## my externally-collected per-level measurements:
+                                job_id_colnames = get_job_id_colnames(df)
+                                job_id_colnames.remove("level")
+                                df_agg = df.groupby([c for c in job_id_colnames if c!="level"], as_index=False)
+                                df = df_agg.sum()
+                                df = df.drop(columns=["level"])
+
                             if df_all is None:
                                 df_all = df
                             else:
