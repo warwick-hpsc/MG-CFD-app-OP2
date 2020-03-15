@@ -208,10 +208,18 @@ if __name__=="__main__":
     partitioners = get_key_value(profile, "run", "partitioners")
     partitioner_methods = get_key_value(profile, "run", "partitioner methods")
     
-    num_nodes_range = get_key_value(profile, "run", "num nodes")
-    num_tasks_range = get_key_value(profile, "run", "num tasks")
-    num_tpn_range = get_key_value(profile, "run", "num tasks per node")
-    num_threads_range = get_key_value(profile, "run", "num threads per task")
+    if use_mpi:
+        num_nodes_range = get_key_value(profile, "run", "num nodes")
+        num_tasks_range = get_key_value(profile, "run", "num tasks")
+        num_tpn_range = get_key_value(profile, "run", "num tasks per node")
+    else:
+        num_nodes_range = None
+        num_tasks_range = None
+        num_tpn_range = None
+    if use_openmp:
+        num_threads_range = get_key_value(profile, "run", "num threads per task")
+    else:
+        num_threads_range = [1]
 
     iteration_space = {}
     if not partitioners is None:
@@ -225,7 +233,7 @@ if __name__=="__main__":
     if not num_tpn_range is None:
         iteration_space["num tpn"] = num_tpn_range
     if not num_threads_range is None:
-        iteration_space["num threads"] = num_threads_range
+        iteration_space["num threads per task"] = num_threads_range
     iterables = itertools.product(*iteration_space.values())
     iterables_labelled = []
     for item in iterables:
@@ -260,7 +268,7 @@ if __name__=="__main__":
             num_nodes = item.get("num nodes", None)
             num_tasks = item.get("num tasks", None)
             num_tpn = item.get("num tpn", None)
-            num_thr = item.get("num threads", None)
+            num_thr = item.get("num threads per task")
             num_nodes, num_tasks, num_tpn = infer_task_counts(num_nodes, num_tasks, num_tpn)
             try:
                 ncpus_per_node = num_tpn * num_thr
