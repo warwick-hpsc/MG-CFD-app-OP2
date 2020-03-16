@@ -70,7 +70,6 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
   , long_long* restrict event_counts, int event_set, int num_events
   #endif
 );
-
 //user kernel files
 #include "initialize_variables_kernel_kernel.cu"
 #include "zero_5d_array_kernel_kernel.cu"
@@ -84,6 +83,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 #include "compute_flux_edge_kernel_kernel.cu"
 #include "compute_bnd_node_flux_kernel_kernel.cu"
 #include "time_step_kernel_kernel.cu"
+#include "indirect_rw_kernel_kernel.cu"
 #include "residual_kernel_kernel.cu"
 #include "calc_rms_kernel_kernel.cu"
 #include "count_bad_vals_kernel.cu"
