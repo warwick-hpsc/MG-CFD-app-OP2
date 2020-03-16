@@ -118,7 +118,7 @@ if __name__=="__main__":
     ## Read file/folder paths and prepare folders:
     jobs_dir = profile["setup"]["jobs dir"]
     if jobs_dir[0] != '/':
-        jobs_dir = os.path.join(app_dirpath, jobs_dir)
+        jobs_dir = os.path.join(os.getcwd(), jobs_dir)
     if not os.path.isdir(jobs_dir):
         os.mkdir(jobs_dir)
     else:
@@ -197,7 +197,7 @@ if __name__=="__main__":
         elif use_openacc:
             make_target = "openacc"
         else:
-            bin_filename = "mgcfd_seq"
+            make_target = "seq"
     bin_filename = "mgcfd_" + make_target
     bin_filepath = os.path.join(app_dirpath, "bin", bin_filename)
 
@@ -208,10 +208,18 @@ if __name__=="__main__":
     partitioners = get_key_value(profile, "run", "partitioners")
     partitioner_methods = get_key_value(profile, "run", "partitioner methods")
     
-    num_nodes_range = get_key_value(profile, "run", "num nodes")
-    num_tasks_range = get_key_value(profile, "run", "num tasks")
-    num_tpn_range = get_key_value(profile, "run", "num tasks per node")
-    num_threads_range = get_key_value(profile, "run", "num threads per task")
+    if use_mpi:
+        num_nodes_range = get_key_value(profile, "run", "num nodes")
+        num_tasks_range = get_key_value(profile, "run", "num tasks")
+        num_tpn_range = get_key_value(profile, "run", "num tasks per node")
+    else:
+        num_nodes_range = None
+        num_tasks_range = None
+        num_tpn_range = None
+    if use_openmp:
+        num_threads_range = get_key_value(profile, "run", "num threads per task")
+    else:
+        num_threads_range = [1]
 
     iteration_space = {}
     if not partitioners is None:
@@ -225,7 +233,7 @@ if __name__=="__main__":
     if not num_tpn_range is None:
         iteration_space["num tpn"] = num_tpn_range
     if not num_threads_range is None:
-        iteration_space["num threads"] = num_threads_range
+        iteration_space["num threads per task"] = num_threads_range
     iterables = itertools.product(*iteration_space.values())
     iterables_labelled = []
     for item in iterables:
@@ -260,7 +268,7 @@ if __name__=="__main__":
             num_nodes = item.get("num nodes", None)
             num_tasks = item.get("num tasks", None)
             num_tpn = item.get("num tpn", None)
-            num_thr = item.get("num threads", None)
+            num_thr = item.get("num threads per task")
             num_nodes, num_tasks, num_tpn = infer_task_counts(num_nodes, num_tasks, num_tpn)
             try:
                 ncpus_per_node = num_tpn * num_thr
@@ -313,7 +321,13 @@ if __name__=="__main__":
                 else:
                     batch_filename = js+".N={0}.batch".format(str(num_nodes).zfill(3))
             batch_filepath = os.path.join(job_dir, batch_filename)
-            with open(batch_filepath, "w") as f_out:
+
+            ## Write batch to a tmp file initially for faster I/O
+            batch_tmp = NamedTemporaryFile(prefix='myprefix')
+            if not os.path.isfile(batch_tmp.name):
+                raise Exception("NamedTemporaryFile() failed to actually create the file")
+            batch_tmp_filepath = batch_tmp.name
+            with open(batch_tmp_filepath, "w") as f_out:
                 if js_filepath != "":
                     with open(js_filepath, "r") as f_in:
                         for line in f_in.readlines():
@@ -330,43 +344,44 @@ if __name__=="__main__":
             ## Now replace variables in script:
 
             ## - File/dir paths:
-            py_sed(batch_filepath, "<RUN_OUTDIR>", job_dir)
-            py_sed(batch_filepath, "<APP_DIRPATH>", app_dirpath)
-            py_sed(batch_filepath, "<DATA_DIRPATH>", data_dirpath)
+            py_sed(batch_tmp_filepath, "<RUN_OUTDIR>", job_dir)
+            py_sed(batch_tmp_filepath, "<APP_DIRPATH>", app_dirpath)
+            py_sed(batch_tmp_filepath, "<DATA_DIRPATH>", data_dirpath)
 
             ## - Scheduling:
-            py_sed(batch_filepath, "<RUN ID>", job_id)
-            py_sed(batch_filepath, "<PARTITION>", job_queue, True)
-            py_sed(batch_filepath, "<PROJECT CODE>", project_code, True)
+            py_sed(batch_tmp_filepath, "<RUN ID>", job_id)
+            py_sed(batch_tmp_filepath, "<PARTITION>", job_queue, True)
+            py_sed(batch_tmp_filepath, "<PROJECT CODE>", project_code, True)
 
             ## - Parallelism:
-            py_sed(batch_filepath, "<NODES>", num_nodes, True)
-            py_sed(batch_filepath, "<TPN>", num_tpn, True)
-            py_sed(batch_filepath, "<NTHREADS>", num_thr, True)
-            py_sed(batch_filepath, "<NTASKS>", num_tasks, True)
-            py_sed(batch_filepath, "<NCPUS_PER_NODE>", ncpus_per_node, True)
+            py_sed(batch_tmp_filepath, "<NODES>", num_nodes, True)
+            py_sed(batch_tmp_filepath, "<TPN>", num_tpn, True)
+            # py_sed(batch_tmp_filepath, "<NTHREADS>", num_thr, True)
+            py_sed(batch_tmp_filepath, "<NTHREADS>", num_thr)
+            py_sed(batch_tmp_filepath, "<NTASKS>", num_tasks, True)
+            py_sed(batch_tmp_filepath, "<NCPUS_PER_NODE>", ncpus_per_node, True)
 
             ## - Compilation:
-            py_sed(batch_filepath, "<COMPILER>", compiler)
-            py_sed(batch_filepath, "<CPP_WRAPPER>", cpp_wrapper, True)
-            py_sed(batch_filepath, "<MPICPP_WRAPPER>", mpicpp_wrapper, True)
-            py_sed(batch_filepath, "<DEBUG>", str(do_debug).lower())
-            py_sed(batch_filepath, "<PAPI>", str(use_papi).lower())
-            py_sed(batch_filepath, "<MPI>", str(use_mpi).lower())
-            py_sed(batch_filepath, "<CUDA>", str(use_cuda).lower())
-            py_sed(batch_filepath, "<OPENMP>", str(use_openmp).lower())
-            py_sed(batch_filepath, "<OPENMP4>", str(use_openmp4).lower())
-            py_sed(batch_filepath, "<OPENACC>", str(use_openacc).lower())
+            py_sed(batch_tmp_filepath, "<COMPILER>", compiler)
+            py_sed(batch_tmp_filepath, "<CPP_WRAPPER>", cpp_wrapper, True)
+            py_sed(batch_tmp_filepath, "<MPICPP_WRAPPER>", mpicpp_wrapper, True)
+            py_sed(batch_tmp_filepath, "<DEBUG>", str(do_debug).lower())
+            py_sed(batch_tmp_filepath, "<PAPI>", str(use_papi).lower())
+            py_sed(batch_tmp_filepath, "<MPI>", str(use_mpi).lower())
+            py_sed(batch_tmp_filepath, "<CUDA>", str(use_cuda).lower())
+            py_sed(batch_tmp_filepath, "<OPENMP>", str(use_openmp).lower())
+            py_sed(batch_tmp_filepath, "<OPENMP4>", str(use_openmp4).lower())
+            py_sed(batch_tmp_filepath, "<OPENACC>", str(use_openacc).lower())
 
-            py_sed(batch_filepath, "<MAKE_TARGET>", make_target)
-            py_sed(batch_filepath, "<BIN_FILENAME>", bin_filename)
-            py_sed(batch_filepath, "<BIN_FILEPATH>", bin_filepath)
+            py_sed(batch_tmp_filepath, "<MAKE_TARGET>", make_target)
+            py_sed(batch_tmp_filepath, "<BIN_FILENAME>", bin_filename)
+            py_sed(batch_tmp_filepath, "<BIN_FILEPATH>", bin_filepath)
 
             ## - Execution:
-            py_sed(batch_filepath, "<PARTITIONER>", partitioner)
-            py_sed(batch_filepath, "<PARTITIONER_METHOD>", part_method)
-            py_sed(batch_filepath, "<MG_CYCLES>", mg_cycles)
-            py_sed(batch_filepath, "<VALIDATE_SOLUTION>", str(validate_solution).lower())
+            py_sed(batch_tmp_filepath, "<PARTITIONER>", partitioner)
+            py_sed(batch_tmp_filepath, "<PARTITIONER_METHOD>", part_method)
+            py_sed(batch_tmp_filepath, "<MG_CYCLES>", mg_cycles)
+            py_sed(batch_tmp_filepath, "<VALIDATE_SOLUTION>", str(validate_solution).lower())
 
             ## - Walltime estimation:
             if mgcfd_unit_runtime_secs == 0.0:
@@ -389,9 +404,13 @@ if __name__=="__main__":
                 if est_runtime_secs > 0:
                     est_runtime_minutes += 1
                     est_runtime_secs = 0
-            py_sed(batch_filepath, "<HOURS>", str(est_runtime_hours).zfill(2))
-            py_sed(batch_filepath, "<MINUTES>", str(est_runtime_minutes).zfill(2))
-            py_sed(batch_filepath, "<RUN_ID>", job_id)
+            py_sed(batch_tmp_filepath, "<HOURS>", str(est_runtime_hours).zfill(2))
+            py_sed(batch_tmp_filepath, "<MINUTES>", str(est_runtime_minutes).zfill(2))
+            py_sed(batch_tmp_filepath, "<RUN_ID>", job_id)
+
+            # Copy out of tmp:
+            shutil.copyfile(batch_tmp_filepath, batch_filepath)
+            batch_tmp.close()
 
             ## Make batch script executable:
             os.chmod(batch_filepath, 0755)
