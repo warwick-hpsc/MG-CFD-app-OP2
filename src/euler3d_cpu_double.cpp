@@ -29,6 +29,7 @@
 // OP2:
 #include "op_seq.h"
 #include "op_hdf5.h"
+#include "op_mpi_core.h"
 
 // MG-CFD base:
 #include "const.h"
@@ -61,7 +62,7 @@ config conf;
 #include "validation.h"
 #include "indirect_rw.h"
 
-int main_mgcfd(int argc, char** argv)
+int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number)
 {
     #ifdef NANCHECK
         feenableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
@@ -114,12 +115,18 @@ int main_mgcfd(int argc, char** argv)
     #ifdef LOG_PROGRESS
         // op_init(argc, argv, 7); // Report positive checks in op_plan_check
         // op_init(argc, argv, 4);
-        op_init(argc, argv, 3); // Report execution of parallel loops
+        op_mpi_init_custom(argc, argv, 3, custom); // Report execution of parallel loops
         // op_init(argc, argv, 2); // Info on plan construction
         // op_init(argc, argv, 1); // Error-checking
     #else
-        op_init(argc, argv, 0);
+        op_mpi_init_custom(argc, argv, 0, custom);
     #endif
+
+    char filename[2];
+    sprintf(filename,"%d",instance_number);
+    FILE *fp = op_print_file_open(filename);
+    op_print_file("Test", fp);
+    op_print_file_close(fp);
 
     // timer
     double cpu_t1, cpu_t2, wall_t1, wall_t2;
@@ -756,3 +763,4 @@ int main_mgcfd(int argc, char** argv)
 
     return 0;
 }
+

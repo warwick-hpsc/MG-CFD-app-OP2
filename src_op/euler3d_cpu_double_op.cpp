@@ -32,6 +32,7 @@
 
 // OP2:
 #include  "op_lib_cpp.h"
+#include  "op_mpi_core.h"
 
 //
 // op_par_loop declarations
@@ -225,7 +226,7 @@ config conf;
 #include "validation.h"
 #include "indirect_rw.h"
 
-int main_mgcfd(int argc, char** argv)
+int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number)
 {
     #ifdef NANCHECK
         feenableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
@@ -278,12 +279,23 @@ int main_mgcfd(int argc, char** argv)
     #ifdef LOG_PROGRESS
         // op_init(argc, argv, 7); // Report positive checks in op_plan_check
         // op_init(argc, argv, 4);
-        op_init(argc, argv, 3); // Report execution of parallel loops
+        op_mpi_init_custom(argc, argv, 3, custom); // Report execution of parallel loops
         // op_init(argc, argv, 2); // Info on plan construction
         // op_init(argc, argv, 1); // Error-checking
     #else
-        op_init(argc, argv, 0);
+        op_mpi_init_custom(argc, argv, 0, custom);
     #endif
+
+    char filename[2];
+    char buffer[100]; 
+	char default_name[24] = "MG-CFD_output_instance_";
+    sprintf(filename,"%d",instance_number);
+    strcat(default_name, filename);
+
+    FILE *fp = op_print_file_open(default_name);
+    //op_print_file("Test", fp);
+    op_printf("MG-CFD Instance %s running!\n", filename);
+    op_printf("MG-CFD Instance %s output is saved in file %s\n", filename, default_name);
 
     // timer
     double cpu_t1, cpu_t2, wall_t1, wall_t2;
@@ -398,12 +410,13 @@ int main_mgcfd(int argc, char** argv)
               op_decl_const2("ff_flux_contribution_density_energy",3,"double",ff_flux_contribution_density_energy);
               op_decl_const2("mesh_name",1,"int",&mesh_name);
 
-        op_printf("-----------------------------------------------------\n");
-        op_printf("Loading from HDF5 files ...\n");
+        op_print_file("-----------------------------------------------------\n", fp);
+        op_print_file("Loading from HDF5 files ...\n", fp);
 
         for (int i=0; i<levels; i++) {
-            op_printf("Loading level %d / %d\n", i+1, levels);
+            sprintf(buffer,"Loading level %d / %d\n", i+1, levels);
             
+            op_print_file(buffer, fp);
             sprintf(op_name, "op_nodes_L%d", i);
             if (conf.legacy_mode) {
                 op_nodes[i] = op_decl_set_hdf5_infer_size(layers[i].c_str(), op_name, "node_coordinates.renumbered");
@@ -493,9 +506,9 @@ int main_mgcfd(int argc, char** argv)
                 variables_correct[i] = NULL;
             }
         }
+        op_print_file("-----------------------------------------------------\n", fp);
+        op_print_file("Partitioning ...\n", fp);
 
-        op_printf("-----------------------------------------------------\n");
-        op_printf("Partitioning ...\n");
         if (conf.partitioner == Partitioners::Parmetis) {
             if (conf.partitioner_method == PartitionerMethods::Geom) {
                 op_partition("PARMETIS", "GEOM", op_nodes[0], OP_ID, p_node_coords[0]);
@@ -521,7 +534,7 @@ int main_mgcfd(int argc, char** argv)
         else if (conf.partitioner == Partitioners::Inertial) {
             op_partition("INERTIAL", "", op_nodes[0], OP_ID, p_node_coords[0]);
         }
-        op_printf("PARTITIONING COMPLETE\n");
+        op_print_file("PARTITIONING COMPLETE\n", fp);
         op_renumber(p_edge_to_nodes[0]);
 
         for (int i=0; i<levels; i++) {
@@ -580,8 +593,8 @@ int main_mgcfd(int argc, char** argv)
                     op_arg_dat(p_bnd_node_weights[l],-1,OP_ID,3,"double",OP_INC));
     }
 
-    op_printf("-----------------------------------------------------\n");
-    op_printf("Compute beginning\n");
+    op_print_file("-----------------------------------------------------\n", fp);
+    op_print_file("Compute beginning\n", fp);
 
     op_timers(&cpu_t1, &wall_t1);
 
@@ -594,10 +607,13 @@ int main_mgcfd(int argc, char** argv)
     while(i < conf.num_cycles)
     {
         #ifdef LOG_PROGRESS
-            op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
+            sprintf(buffer,"Performing MG cycle %d / %d", i+1, conf.num_cycles);
+            op_print_file(buffer, fp);
         #else
-            if (level==0)
-            op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
+            if (level==0){
+                sprintf(buffer,"Performing MG cycle %d / %d", i+1, conf.num_cycles);
+                op_print_file(buffer, fp);
+            }
         #endif
 
         op_par_loop_copy_double_kernel("copy_double_kernel",op_nodes[level],
@@ -614,7 +630,8 @@ int main_mgcfd(int argc, char** argv)
                     op_arg_dat(p_step_factors[level],-1,OP_ID,1,"double",OP_READ),
                     op_arg_gbl(&min_dt,1,"double",OP_MIN));
         if (min_dt < 0.0f) {
-          op_printf("Fatal error during 'step factor' calculation, min_dt = %.5e\n", min_dt);
+          sprintf(buffer,"Fatal error during 'step factor' calculation, min_dt = %.5e\n", min_dt);
+          op_print_file(buffer, fp);
           op_exit();
           return 1;
         }
@@ -628,7 +645,8 @@ int main_mgcfd(int argc, char** argv)
         for (rkCycle=0; rkCycle<RK; rkCycle++)
         {
             #ifdef LOG_PROGRESS
-                op_printf(" RK cycle %d / %d\n", rkCycle+1, RK);
+                sprintf(buffer," RK cycle %d / %d\n", rkCycle+1, RK);
+                op_print_file(buffer, fp);
             #endif
 
             op_par_loop_compute_flux_edge_kernel_instrumented("compute_flux_edge_kernel",op_edges[level],
@@ -690,11 +708,11 @@ int main_mgcfd(int argc, char** argv)
                             op_arg_gbl(&bad_val_count,1,"int",OP_INC));
             #endif
             if (bad_val_count > 0) {
-                op_printf("Bad variable values detected, aborting\n");
+                op_print_file("Bad variable values detected, aborting\n", fp);
                 op_exit();
                 return 1;
             }
-            op_printf("\n");
+            op_print_file("\n", fp);
         }
 
         if (levels <= 1) {
@@ -766,26 +784,34 @@ int main_mgcfd(int argc, char** argv)
             }
         }
     }
-    op_printf("\n");
-	op_printf("Compute complete\n");
+
+    op_print_file("\n", fp);
+    op_print_file("Compute complete\n", fp);
 
     op_timers(&cpu_t2, &wall_t2);
-    op_printf("Max total runtime = %f\n", wall_t2 - wall_t1);
+
+    sprintf(buffer,"Max total runtime = %f\n", wall_t2 - wall_t1);
+    op_print_file(buffer, fp);
+
+    op_printf("MG-CFD Instance %s has finished!\n", filename);
 
     // Write summary performance data to stdout:
+    op_printf("MG-CFD Instance %s performance summary:\n", filename);
     op_timing_output();
 
     // Write full performance data to file:
     std::string csv_out_filepath(conf.output_file_prefix);
-    csv_out_filepath += "op2_performance_data.csv";
-    op_printf("Writing OP2 timings to file: %s\n", csv_out_filepath.c_str());
+    csv_out_filepath += "op2_performance_data_instance_" + std::string(filename) + ".csv";
+    sprintf(buffer,"Writing MG-CFD Instance %s OP2 timings to file: %s\n", filename, csv_out_filepath.c_str());
+    op_print_file(buffer, fp);
+
     op_timings_to_csv(csv_out_filepath.c_str());
 
     if (conf.validate_result) {
-        op_printf("-----------------------------------------------------\n");
+        op_print_file("-----------------------------------------------------\n", fp);
 
         bool value_check_failed = false;
-        op_printf("Looking for NaN and infinity values ...");
+        op_print_file("Looking for NaN and infinity values ...", fp);
         for (int l=0; l<levels; l++) {
             int bad_val_count = 0;
             op_par_loop_count_bad_vals("count_bad_vals",op_nodes[l],
@@ -793,19 +819,20 @@ int main_mgcfd(int argc, char** argv)
                         op_arg_gbl(&bad_val_count,1,"int",OP_INC));
             if (bad_val_count > 0) {
                 value_check_failed = true;
-                op_printf("\n");
-                op_printf("Value check of MG level %d failed: %d bad values detected\n", l, bad_val_count);
+                op_print_file("\n", fp);
+                sprintf(buffer,"Value check of MG level %d failed: %d bad values detected\n", l, bad_val_count);
                 break;
             }
         }
         if (!value_check_failed) {
-            op_printf(" None found\n");
+            op_print_file(" None found\n", fp);
             bool validation_failed = false;
-            op_printf("Validating result against solution ...");
+            op_print_file("Validating result against solution ...", fp);
             for (int l=0; l<levels; l++) {
                 if (variables_correct[l] == NULL) {
-                    op_printf("\n");
-                    op_printf("- Do not have solution for level %d, cannot validate\n", l);
+                    op_print_file("\n", fp);
+                    sprintf(buffer,"- Do not have solution for level %d, cannot validate\n", l);
+                    op_print_file(buffer, fp);
                     validation_failed = true;
                     continue;
                 }
@@ -824,8 +851,9 @@ int main_mgcfd(int argc, char** argv)
                             op_arg_gbl(&count,1,"int",OP_INC));
                 if (count > 0) {
                     validation_failed = true;
-                    op_printf("\n");
-                    op_printf("Validation of MG level %d failed: %d incorrect values in 'variables' array\n", l, count);
+                    op_print_file("\n", fp);
+                    sprintf(buffer,"Validation of MG level %d failed: %d incorrect values in 'variables' array\n", l, count);
+                    op_print_file(buffer, fp);
                     break;
                 } else {
                     // op_printf("Validation of MG level %d successful\n", l);
@@ -833,23 +861,23 @@ int main_mgcfd(int argc, char** argv)
             }
 
             if (validation_failed) {
-                op_printf("Validation failed\n");
+                op_print_file("Validation failed\n", fp);
             } else {
-                op_printf(" Result correct\n");
-                op_printf("Validation passed\n");
+                op_print_file(" Result correct\n", fp);
+                op_print_file("Validation passed\n", fp);
             }
         }
     }
 
     if (conf.output_anything) {
-        op_printf("-----------------------------------------------------\n");
-        op_printf("Writing out data...\n");
+        op_print_file("-----------------------------------------------------\n", fp);
+        op_print_file("Writing out data...\n", fp);
         char* h5_out_name = alloc<char>(100);
         std::string prefix(conf.output_file_prefix);
         for (int l=0; l<levels; l++)
         {
             std::string suffix = std::string(".L") + number_to_string(l) 
-                               + "." + "cycles=" + number_to_string(conf.num_cycles);
+                               + "." + "cycles=" + number_to_string(conf.num_cycles) + ".instance" + std::string(filename);
 
             int number_of_edges = op_get_size(op_edges[l]);
             int nel     = op_get_size(op_nodes[l]);
@@ -921,10 +949,15 @@ int main_mgcfd(int argc, char** argv)
             flux_kernel_iter_counts, 
             conf.output_file_prefix);
     #endif
+    
+    op_print_file("-----------------------------------------------------\n", fp);
+    op_print_file("Winding down OP2\n", fp);
+    
+    op_printf("Winding down OP2 for MG-CFD Instance %s\n", filename);
 
-    op_printf("-----------------------------------------------------\n");
-    op_printf("Winding down OP2\n");
+    op_print_file_close(fp);
     op_exit();
 
     return 0;
 }
+
