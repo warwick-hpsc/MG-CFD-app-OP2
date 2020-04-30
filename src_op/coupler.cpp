@@ -4,21 +4,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <vector>
+#include "../src/structures.h"
+#include "../src/config.h"
 
 
 int main(int argc, char** argv){
-
-    struct unit{
-	   char type;//either M for MG-CFD or C for Coupler unit
-	   int processes;
-	   std::vector<std::vector<int>> mgcfd_ranks;//each coupler unit has 2 MG-CFD instances, MG-CFD units will only have themselves
-	   std::vector<int> coupler_ranks;//MG-CFD instances can have multiple couplers
-	};
-
-	struct locators{//one locator per rank - states type and relative position
-	   char typelocator;//either M for MG-CFD or C for Coupler unit
-	   int placelocator;//e.g 1 for 1st coupler/mgcfd unit, 2 for 2nd coupler/mgcfd unit
-	};
 
 	FILE *ifp = fopen("cpx_input.cfg", "r");
 
@@ -238,8 +228,40 @@ int main(int argc, char** argv){
     MPI_Fint comms_shell = MPI_Comm_c2f(new_comm);
 
 	if(!is_coupler){
-		main_mgcfd(argc, argv, comms_shell, instance_number);
-	}else{//Coupler processes currently just exit - TODO: Run coupler routine of recieve, interpolate and send
+		main_mgcfd(argc, argv, comms_shell, instance_number, units, relative_positions);
+	}else{
+		MPI_Comm coupler_comm = MPI_Comm_f2c(comms_shell);
+
+		int cycle_counter = 0;
+
+		bool found = false;
+		int unit_count = 0;
+    	while(!found){ /* Currently this is just for one coupler unit, so stop when the unit type is C*/
+			if(units[unit_count].type == 'C'){
+				found=true;
+			}else{
+				unit_count++;
+			}
+    	}
+		int left_rank = units[unit_count].mgcfd_ranks[0][0];
+		int left_size = static_cast<int>(units[unit_count].mgcfd_ranks[0].size());
+		int right_rank = units[unit_count].mgcfd_ranks[1][0];
+		int right_size = static_cast<int>(units[unit_count].mgcfd_ranks[1].size());
+		int *left_rank_storage = new int[left_size];
+		int *right_rank_storage = new int[right_size];
+
+		while(cycle_counter < 25){/* TODO: get initial MPI message to get number of cycles */
+			MPI_Recv(left_rank_storage, left_size, MPI_INT, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);/* currently ignore status - can be changed */
+			/* Interpolate logic goes here */
+			MPI_Send(left_rank_storage, left_size, MPI_INT, right_rank, 0, MPI_COMM_WORLD);
+
+			MPI_Recv(right_rank_storage, right_size, MPI_INT, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);/* currently ignore status - can be changed */
+			/* Interpolate logic goes here */
+			MPI_Send(right_rank_storage, right_size, MPI_INT, left_rank, 0, MPI_COMM_WORLD);
+
+			cycle_counter++;
+
+		}
 		MPI_Finalize();
    		exit(0);
 	}

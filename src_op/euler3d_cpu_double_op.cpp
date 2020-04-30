@@ -226,7 +226,7 @@ config conf;
 #include "validation.h"
 #include "indirect_rw.h"
 
-int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number)
+int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, struct unit units[], struct locators relative_positions[])
 {
     #ifdef NANCHECK
         feenableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
@@ -604,6 +604,69 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number)
     double rms = 0.0;
     int bad_val_count = 0;
     double min_dt = std::numeric_limits<double>::max();
+
+
+    MPI_Comm mgcfd_comm = MPI_Comm_f2c(custom);
+    int internal_rank;
+    int internal_size;
+    MPI_Comm_rank(mgcfd_comm, &internal_rank); 
+    MPI_Comm_size(mgcfd_comm, &internal_size);
+    int *ranks = new int[internal_size];
+    
+    int temp_buffer;
+  
+    MPI_Gather(&internal_rank, 1, MPI_INT, ranks, 1, MPI_INT, 0, mgcfd_comm);
+
+    int worldrank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &worldrank); 
+
+    int mgcfd_unit_num = relative_positions[worldrank].placelocator;
+    int unit_count = 0;
+    int mgcfd_count = 1;
+    bool found = false;
+    while(!found){
+        if(units[unit_count].type == 'M' && mgcfd_unit_num == mgcfd_count){
+            found=true;
+        }else {
+            if(units[unit_count].type == 'M'){
+                mgcfd_count++;
+            }
+            unit_count++;
+        }
+    }
+
+    int recv_size = 0;
+    bool left = false;
+    int coupler_rank = units[unit_count].coupler_ranks[0]; /* This assumes only 1 coupler unit per 2 MG-CFD sessions */
+    int coupler_position = relative_positions[coupler_rank].placelocator; /* gets coupler unit number for this MG-CFD instance */
+    found = false;
+    int unit_count_2 = 0;
+    int coupler_unit_count = 1;
+
+    while(!found){ /* Currently this is just for one coupler unit, so stop when the unit type is C*/
+			if(units[unit_count_2].type == 'C' && coupler_unit_count == coupler_position){
+				found=true;
+			}else{
+                if(units[unit_count_2].type == 'C'){
+                    coupler_unit_count++;
+                }
+                unit_count_2++;
+			}
+    	}
+
+    if (std::find(units[unit_count_2].mgcfd_ranks[0].begin(), units[unit_count_2].mgcfd_ranks[0].end(), worldrank) != units[unit_count_2].mgcfd_ranks[0].end()){
+        recv_size = units[unit_count_2].mgcfd_ranks[1].size();
+        left = true;
+    }else{
+        recv_size = units[unit_count_2].mgcfd_ranks[0].size();
+    }
+
+    int *recv_buffer = new int[recv_size];
+    int prev_cycle = -1;
+
+
+    
+
     while(i < conf.num_cycles)
     {
         #ifdef LOG_PROGRESS
@@ -615,6 +678,22 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number)
                 op_print_file(buffer, fp);
             }
         #endif
+
+        if(i != prev_cycle){
+            prev_cycle=i;
+            if(internal_rank == MPI_ROOT){
+                if(left){
+                    MPI_Send(ranks, internal_size, MPI_INT, coupler_rank, 0, MPI_COMM_WORLD);
+                    MPI_Recv(recv_buffer, recv_size, MPI_INT, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                }else{
+                    MPI_Recv(recv_buffer, recv_size, MPI_INT, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Send(ranks, internal_size, MPI_INT, coupler_rank, 0, MPI_COMM_WORLD);
+                }
+            }
+        }
+        
+        
+
 
         op_par_loop_copy_double_kernel("copy_double_kernel",op_nodes[level],
                     op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_READ),
@@ -956,6 +1035,9 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number)
     op_printf("Winding down OP2 for MG-CFD Instance %s\n", filename);
 
     op_print_file_close(fp);
+    
+    //int exit_command = 1;
+    //MPI_Send(&exit_command, 1, MPI_INT, coupler_rank, 0, MPI_COMM_WORLD);
     op_exit();
 
     return 0;
