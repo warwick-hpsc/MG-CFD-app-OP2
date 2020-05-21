@@ -664,8 +664,27 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     int *recv_buffer = new int[recv_size];
     int prev_cycle = -1;
 
+    int nodes_sizes[4];
+    double *p_variables_data_l0, *p_variables_data_l1, *p_variables_data_l2, *p_variables_data_l3;
+    double *p_variables_recv_l0, *p_variables_recv_l1, *p_variables_recv_l2, *p_variables_recv_l3;
 
-    
+    for (int z = 0; z < 4; z++) {
+        nodes_sizes[z] = op_get_size(op_nodes[z]);
+    }
+
+    if (internal_rank == MPI_ROOT) {
+        MPI_Send(nodes_sizes, 4, MPI_INT, coupler_rank, 0, MPI_COMM_WORLD);
+    }
+
+    p_variables_data_l0 = (double*) malloc(nodes_sizes[0] * NVAR * sizeof(double));
+    p_variables_data_l1 = (double*) malloc(nodes_sizes[1] * NVAR * sizeof(double));
+    p_variables_data_l2 = (double*) malloc(nodes_sizes[2] * NVAR * sizeof(double));
+    p_variables_data_l3 = (double*) malloc(nodes_sizes[3] * NVAR * sizeof(double));
+
+    p_variables_recv_l0 = (double*) malloc(nodes_sizes[0] * NVAR * sizeof(double));
+    p_variables_recv_l1 = (double*) malloc(nodes_sizes[1] * NVAR * sizeof(double));
+    p_variables_recv_l2 = (double*) malloc(nodes_sizes[2] * NVAR * sizeof(double));
+    p_variables_recv_l3 = (double*) malloc(nodes_sizes[3] * NVAR * sizeof(double));
 
     while(i < conf.num_cycles)
     {
@@ -681,15 +700,39 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
         if(i != prev_cycle){
             prev_cycle=i;
+
+            op_fetch_data(p_variables[0], p_variables_data_l0);
+            op_fetch_data(p_variables[1], p_variables_data_l1);
+            op_fetch_data(p_variables[2], p_variables_data_l2);
+            op_fetch_data(p_variables[3], p_variables_data_l3);
+
             if(internal_rank == MPI_ROOT){
                 if(left){
                     MPI_Send(ranks, internal_size, MPI_INT, coupler_rank, 0, MPI_COMM_WORLD);
+                    MPI_Send(p_variables_data_l0, nodes_sizes[0], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                    MPI_Send(p_variables_data_l1, nodes_sizes[1], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                    MPI_Send(p_variables_data_l2, nodes_sizes[2], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                    MPI_Send(p_variables_data_l3, nodes_sizes[3], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
                     MPI_Recv(recv_buffer, recv_size, MPI_INT, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(p_variables_recv_l0, nodes_sizes[0], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(p_variables_recv_l1, nodes_sizes[1], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(p_variables_recv_l2, nodes_sizes[2], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(p_variables_recv_l3, nodes_sizes[3], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 }else{
                     MPI_Recv(recv_buffer, recv_size, MPI_INT, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(p_variables_recv_l0, nodes_sizes[0], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(p_variables_recv_l1, nodes_sizes[1], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(p_variables_recv_l2, nodes_sizes[2], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(p_variables_recv_l3, nodes_sizes[3], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     MPI_Send(ranks, internal_size, MPI_INT, coupler_rank, 0, MPI_COMM_WORLD);
+                    MPI_Send(p_variables_data_l0, nodes_sizes[0], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                    MPI_Send(p_variables_data_l1, nodes_sizes[1], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                    MPI_Send(p_variables_data_l2, nodes_sizes[2], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                    MPI_Send(p_variables_data_l3, nodes_sizes[3], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
                 }
             }
+
+            op_printf("Cycle: %d\n", i);
         }
         
         
@@ -999,6 +1042,27 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                 sprintf(h5_out_name, "%svariables%s.h5", prefix.c_str(), suffix.c_str());
                 op_fetch_data_hdf5_file(p_variables[l], h5_out_name);
                 p_variables[l]->name = old_name;
+
+                op_printf("Level: %d\n", l);
+                for (int z = 0; z < 10; z++) {
+                        if (l == 0) {
+                            op_printf("OP2 fetched p_variables data[%d]: %f\n", z, p_variables_data_l0[z]);
+                            op_printf("Received p_variables data[%d]: %f\n", z, p_variables_recv_l0[z]);
+                        }
+                        else if (l == 1) {
+                            op_printf("OP2 fetched p_variables data[%d]: %f\n", z, p_variables_data_l1[z]);
+                            op_printf("Received p_variables data[%d]: %f\n", z, p_variables_recv_l1[z]);
+                        }
+                        else if (l == 2) {
+                            op_printf("OP2 fetched p_variables data[%d]: %f\n", z, p_variables_data_l2[z]);
+                            op_printf("Received p_variables data[%d]: %f\n", z, p_variables_recv_l2[z]);
+                        }
+                        else if (l == 3) {
+                            op_printf("OP2 fetched p_variables data[%d]: %f\n", z, p_variables_data_l3[z]);
+                            op_printf("Received p_variables data[%d]: %f\n", z, p_variables_recv_l3[z]);
+                        }
+                }
+
             }
         }
     }
