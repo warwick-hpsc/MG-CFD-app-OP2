@@ -193,6 +193,13 @@ void op_par_loop_count_non_zeros(char const *, op_set,
 #endif
 #endif
 
+void printvecint(std::vector<int> const &input)
+{
+	for (int i = 0; i < input.size(); i++) {
+		std::cout << input.at(i) << ' ';
+	}
+}
+
 #include "op_hdf5.h"
 
 // MG-CFD base:
@@ -622,7 +629,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
     int mgcfd_unit_num = relative_positions[worldrank].placelocator;
     int unit_count = 0;
-    int mgcfd_count = 1;
+    int mgcfd_count = 1;//since units start from 1
     bool found = false;
     while(!found){
         if(units[unit_count].type == 'M' && mgcfd_unit_num == mgcfd_count){
@@ -635,24 +642,34 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         }
     }
 
+    found = false;
+    int total_coupler_unit_count = 0;
+    while(!found){ //used to count the total number of 
+        if(units[total_coupler_unit_count].type == 'M'){
+            found=true;
+        }else{
+            total_coupler_unit_count++;//total number of coupler units in the units AoS
+        }
+    }
+
     int recv_size = 0;
     bool left = false;
     int coupler_rank = units[unit_count].coupler_ranks[0]; /* This assumes only 1 coupler unit per 2 MG-CFD sessions */
-    int coupler_position = relative_positions[coupler_rank].placelocator; /* gets coupler unit number for this MG-CFD instance */
+    int coupler_position = (total_coupler_unit_count - relative_positions[coupler_rank].placelocator) + 1; /* converts coupler instance number to relative index for units AoS - needed due to stack nature of coupler allocation */
     found = false;
     int unit_count_2 = 0;
     int coupler_unit_count = 1;
 
-    while(!found){ /* Currently this is just for one coupler unit, so stop when the unit type is C*/
-			if(units[unit_count_2].type == 'C' && coupler_unit_count == coupler_position){
-				found=true;
-			}else{
-                if(units[unit_count_2].type == 'C'){
-                    coupler_unit_count++;
-                }
-                unit_count_2++;
-			}
-    	}
+    while(!found){//this is used to find out the unit index of the coupler unit we want
+        if(units[unit_count_2].type == 'C' && coupler_unit_count == coupler_position){
+            found=true;
+        }else{
+            if(units[unit_count_2].type == 'C'){
+                coupler_unit_count++;
+            }
+            unit_count_2++;
+        }
+    }
 
     if (std::find(units[unit_count_2].mgcfd_ranks[0].begin(), units[unit_count_2].mgcfd_ranks[0].end(), worldrank) != units[unit_count_2].mgcfd_ranks[0].end()){
         recv_size = units[unit_count_2].mgcfd_ranks[1].size();
@@ -673,6 +690,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     }
 
     if (internal_rank == MPI_ROOT) {
+        //op_printf("My coupler rank is: %d\n", coupler_rank);
         MPI_Send(nodes_sizes, 4, MPI_INT, coupler_rank, 0, MPI_COMM_WORLD);
     }
 
@@ -707,7 +725,11 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             op_fetch_data(p_variables[3], p_variables_data_l3);
 
             if(internal_rank == MPI_ROOT){
+                op_printf("Cycle %d comms starting\n", i);
+
+                
                 if(left){
+                    //op_printf("I am rank %d, I am sending to coupler with rank %d\n", worldrank, coupler_rank);
                     MPI_Send(ranks, internal_size, MPI_INT, coupler_rank, 0, MPI_COMM_WORLD);
                     MPI_Send(p_variables_data_l0, nodes_sizes[0], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
                     MPI_Send(p_variables_data_l1, nodes_sizes[1], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
@@ -719,6 +741,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                     MPI_Recv(p_variables_recv_l2, nodes_sizes[2], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     MPI_Recv(p_variables_recv_l3, nodes_sizes[3], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 }else{
+                    //op_printf("I am rank %d, I am waiting for data from coupler with rank %d\n", worldrank, coupler_rank);
                     MPI_Recv(recv_buffer, recv_size, MPI_INT, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     MPI_Recv(p_variables_recv_l0, nodes_sizes[0], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     MPI_Recv(p_variables_recv_l1, nodes_sizes[1], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -732,7 +755,8 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                 }
             }
 
-            op_printf("Cycle: %d\n", i);
+            op_printf("Cycle %d comms ending\n", i);
+            
         }
         
         
@@ -1106,4 +1130,5 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
     return 0;
 }
+
 

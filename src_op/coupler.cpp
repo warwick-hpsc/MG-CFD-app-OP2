@@ -190,6 +190,9 @@ int main(int argc, char** argv){
 			int no_of_elements = units[i].mgcfd_ranks[0].size();
 			for(int j = 0; j < no_of_elements; j++){
 				printf("MGCFD Ranks: %d\n", units[i].mgcfd_ranks[0][j]);
+				if(units[i].type == 'C'){
+					printf("MGCFD Ranks: %d\n", units[i].mgcfd_ranks[1][j]);
+				}
 			}
 		}
 	}
@@ -211,6 +214,7 @@ int main(int argc, char** argv){
 			if(rank == ranks[0]){
 				new_comm=new_comms[i];
 				is_coupler = true;
+				instance_number = relative_positions[rank].placelocator;
 			}
 		}
 		if(units[i].type == 'M'){
@@ -231,19 +235,25 @@ int main(int argc, char** argv){
 	if(!is_coupler){
 		main_mgcfd(argc, argv, comms_shell, instance_number, units, relative_positions);
 	}else{
+		
+		
 		MPI_Comm coupler_comm = MPI_Comm_f2c(comms_shell);
+		
 
 		int cycle_counter = 0;
 
 		bool found = false;
 		int unit_count = 0;
     	while(!found){ /* Currently this is just for one coupler unit, so stop when the unit type is C*/
-			if(units[unit_count].type == 'C'){
+			if(units[unit_count].type == 'C' && units[unit_count].coupler_ranks[0] == rank){
 				found=true;
 			}else{
 				unit_count++;
 			}
     	}
+
+		//printf("I am coupler and my rank is: %d\n", rank);//combine
+		//printf("I am coupler unit: %d\n", unit_count);
 		int left_rank = units[unit_count].mgcfd_ranks[0][0];
 		int left_size = static_cast<int>(units[unit_count].mgcfd_ranks[0].size());
 		int right_rank = units[unit_count].mgcfd_ranks[1][0];
@@ -270,6 +280,9 @@ int main(int argc, char** argv){
         right_p_variables_l3 = (double *) malloc(right_nodes_sizes[3] * NVAR * sizeof(double));
 
 		while(cycle_counter < 25){/* TODO: get initial MPI message to get number of cycles */
+			//printf("I've started the cycle\n");
+
+			//printf("I am coupler rank %d, and I am waiting to receive data from global rank %d\n", rank, left_rank);
 			MPI_Recv(left_rank_storage, left_size, MPI_INT, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);/* currently ignore status - can be changed */
 			/* Interpolate logic goes here */
             MPI_Recv(left_p_variables_l0, left_nodes_sizes[0], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -302,4 +315,5 @@ int main(int argc, char** argv){
 	}
     
 }
+
 
