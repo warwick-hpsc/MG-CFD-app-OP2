@@ -93,6 +93,9 @@ typedef struct {
     bool output_variables;
 
     bool output_anything;
+    #ifdef SLOPE
+    int tile_size;
+    #endif
 } config;
 
 extern config conf;
@@ -109,12 +112,16 @@ static struct option long_opts[] =
     { "num-cycles",         required_argument, NULL, 'g' },
     { "partitioner",        required_argument, NULL, 'm' },
     { "partitioner-method", required_argument, NULL, 'r' },
+    #ifdef SLOPE
+    { "tile-size",         required_argument, NULL, 't' },
+    #endif
     { "validate",           no_argument,       NULL, 'v' },
     { "output-variables",   no_argument,       (int*)&conf.output_variables,    1 },
     { "output-fluxes",      no_argument,       (int*)&conf.output_fluxes,       1 },
-    { "output-step-factors",no_argument,       (int*)&conf.output_step_factors, 1 },
+    { "output-step-factors",no_argument,       (int*)&conf.output_step_factors, 1 }
+    
 };
-#define GETOPTS "hc:li:d:p:o:g:m:r:v"
+#define GETOPTS "hc:li:d:p:o:g:m:r:t:v"
 
 inline void set_config_defaults() {
     conf.config_filepath = (char*)malloc(sizeof(char));
@@ -146,6 +153,9 @@ inline void set_config_defaults() {
     conf.output_fluxes  = false;
     conf.output_variables = false;
     conf.output_anything = false;
+    #ifdef SLOPE
+    conf.tile_size = 5000;
+    #endif
 }
 
 inline void set_config_param(const char* const key, const char* const value) {
@@ -223,6 +233,11 @@ inline void set_config_param(const char* const key, const char* const value) {
             conf.output_variables = true;
         }
     }
+    #ifdef SLOPE
+    else if (strcmp(key, "tile_size")==0) {
+        conf.tile_size = atoi(value);
+    }
+    #endif
     else {
         printf("WARNING: Unknown key '%s' encountered during parsing of config file.\n", key);
     }
@@ -311,6 +326,10 @@ inline void print_help(void)
     fprintf(stderr, "        string to prepend to output filenames\n");
     fprintf(stderr, "-p, --papi-config-file=FILEPATH\n");
     fprintf(stderr, "        file containing list of PAPI events to monitor\n");
+    #ifdef SLOPE
+    fprintf(stderr, "-t, --tile-size=INT\n");
+    fprintf(stderr, "        tile size for slope lib\n");
+    #endif
     fprintf(stderr, "\n");
     fprintf(stderr, "-g, --num-cycles=INT\n");
     fprintf(stderr, "        number of multigrid V-cycles to perform\n");
@@ -378,6 +397,11 @@ inline bool parse_arguments(int argc, char** argv) {
             case 'v':
                 conf.validate_result = true;
                 break;
+            #ifdef SLOPE
+            case 't':
+                conf.tile_size = atoi(optarg);
+                break;
+            #endif
             case '\0':
                 break;
             default:

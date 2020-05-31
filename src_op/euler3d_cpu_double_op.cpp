@@ -9,6 +9,17 @@
 // - multigrid, per-edge computation, n-neighbours
 // - residual calculation, solution validation
 
+//
+// sparse tiling headers
+//
+
+#ifdef SLOPE
+#include "executor.h"
+#include "inspector.h"
+#endif
+
+#define TILE_SIZE 5000
+
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
@@ -224,6 +235,7 @@ config conf;
 #include "compute_node_area_kernel.h"
 #include "validation.h"
 #include "indirect_rw.h"
+#include "misc.h"
 
 int main(int argc, char** argv)
 {
@@ -350,6 +362,33 @@ int main(int argc, char** argv)
                                     ff_flux_contribution_density_energy);
     }
 
+    #ifdef SLOPE
+    int avg_tile_size = conf.tile_size; 
+    double* coordinates;
+    int nloops = 5;
+    int seed_loop = 0;
+    // sets
+    set_t* sl_nodes[levels];
+    set_t* sl_edges[levels]; 
+    set_t* sl_bnd_nodes[levels];
+
+    map_t* sl_edge_to_nodes[levels];
+    map_t* sl_bnd_node_to_node[levels];
+
+    desc_list compute_flux_desc[levels];
+    desc_list compute_bflux_desc[levels];
+    desc_list time_step_desc[levels];
+    desc_list indirect_rw_desc[levels];
+    desc_list zero_5d_array_desc[levels];
+
+    map_list mesh_maps[levels];
+
+    inspector_t* insp[levels];
+    executor_t* exec[levels];
+    std::string sl_maps_edge_to_nodes[levels];
+    std::string sl_maps_bnd_node_to_node[levels];
+    #endif
+
     // Set elements:
     op_set op_nodes[levels],
            op_edges[levels],
@@ -389,6 +428,7 @@ int main(int argc, char** argv)
 
     // Setup OP2
     char* op_name = alloc<char>(100);
+    char* sl_name = alloc<char>(100); //slope
     {
               op_decl_const2("smoothing_coefficient",1,"double",&smoothing_coefficient);
               op_decl_const2("ff_variable",5,"double",ff_variable);
@@ -409,6 +449,10 @@ int main(int argc, char** argv)
                 op_nodes[i] = op_decl_set_hdf5_infer_size(layers[i].c_str(), op_name, "node_coordinates.renumbered");
             } else {
                 op_nodes[i] = op_decl_set_hdf5_infer_size(layers[i].c_str(), op_name, "node_coordinates");
+                #ifdef SLOPE
+                sprintf(sl_name, "sl_nodes_L%d", i);
+                sl_nodes[i] = set(sl_name, op_nodes[i]->size);
+                #endif
             }
 
             if (conf.legacy_mode) {
@@ -417,6 +461,10 @@ int main(int argc, char** argv)
             } else {
                 sprintf(op_name, "op_edges_L%d", i);
                 op_edges[i] = op_decl_set_hdf5_infer_size(layers[i].c_str(), op_name, "edge-->node");
+                #ifdef SLOPE
+                sprintf(sl_name, "sl_edges_L%d", i);    
+                sl_edges[i] = set(sl_name, op_edges[i]->size);
+                #endif
             }
 
             if (conf.legacy_mode) {
@@ -425,6 +473,10 @@ int main(int argc, char** argv)
             } else {
                 sprintf(op_name, "op_bnd_nodes_L%d", i);
                 op_bnd_nodes[i] = op_decl_set_hdf5_infer_size(layers[i].c_str(), op_name, "bnd_node-->node");
+                #ifdef SLOPE
+                sprintf(sl_name, "sl_bnd_nodes_L%d", i);
+                sl_bnd_nodes[i] = set(sl_name, op_bnd_nodes[i]->size);
+                #endif
             }
 
             if (conf.legacy_mode) {
@@ -433,6 +485,15 @@ int main(int argc, char** argv)
             } else {
                 p_edge_to_nodes[i]          = op_decl_map_hdf5(op_edges[i],     op_nodes[i], 2, layers[i].c_str(), "edge-->node");
                 p_bnd_node_to_node[i]       = op_decl_map_hdf5(op_bnd_nodes[i], op_nodes[i], 1, layers[i].c_str(), "bnd_node-->node");
+
+                #ifdef SLOPE
+                sprintf(sl_name, "sl_edge_to_nodes_L%d", i);
+                sl_maps_edge_to_nodes[i] = sl_name;
+                sl_edge_to_nodes[i] = map(sl_name, sl_edges[i], sl_nodes[i], p_edge_to_nodes[i]->map, op_edges[i]->size * 2);
+                sprintf(sl_name, "sl_bnd_node_to_node_L%d", i);
+                sl_maps_bnd_node_to_node[i] = sl_name;
+                sl_bnd_node_to_node[i] = map(sl_name, sl_bnd_nodes[i], sl_nodes[i], p_bnd_node_to_node[i]->map, sl_bnd_nodes[i]->size * 1);
+                #endif
             }
             p_bnd_node_groups[i]       = op_decl_dat_hdf5(op_bnd_nodes[i], 1, "int", layers[i].c_str(), "bnd_node-->group");
 
@@ -494,7 +555,73 @@ int main(int argc, char** argv)
             } else {
                 variables_correct[i] = NULL;
             }
+
+            #ifdef SLOPE
+            // descriptors
+            desc_list flux_desc ({desc(sl_edge_to_nodes[i], READ),
+                                    desc(DIRECT, READ),
+                                    desc(sl_edge_to_nodes[i], INC)});
+            compute_flux_desc[i] = flux_desc;
+
+            desc_list bflux_desc ({desc(DIRECT, READ),
+                                    desc(sl_bnd_node_to_node[i], READ),
+                                    desc(sl_bnd_node_to_node[i], INC)});
+            compute_bflux_desc[i] = bflux_desc;
+
+            desc_list time_desc ({desc(DIRECT, READ),
+                                    desc(DIRECT, INC),
+                                    desc(DIRECT, WRITE)});
+            time_step_desc[i] = time_desc;
+
+            desc_list indirect_rw_descriptor ({desc(sl_edge_to_nodes[i], READ),
+                                    desc(DIRECT, READ),
+                                    desc(sl_edge_to_nodes[i], INC)});
+            indirect_rw_desc[i] = indirect_rw_descriptor;
+
+            desc_list zero_5d_desc ({desc(DIRECT, WRITE)});
+            zero_5d_array_desc[i] = zero_5d_desc;
+
+
+
+            map_list m ({sl_edge_to_nodes[i]});
+            mesh_maps[i] = m;
+
+            insp[i] = insp_init(avg_tile_size, OMP, COL_DEFAULT, &mesh_maps[i]);
+
+            sprintf(op_name, "compute_flux_L%d", i);
+            insp_add_parloop (insp[i], op_name, sl_edges[i], &compute_flux_desc[i]);
+
+            sprintf(op_name, "compute_bflux_L%d", i);
+            insp_add_parloop (insp[i], op_name, sl_bnd_nodes[i], &compute_bflux_desc[i]);
+
+            sprintf(op_name, "time_step_L%d", i);
+            insp_add_parloop (insp[i], op_name, sl_nodes[i],  &time_step_desc[i]);
+
+            sprintf(op_name, "indirect_rw_L%d", i);
+            insp_add_parloop(insp[i], op_name, sl_edges[i], &indirect_rw_desc[i]);
+
+            sprintf(op_name, "zero_5d_L%d", i);
+            insp_add_parloop(insp[i], op_name, sl_nodes[i], &zero_5d_array_desc[i]);
+
+            seed_loop = 0;
+            insp_run (insp[i], seed_loop);
+            insp_print (insp[i], LOW);
+
+            coordinates = (double*) malloc(NDIM * (op_nodes[i]->size) * sizeof(double));
+            int size = 3 * sizeof(double);
+            for (int n = 0; n < op_nodes[i]->size; n++) {
+                coordinates[3*n] = *(double*)(p_node_coords[i]->data + size * n);
+                coordinates[3*n+1] = *(double*)(p_node_coords[i]->data + size * n + sizeof(double));
+                coordinates[3*n+2] = *(double*)(p_node_coords[i]->data + size * n + (2 * sizeof(double)));
+            }
+            generate_vtk (insp[i], LOW, sl_nodes[i], coordinates, DIM3);
+            free(coordinates);
+
+            exec[i] = exec_init (insp[i]);
+            #endif
         }
+
+        
 
         op_printf("-----------------------------------------------------\n");
         op_printf("Partitioning ...\n");
@@ -625,13 +752,98 @@ int main(int argc, char** argv)
                     op_arg_dat(p_volumes[level],-1,OP_ID,1,"double",OP_READ),
                     op_arg_gbl(&min_dt,1,"double",OP_READ),
                     op_arg_dat(p_step_factors[level],-1,OP_ID,1,"double",OP_WRITE));
-
+        #ifdef SLOPE
+        int ncolors = exec_num_colors (exec[level]);
+        #endif
         int rkCycle;
         for (rkCycle=0; rkCycle<RK; rkCycle++)
         {
             #ifdef LOG_PROGRESS
                 op_printf(" RK cycle %d / %d\n", rkCycle+1, RK);
             #endif
+
+            #ifdef SLOPE
+            int ncolors = exec_num_colors (exec[level]);
+            //for each colour
+            for (int color = 0; color < ncolors; color++) {
+            // for all tiles of this color
+                const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
+
+               #pragma omp parallel for
+                for (int j = 0; j < n_tiles_per_color; j++) {
+                    // execute the tile
+                    tile_t* tile = exec_tile_at (exec[level], color, j);
+                    int loop_size;
+
+                    //printf("n_tiles_per_color=%d, j=%d\n", n_tiles_per_color, j);
+
+                    // loop compute_flux_edge
+                    iterations_list& le2n_0 = tile_get_local_map (tile, 0, sl_maps_edge_to_nodes[level]);
+                    iterations_list& iterations_0 = tile_get_iterations (tile, 0);
+                    loop_size = tile_loop_size (tile, 0);
+                    
+                    for (int k = 0; k < loop_size; k++) {
+                        compute_flux_edge_kernel(
+                            (double*)(p_variables[level]->data + ((le2n_0[k*2 + 0] * 5) * sizeof(double))),
+                            (double*)(p_variables[level]->data + ((le2n_0[k*2 + 1] * 5) * sizeof(double))),
+                            (double*)(p_edge_weights[level]->data + ((iterations_0[k] * 3) * sizeof(double))),
+                            (double*)(p_fluxes[level]->data + ((le2n_0[k*2 + 0] * 5) * sizeof(double))),
+                            (double*)(p_fluxes[level]->data + ((le2n_0[k*2 + 1] * 5) * sizeof(double))));
+                    }
+
+                    // loop compute_bnd_node_flux
+                    iterations_list& lbe2n_1 = tile_get_local_map (tile, 1, sl_maps_bnd_node_to_node[level]);
+                    iterations_list& iterations_1 = tile_get_iterations (tile, 1);
+                    loop_size = tile_loop_size (tile, 1);
+
+                    for (int k = 0; k < loop_size; k++) {
+                        compute_bnd_node_flux_kernel(
+                             (int*)(p_bnd_node_groups[level]->data + ((iterations_1[k] * 1) * sizeof(int))),
+                             (double*)(p_bnd_node_weights[level]->data + ((iterations_1[k] * 3) * sizeof(double))),
+                             (double*)(p_variables[level]->data + ((lbe2n_1[k + 0] * 5) * sizeof(double))),
+                             (double*)(p_fluxes[level]->data + ((lbe2n_1[k + 0] * 5) * sizeof(double))));
+                    }
+
+                    // loop time_step
+                    iterations_list& iterations_2 = tile_get_iterations (tile, 2);
+                    loop_size = tile_loop_size (tile, 2);
+
+                    for (int k = 0; k < loop_size; k++) {
+                        time_step_kernel(
+                            &rkCycle,
+                            (double*)(p_step_factors[level]->data + ((iterations_2[k] * 1) * sizeof(double))),
+                            (double*)(p_fluxes[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
+                            (double*)(p_old_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
+                            (double*)(p_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))));
+                    }
+
+                      // loop indirect_rw
+                    iterations_list& le2n_3 = tile_get_local_map (tile, 3, sl_maps_edge_to_nodes[level]);
+                    iterations_list& iterations_3 = tile_get_iterations (tile, 3);
+                    loop_size = tile_loop_size (tile, 3);
+
+                    for (int k = 0; k < loop_size; k++) {
+                        indirect_rw_kernel(
+                            (double*)(p_variables[level]->data + ((le2n_3[2 * k + 0] * 5) * sizeof(double))),
+                            (double*)(p_variables[level]->data + ((le2n_3[2 * k + 1] * 5) * sizeof(double))),
+                            (double*)(p_edge_weights[level]->data + ((iterations_3[k] * 3) * sizeof(double))),
+                            (double*)(p_fluxes[level]->data + ((le2n_3[2 * k + 0] * 5) * sizeof(double))),
+                            (double*)(p_fluxes[level]->data + ((le2n_3[2 * k + 1] * 5) * sizeof(double))));
+                    }
+
+                     // loop zero_5d_array
+                    iterations_list& iterations_4 = tile_get_iterations (tile, 4);
+                    loop_size = tile_loop_size (tile, 4);
+
+                    for (int k = 0; k < loop_size; k++) {
+                        zero_5d_array_kernel(
+                            (double*)(p_fluxes[level]->data + ((iterations_4[k] * 5) * sizeof(double))));
+                    }
+                }
+                
+            }
+	
+            #else
 
             op_par_loop_compute_flux_edge_kernel_instrumented("compute_flux_edge_kernel",op_edges[level],
                         op_arg_dat(p_variables[level],0,p_edge_to_nodes[level],5,"double",OP_READ),
@@ -669,6 +881,8 @@ int main(int argc, char** argv)
                         op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));
             op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[level],
                         op_arg_dat(p_fluxes[level],-1,OP_ID,5,"double",OP_WRITE));
+
+            #endif
         }
 
         op_par_loop_residual_kernel("residual_kernel",op_nodes[level],
