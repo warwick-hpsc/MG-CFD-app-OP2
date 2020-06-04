@@ -317,15 +317,15 @@ $(OBJ_DIR)/mgcfd_slope_main.o: $(OP2_MAIN_SRC)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE \
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
 		-c -o $@ $^
-$(OBJ_DIR)/mgcfd_slope_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(SLOPE_KERNELS) $(SRC_DIR)/..//seq/_seqkernels.cpp $(SEQ_KERNELS)
+$(OBJ_DIR)/mgcfd_slope_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(SLOPE_KERNELS)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE \
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
-		-c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
+		-c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
 $(BIN_DIR)/mgcfd_slope: $(OP2_SLOPE_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) -DSLOPE \
-		-lm $(OP2_LIB) -lop2_seq -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lslope $(METIS_LIB) -lmetis \
+		-lm $(OP2_LIB) -lop2_openmp -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lslope $(METIS_LIB) -lmetis \
 		-o $@
 
 ## OPENMP
