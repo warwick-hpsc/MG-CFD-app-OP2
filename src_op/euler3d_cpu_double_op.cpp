@@ -780,7 +780,7 @@ int main(int argc, char** argv)
                     iterations_list& le2n_0 = tile_get_local_map (tile, 0, sl_maps_edge_to_nodes[level]);
                     iterations_list& iterations_0 = tile_get_iterations (tile, 0);
                     loop_size = tile_loop_size (tile, 0);
-                    
+
                     for (int k = 0; k < loop_size; k++) {
                         compute_flux_edge_kernel(
                             (double*)(p_variables[level]->data + ((le2n_0[k*2 + 0] * 5) * sizeof(double))),
@@ -794,7 +794,7 @@ int main(int argc, char** argv)
                     iterations_list& lbe2n_1 = tile_get_local_map (tile, 1, sl_maps_bnd_node_to_node[level]);
                     iterations_list& iterations_1 = tile_get_iterations (tile, 1);
                     loop_size = tile_loop_size (tile, 1);
-
+                  
                     for (int k = 0; k < loop_size; k++) {
                         compute_bnd_node_flux_kernel(
                              (int*)(p_bnd_node_groups[level]->data + ((iterations_1[k] * 1) * sizeof(int))),
@@ -806,7 +806,7 @@ int main(int argc, char** argv)
                     // loop time_step
                     iterations_list& iterations_2 = tile_get_iterations (tile, 2);
                     loop_size = tile_loop_size (tile, 2);
-
+                    
                     for (int k = 0; k < loop_size; k++) {
                         time_step_kernel(
                             &rkCycle,
@@ -833,7 +833,7 @@ int main(int argc, char** argv)
                      // loop zero_5d_array
                     iterations_list& iterations_4 = tile_get_iterations (tile, 4);
                     loop_size = tile_loop_size (tile, 4);
-
+                    #pragma omp simd
                     for (int k = 0; k < loop_size; k++) {
                         zero_5d_array_kernel(
                             (double*)(p_fluxes[level]->data + ((iterations_4[k] * 5) * sizeof(double))));
