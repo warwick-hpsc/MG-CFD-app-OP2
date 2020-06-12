@@ -428,7 +428,9 @@ int main(int argc, char** argv)
 
     // Setup OP2
     char* op_name = alloc<char>(100);
-    char* sl_name = alloc<char>(100); //slope
+    #ifdef SLOPE
+    char* sl_name = alloc<char>(100);
+    #endif
     {
               op_decl_const2("smoothing_coefficient",1,"double",&smoothing_coefficient);
               op_decl_const2("ff_variable",5,"double",ff_variable);
@@ -588,20 +590,20 @@ int main(int argc, char** argv)
 
             insp[i] = insp_init(avg_tile_size, OMP, COL_DEFAULT, &mesh_maps[i]);
 
-            sprintf(op_name, "compute_flux_L%d", i);
-            insp_add_parloop (insp[i], op_name, sl_edges[i], &compute_flux_desc[i]);
+            sprintf(sl_name, "compute_flux_L%d", i);
+            insp_add_parloop (insp[i], sl_name, sl_edges[i], &compute_flux_desc[i]);
 
-            sprintf(op_name, "compute_bflux_L%d", i);
-            insp_add_parloop (insp[i], op_name, sl_bnd_nodes[i], &compute_bflux_desc[i]);
+            sprintf(sl_name, "compute_bflux_L%d", i);
+            insp_add_parloop (insp[i], sl_name, sl_bnd_nodes[i], &compute_bflux_desc[i]);
 
-            sprintf(op_name, "time_step_L%d", i);
-            insp_add_parloop (insp[i], op_name, sl_nodes[i],  &time_step_desc[i]);
+            sprintf(sl_name, "time_step_L%d", i);
+            insp_add_parloop (insp[i], sl_name, sl_nodes[i],  &time_step_desc[i]);
 
-            sprintf(op_name, "indirect_rw_L%d", i);
-            insp_add_parloop(insp[i], op_name, sl_edges[i], &indirect_rw_desc[i]);
+            sprintf(sl_name, "indirect_rw_L%d", i);
+            insp_add_parloop(insp[i], sl_name, sl_edges[i], &indirect_rw_desc[i]);
 
-            sprintf(op_name, "zero_5d_L%d", i);
-            insp_add_parloop(insp[i], op_name, sl_nodes[i], &zero_5d_array_desc[i]);
+            sprintf(sl_name, "zero_5d_L%d", i);
+            insp_add_parloop(insp[i], sl_name, sl_nodes[i], &zero_5d_array_desc[i]);
 
             seed_loop = 0;
             insp_run (insp[i], seed_loop);
@@ -763,19 +765,16 @@ int main(int argc, char** argv)
             #endif
 
             #ifdef SLOPE
-            int ncolors = exec_num_colors (exec[level]);
             //for each colour
             for (int color = 0; color < ncolors; color++) {
             // for all tiles of this color
                 const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
 
-               #pragma omp parallel for
+                #pragma omp parallel for
                 for (int j = 0; j < n_tiles_per_color; j++) {
                     // execute the tile
                     tile_t* tile = exec_tile_at (exec[level], color, j);
                     int loop_size;
-
-                    //printf("n_tiles_per_color=%d, j=%d\n", n_tiles_per_color, j);
 
                     // loop compute_flux_edge
                     iterations_list& le2n_0 = tile_get_local_map (tile, 0, sl_maps_edge_to_nodes[level]);
