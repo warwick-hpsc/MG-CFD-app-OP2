@@ -20,8 +20,10 @@ int main(int argc, char** argv){
 
 	char coupler[] = "COUPLER";
 	char mgcfd[] = "MG-CFD";
+	char unit_1[] = "UNIT_1";
+	char unit_2[] = "UNIT_2";
 	char total[] = "TOTAL";
-	bool debug = false;
+	bool debug = true;
 
 	int mpi_ranks = 0;
 	char keyword[8];//longest word is COUPLER
@@ -51,6 +53,8 @@ int main(int argc, char** argv){
 			temp_count++;
 			mgcfd_count++;
 			mpi_ranks += temp_unit;
+		}else if(strcmp(keyword, unit_1) == 0 || strcmp(keyword, unit_2) == 0){
+			units[temp_count-1].mgcfd_units.push_back(temp_unit);
 		}
 	}
 
@@ -103,15 +107,6 @@ int main(int argc, char** argv){
 	std::vector<int> temp_mgcfd_position;
 
 	for(int i=0; i<num_of_units;i++){
-		if(units[i].type == 'C'){
-			temp_coupler++;
-			temp_coupler_position.push_back(temp_coupler);
-			for(int j=temp_marker; j < temp_marker + units[i].processes; j++){
-				relative_positions[j].typelocator = 'C';
-				relative_positions[j].placelocator = temp_coupler;
-			}
-			temp_marker += units[i].processes;
-		}
 		if(units[i].type == 'M'){
 			temp_mgcfd++;
 			temp_mgcfd_position.push_back(temp_mgcfd);
@@ -120,60 +115,57 @@ int main(int argc, char** argv){
 				relative_positions[j].placelocator = temp_mgcfd;
 			}
 			temp_marker += units[i].processes;	
-
-			if(temp_coupler_position.size() > 0 && temp_mgcfd_position.size() == 2){//if there is an unassigned coupler unit and 2 unassigned mg-cfd units
-				int k = 0;
-				while(units[k].coupler_ranks.empty() == false || units[k].type == 'M'){//find the first unassigned coupler unit
-					k++;
-				}
-
-				std::vector<int> temp_coupler_processes;//stores the process list to go into the units[k].coupler_ranks vector
-				int temp_coupler_relative_position = temp_coupler_position.back();//the placelocator for the coupler unit
-				temp_coupler_position.pop_back();
-				for(int j=0; j<temp_marker; j++){
-					if(relative_positions[j].placelocator == temp_coupler_relative_position && relative_positions[j].typelocator == 'C'){
-						temp_coupler_processes.push_back(j);//add coupler ranks to the temp_coupler_processes vector to transfer to the units[k].coupler_ranks
-					}
-				}
-				units[k].coupler_ranks = temp_coupler_processes;
-
-				int k2 = 0;//keep k to store the mgcfd processes in the coupler unit 'mgcfd_ranks' vector
-				while(units[k2].coupler_ranks.empty() == false || units[k2].type == 'C'){//find the first unassigned mgcfd unit
-					k2++;
-				}
-
-				units[k2].coupler_ranks = temp_coupler_processes;
-
-				std::vector<int> temp_mgcfd_processes;
-				int temp_mgcfd_relative_position = temp_mgcfd_position.back();//the placelocator for the 1st MG-CFD unit
-				temp_mgcfd_position.pop_back();
-				for(int j=0; j<temp_marker; j++){
-					if(relative_positions[j].placelocator == temp_mgcfd_relative_position && relative_positions[j].typelocator == 'M'){
-						temp_mgcfd_processes.push_back(j);//add mgcfd ranks to the temp_mgcfd_processes vector to transfer to the units[k & k2].coupler_ranks
-					}
-				}
-
-				units[k].mgcfd_ranks.push_back(temp_mgcfd_processes);//set mgcfd_ranks of the coupler unit to the discovered ranks
-				units[k2].mgcfd_ranks.push_back(temp_mgcfd_processes);//set mgcfd_ranks of the 1st MG-CFD unit to the discovered ranks
-
-				int k3 = 0;//k3 is the 2nd MGCFD instance that the coupler unit manages
-				while(units[k3].coupler_ranks.empty() == false || units[k3].type == 'C'){//find the second unassigned mgcfd unit
-					k3++;
-				}
-
-				units[k3].coupler_ranks = temp_coupler_processes;
-				temp_mgcfd_processes.clear();
-				temp_mgcfd_relative_position = temp_mgcfd_position.back();//the placelocator for the 2nd MG-CFD unit
-				temp_mgcfd_position.pop_back();
-				for(int j=0; j<temp_marker; j++){
-					if(relative_positions[j].placelocator == temp_mgcfd_relative_position && relative_positions[j].typelocator == 'M'){
-						temp_mgcfd_processes.push_back(j);//add coupler ranks to the temp_coupler_processes vector to transfer to the units[k & k3].coupler_ranks
-					}
-				}
-
-				units[k].mgcfd_ranks.push_back(temp_mgcfd_processes);//set mgcfd_ranks of the coupler unit to the discovered ranks
-				units[k3].mgcfd_ranks.push_back(temp_mgcfd_processes);//set mgcfd_ranks of the 2nd MG-CFD unit to the discovered ranks
+		}
+		if(units[i].type == 'C'){
+			temp_coupler++;
+			temp_coupler_position.push_back(temp_coupler);
+			for(int j=temp_marker; j < temp_marker + units[i].processes; j++){
+				relative_positions[j].typelocator = 'C';
+				relative_positions[j].placelocator = temp_coupler;
 			}
+			temp_marker += units[i].processes;	
+
+			std::vector<int> temp_coupler_processes;//stores the process list to go into the units[k].coupler_ranks vector
+			int temp_coupler_relative_position = temp_coupler_position.back();//the placelocator for the coupler unit
+			temp_coupler_position.pop_back();
+			for(int j=0; j<temp_marker; j++){
+				if(relative_positions[j].placelocator == temp_coupler_relative_position && relative_positions[j].typelocator == 'C'){
+					temp_coupler_processes.push_back(j);//add coupler ranks to the temp_coupler_processes vector to transfer to the units[k].coupler_ranks
+				}
+			}
+			units[i].coupler_ranks = temp_coupler_processes;
+
+			int k2 = units[i].mgcfd_units[0] - 1;//keep k to store the mgcfd processes in the coupler unit 'mgcfd_ranks' vector
+
+            for(int j = 0; j < temp_coupler_processes.size(); j++) {
+			    units[k2].coupler_ranks.push_back(temp_coupler_processes[j]);
+            }
+
+			std::vector<int> temp_mgcfd_processes;
+			for(int j=0; j<temp_marker; j++){
+				if(relative_positions[j].placelocator == (k2 + 1) && relative_positions[j].typelocator == 'M'){
+					temp_mgcfd_processes.push_back(j);//add mgcfd ranks to the temp_mgcfd_processes vector to transfer to the units[k & k2].coupler_ranks
+				}
+			}
+
+			units[i].mgcfd_ranks.push_back(temp_mgcfd_processes);//set mgcfd_ranks of the coupler unit to the discovered ranks
+			units[k2].mgcfd_ranks.push_back(temp_mgcfd_processes);//set mgcfd_ranks of the 1st MG-CFD unit to the discovered ranks
+
+			int k3 = units[i].mgcfd_units[1] - 1;//k3 is the 2nd MGCFD instance that the coupler unit manages
+
+            for(int j = 0; j < temp_coupler_processes.size(); j++) {
+			    units[k3].coupler_ranks.push_back(temp_coupler_processes[j]);
+            }
+
+			temp_mgcfd_processes.clear();
+			for(int j=0; j<temp_marker; j++){
+				if(relative_positions[j].placelocator == (k3 + 1) && relative_positions[j].typelocator == 'M'){
+					temp_mgcfd_processes.push_back(j);//add coupler ranks to the temp_coupler_processes vector to transfer to the units[k & k3].coupler_ranks
+				}
+			}
+
+			units[i].mgcfd_ranks.push_back(temp_mgcfd_processes);//set mgcfd_ranks of the coupler unit to the discovered ranks
+			units[k3].mgcfd_ranks.push_back(temp_mgcfd_processes);//set mgcfd_ranks of the 2nd MG-CFD unit to the discovered ranks
 		} 
 	}
 	//for debugging purposes
@@ -252,8 +244,8 @@ int main(int argc, char** argv){
 			}
     	}
 
-		//printf("I am coupler and my rank is: %d\n", rank);//combine
-		//printf("I am coupler unit: %d\n", unit_count);
+		printf("I am coupler and my rank is: %d\n", rank);//combine
+		printf("I am coupler unit: %d\n", unit_count);
 		int left_rank = units[unit_count].mgcfd_ranks[0][0];
 		int left_size = static_cast<int>(units[unit_count].mgcfd_ranks[0].size());
 		int right_rank = units[unit_count].mgcfd_ranks[1][0];
@@ -283,25 +275,25 @@ int main(int argc, char** argv){
 			//printf("I've started the cycle\n");
 
 			//printf("I am coupler rank %d, and I am waiting to receive data from global rank %d\n", rank, left_rank);
-			MPI_Recv(left_rank_storage, left_size, MPI_INT, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);/* currently ignore status - can be changed */
+			//MPI_Recv(left_rank_storage, left_size, MPI_INT, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);/* currently ignore status - can be changed */
 			/* Interpolate logic goes here */
             MPI_Recv(left_p_variables_l0, left_nodes_sizes[0], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(left_p_variables_l1, left_nodes_sizes[1], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(left_p_variables_l2, left_nodes_sizes[2], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(left_p_variables_l3, left_nodes_sizes[3], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			MPI_Send(left_rank_storage, left_size, MPI_INT, right_rank, 0, MPI_COMM_WORLD);
+			//MPI_Send(left_rank_storage, left_size, MPI_INT, right_rank, 0, MPI_COMM_WORLD);
             MPI_Send(left_p_variables_l0, left_nodes_sizes[0], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
             MPI_Send(left_p_variables_l1, left_nodes_sizes[1], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
             MPI_Send(left_p_variables_l2, left_nodes_sizes[2], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
             MPI_Send(left_p_variables_l3, left_nodes_sizes[3], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
 
-			MPI_Recv(right_rank_storage, right_size, MPI_INT, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);/* currently ignore status - can be changed */
+			//MPI_Recv(right_rank_storage, right_size, MPI_INT, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);/* currently ignore status - can be changed */
 			/* Interpolate logic goes here */
             MPI_Recv(right_p_variables_l0, right_nodes_sizes[0], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(right_p_variables_l1, right_nodes_sizes[1], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(right_p_variables_l2, right_nodes_sizes[2], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(right_p_variables_l3, right_nodes_sizes[3], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			MPI_Send(right_rank_storage, right_size, MPI_INT, left_rank, 0, MPI_COMM_WORLD);
+			//MPI_Send(right_rank_storage, right_size, MPI_INT, left_rank, 0, MPI_COMM_WORLD);
             MPI_Send(right_p_variables_l0, right_nodes_sizes[0], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
             MPI_Send(right_p_variables_l1, right_nodes_sizes[1], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
             MPI_Send(right_p_variables_l2, right_nodes_sizes[2], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
