@@ -815,7 +815,23 @@ int main(int argc, char** argv)
                             (double*)(p_old_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
                             (double*)(p_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))));
                     }
+                }
+                
+            }
 
+            // Now repeat tiling but with indirect_rw() kernel in place of compute_flux(), with care taken 
+            // to not change variables[]
+            //for each colour
+            for (int color = 0; color < ncolors; color++) {
+            // for all tiles of this color
+                const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
+
+                #pragma omp parallel for
+                for (int j = 0; j < n_tiles_per_color; j++) {
+                    // execute the tile
+                    tile_t* tile = exec_tile_at (exec[level], color, j);
+                    int loop_size;
+	
                       // loop indirect_rw
                     iterations_list& le2n_3 = tile_get_local_map (tile, 3, sl_maps_edge_to_nodes[level]);
                     iterations_list& iterations_3 = tile_get_iterations (tile, 3);
@@ -830,7 +846,9 @@ int main(int argc, char** argv)
                             (double*)(p_fluxes[level]->data + ((le2n_3[2 * k + 1] * 5) * sizeof(double))));
                     }
 
-                     // loop zero_5d_array
+                    // Immediately zero fluxes, so that time_step() does not change variables[].
+                    // An alternative fix is to modify time_step() to write non-zero numbers to a dummy array, 
+                    // but then compiler might notice that and optimise-out the entire loop!
                     iterations_list& iterations_4 = tile_get_iterations (tile, 4);
                     loop_size = tile_loop_size (tile, 4);
                     #pragma omp simd
@@ -838,6 +856,20 @@ int main(int argc, char** argv)
                         zero_5d_array_kernel(
                             (double*)(p_fluxes[level]->data + ((iterations_4[k] * 5) * sizeof(double))));
                     }
+
+                    // time_step (hopefully compiler does not realise it is just adding zeroes!)
+                    iterations_list& iterations_2 = tile_get_iterations (tile, 2);
+                    loop_size = tile_loop_size (tile, 2);
+                    
+                    for (int k = 0; k < loop_size; k++) {
+                        time_step_kernel(
+                            &rkCycle,
+                            (double*)(p_step_factors[level]->data + ((iterations_2[k] * 1) * sizeof(double))),
+                            (double*)(p_fluxes[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
+                            (double*)(p_old_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
+                            (double*)(p_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))));
+                    }
+
                 }
                 
             }
