@@ -478,3 +478,4 @@ inline bool parse_arguments(int argc, char** argv) {
 }
 
 #endif
+

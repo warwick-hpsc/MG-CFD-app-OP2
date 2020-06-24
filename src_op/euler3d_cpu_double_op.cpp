@@ -232,6 +232,7 @@ config conf;
 #include "compute_node_area_kernel.h"
 #include "validation.h"
 #include "indirect_rw.h"
+#include "coupler_config.h"
 
 int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, struct unit units[], struct locators relative_positions[])
 {
@@ -715,7 +716,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             }
         #endif
 
-        if(i != prev_cycle){
+        if(i != prev_cycle && ((i % upd_freq) == 0)){
             prev_cycle=i;
 
             op_fetch_data(p_variables[0], p_variables_data_l0);
@@ -1127,5 +1128,6 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
     return 0;
 }
+
 
 

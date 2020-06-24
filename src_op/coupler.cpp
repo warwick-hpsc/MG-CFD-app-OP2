@@ -9,6 +9,7 @@
 #include "../src/const.h"
 
 
+
 int main(int argc, char** argv){
 
 	FILE *ifp = fopen("cpx_input.cfg", "r");
@@ -223,12 +224,10 @@ int main(int argc, char** argv){
 		}
 	}
     MPI_Fint comms_shell = MPI_Comm_c2f(new_comm);
-
 	if(!is_coupler){
 		main_mgcfd(argc, argv, comms_shell, instance_number, units, relative_positions);
 	}else{
-		
-		
+		#include "coupler_config.h"
 		MPI_Comm coupler_comm = MPI_Comm_f2c(comms_shell);
 		
 
@@ -271,11 +270,10 @@ int main(int argc, char** argv){
         right_p_variables_l2 = (double *) malloc(right_nodes_sizes[2] * NVAR * sizeof(double));
         right_p_variables_l3 = (double *) malloc(right_nodes_sizes[3] * NVAR * sizeof(double));
 
-		while(cycle_counter < 25){/* TODO: get initial MPI message to get number of cycles */
-			//printf("I've started the cycle\n");
 
-			//printf("I am coupler rank %d, and I am waiting to receive data from global rank %d\n", rank, left_rank);
-			//MPI_Recv(left_rank_storage, left_size, MPI_INT, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);/* currently ignore status - can be changed */
+		while((cycle_counter < 25) && ((cycle_counter % upd_freq) == 0)){/* Change this value to the number of cycles if it is not the default*/
+			printf("My cycle counter is %d\n", cycle_counter);
+
 			/* Interpolate logic goes here */
             MPI_Recv(left_p_variables_l0, left_nodes_sizes[0], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(left_p_variables_l1, left_nodes_sizes[1], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -287,7 +285,6 @@ int main(int argc, char** argv){
             MPI_Send(left_p_variables_l2, left_nodes_sizes[2], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
             MPI_Send(left_p_variables_l3, left_nodes_sizes[3], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
 
-			//MPI_Recv(right_rank_storage, right_size, MPI_INT, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);/* currently ignore status - can be changed */
 			/* Interpolate logic goes here */
             MPI_Recv(right_p_variables_l0, right_nodes_sizes[0], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(right_p_variables_l1, right_nodes_sizes[1], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -299,7 +296,7 @@ int main(int argc, char** argv){
             MPI_Send(right_p_variables_l2, right_nodes_sizes[2], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
             MPI_Send(right_p_variables_l3, right_nodes_sizes[3], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
 
-			cycle_counter++;
+			cycle_counter = cycle_counter + upd_freq;
 
 		}
 		MPI_Finalize();
@@ -307,5 +304,6 @@ int main(int argc, char** argv){
 	}
     
 }
+
 
 
