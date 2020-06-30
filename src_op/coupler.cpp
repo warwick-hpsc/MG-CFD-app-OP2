@@ -24,7 +24,7 @@ int main(int argc, char** argv){
 	char unit_1[] = "UNIT_1";
 	char unit_2[] = "UNIT_2";
 	char total[] = "TOTAL";
-	bool debug = true;
+	bool debug = false;
 
 	int mpi_ranks = 0;
 	char keyword[8];//longest word is COUPLER
@@ -235,7 +235,7 @@ int main(int argc, char** argv){
 
 		bool found = false;
 		int unit_count = 0;
-    	while(!found){ /* Currently this is just for one coupler unit, so stop when the unit type is C*/
+    	while(!found){
 			if(units[unit_count].type == 'C' && units[unit_count].coupler_ranks[0] == rank){
 				found=true;
 			}else{
@@ -243,8 +243,6 @@ int main(int argc, char** argv){
 			}
     	}
 
-		printf("I am coupler and my rank is: %d\n", rank);//combine
-		printf("I am coupler unit: %d\n", unit_count);
 		int left_rank = units[unit_count].mgcfd_ranks[0][0];
 		int left_size = static_cast<int>(units[unit_count].mgcfd_ranks[0].size());
 		int right_rank = units[unit_count].mgcfd_ranks[1][0];
@@ -274,23 +272,21 @@ int main(int argc, char** argv){
 		while((cycle_counter < 25) && ((cycle_counter % upd_freq) == 0)){/* Change this value to the number of cycles if it is not the default*/
 			printf("My cycle counter is %d\n", cycle_counter);
 
-			/* Interpolate logic goes here */
             MPI_Recv(left_p_variables_l0, left_nodes_sizes[0], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(left_p_variables_l1, left_nodes_sizes[1], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(left_p_variables_l2, left_nodes_sizes[2], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(left_p_variables_l3, left_nodes_sizes[3], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			//MPI_Send(left_rank_storage, left_size, MPI_INT, right_rank, 0, MPI_COMM_WORLD);
+
             MPI_Send(left_p_variables_l0, left_nodes_sizes[0], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
             MPI_Send(left_p_variables_l1, left_nodes_sizes[1], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
             MPI_Send(left_p_variables_l2, left_nodes_sizes[2], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
             MPI_Send(left_p_variables_l3, left_nodes_sizes[3], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
 
-			/* Interpolate logic goes here */
             MPI_Recv(right_p_variables_l0, right_nodes_sizes[0], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(right_p_variables_l1, right_nodes_sizes[1], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(right_p_variables_l2, right_nodes_sizes[2], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(right_p_variables_l3, right_nodes_sizes[3], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			//MPI_Send(right_rank_storage, right_size, MPI_INT, left_rank, 0, MPI_COMM_WORLD);
+
             MPI_Send(right_p_variables_l0, right_nodes_sizes[0], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
             MPI_Send(right_p_variables_l1, right_nodes_sizes[1], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
             MPI_Send(right_p_variables_l2, right_nodes_sizes[2], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);

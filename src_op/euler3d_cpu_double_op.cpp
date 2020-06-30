@@ -301,7 +301,6 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     strcat(default_name, filename);
 
     FILE *fp = op_print_file_open(default_name);
-    //op_print_file("Test", fp);
     op_printf("MG-CFD Instance %s running!\n", filename);
     op_printf("MG-CFD Instance %s output is saved in file %s\n", filename, default_name);
 
@@ -688,7 +687,6 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     }
 
     if (internal_rank == MPI_ROOT) {
-        //op_printf("My coupler rank is: %d\n", coupler_rank);
         for(int z = 0; z < total_coupler_unit_count; z++){
             MPI_Send(nodes_sizes, 4, MPI_INT, units[unit_count].coupler_ranks[z], 0, MPI_COMM_WORLD);
         }
