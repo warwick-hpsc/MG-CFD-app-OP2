@@ -38,7 +38,7 @@ def infer_partitioner(slurm_filepath):
     return ""
 
 def collate_csvs():
-    cats = ["PerfData", "PAPI", "op2_performance_data"]
+    cats = ["PerfData", "PAPI", "op2_performance_data", "FileIoTimes"]
 
     dirpaths = mg_cfd_output_dirpaths
 
@@ -111,7 +111,7 @@ def collate_csvs():
             df_all.to_csv(agg_fp, index=False)
 
 def aggregate():
-    for cat in ["PerfData", "PAPI", "op2_performance_data"]:
+    for cat in ["PerfData", "PAPI", "op2_performance_data", "FileIoTimes"]:
         print("Aggregating " + cat)
         df_filepath = os.path.join(prepared_output_dirpath,cat+".csv")
         if not os.path.isfile(df_filepath):
