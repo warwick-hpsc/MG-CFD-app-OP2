@@ -101,21 +101,21 @@ extern config conf;
 
 static struct option long_opts[] = 
 {
-    { "help",               no_argument,       NULL, 'h' },
-    { "config-filepath",    required_argument, NULL, 'c'}, 
-    { "legacy-mode",        no_argument,       NULL, 'l' },
-    { "input-file",         required_argument, NULL, 'i' },
-    { "input-directory",    required_argument, NULL, 'd' },
-    { "papi-config-file",   required_argument, NULL, 'p' },
-    { "output-file-prefix", required_argument, NULL, 'o' },
-    { "num-cycles",         required_argument, NULL, 'g' },
-    { "partitioner",        required_argument, NULL, 'm' },
-    { "partitioner-method", required_argument, NULL, 'r' },
-    { "validate",           no_argument,       NULL, 'v' },
-    { "output-variables",   no_argument,       (int*)&conf.output_variables,    1 },
-    { "output-fluxes",      no_argument,       (int*)&conf.output_fluxes,       1 },
-    { "output-step-factors",no_argument,       (int*)&conf.output_step_factors, 1 },
-    { "output-intermediate-flows-interval", required_argument,  NULL,    'I' },
+    { "help",                 no_argument,       NULL, 'h' },
+    { "config-filepath",      required_argument, NULL, 'c'}, 
+    { "legacy-mode",          no_argument,       NULL, 'l' },
+    { "input-file",           required_argument, NULL, 'i' },
+    { "input-directory",      required_argument, NULL, 'd' },
+    { "papi-config-file",     required_argument, NULL, 'p' },
+    { "output-file-prefix",   required_argument, NULL, 'o' },
+    { "num-cycles",           required_argument, NULL, 'g' },
+    { "partitioner",          required_argument, NULL, 'm' },
+    { "partitioner-method",   required_argument, NULL, 'r' },
+    { "validate",             no_argument,       NULL, 'v' },
+    { "output-variables",     no_argument,       (int*)&conf.output_variables,    1 },
+    { "output-fluxes",        no_argument,       (int*)&conf.output_fluxes,       1 },
+    { "output-step-factors",  no_argument,       (int*)&conf.output_step_factors, 1 },
+    { "output-flow-interval", required_argument, NULL, 'I' },
 };
 #define GETOPTS "hc:li:d:p:o:g:m:r:vI:"
 
@@ -348,7 +348,7 @@ inline void print_help(void)
     fprintf(stderr, "--output-step-factors\n");
     fprintf(stderr, "        write time-step factors to HDF5 file\n");
 
-    fprintf(stderr, "--output-intermediate-flows-interval=INT\n");
+    fprintf(stderr, "-I, --output-intermediate-flows-interval=INT\n");
     fprintf(stderr, "        interval between writes of intermediate flow states, \n");
     fprintf(stderr, "        as number of multigrid cycles. Set to positive INT to \n");
     fprintf(stderr, "        activate writing. \n");

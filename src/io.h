@@ -393,10 +393,7 @@ inline void dump_file_io_perf_data_to_file(
 
     std::ofstream outfile;
 
-    // outfile.open(filepath.c_str(), std::ios_base::app);
-    outfile.open(filepath.c_str(), std::ios_base::out);
-    write_header = true;
-
+    outfile.open(filepath.c_str(), std::ios_base::app);
     if (write_header) outfile << header.str() << std::endl;
 
     // for (int l=0; l<num_levels; l++) {
