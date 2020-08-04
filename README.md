@@ -81,6 +81,23 @@ MG-CFD has more command-line arguments to ease file/directory interaction, and c
               --data-dirpath path/to/job-output
 ```
 
+Validating result
+==========================================
+
+MG-CFD can verify the final flow state against a precomputed solution file, useful for assuring correctness of code changes. To perform this use the `-v` parameter, and set the number of multigrid cycles `-g` to match the solution file (inspect its filename).
+
+```Shell
+     $ mgcfd_* ... -v -g 10
+```
+
+You can also generate your own solution file:
+
+```Shell
+     $ mgcfd_* ... --output-variables --output-file-prefix "solution."
+```
+
+This will generate a solution file for each multigrid level, e.g. `solution.variables.L0.cycles=10.h5`
+
 Datasets
 ==========================================
 
