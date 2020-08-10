@@ -94,6 +94,15 @@ ifeq ($(COMPILER),gnu)
   OMPFLAGS 	= -fopenmp
   MPIFLAGS 	= $(CPPFLAGS)
 else
+ifeq ($(COMPILER),clang)
+  CPP := clang++
+  CFLAGS	= -fPIC -DUNIX -DVECTORIZE
+  CPPFLAGS 	= $(CFLAGS)
+  OMPFLAGS 	= -fopenmp
+  MPIFLAGS 	= $(CPPFLAGS)
+  MPICC += -cc=clang
+  MPICPP += -cxx=clang++
+else
 ifeq ($(COMPILER),intel)
   CPP = icpc
   CFLAGS = -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -DVECTORIZE -qopt-report=5
@@ -140,6 +149,7 @@ ifeq ($(COMPILER),cray)
   MPIFLAGS      = $(CPPFLAGS)
 else
   $(error unrecognised value for COMPILER: $(COMPILER))
+endif
 endif
 endif
 endif
