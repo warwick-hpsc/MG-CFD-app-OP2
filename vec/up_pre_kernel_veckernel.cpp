@@ -206,7 +206,7 @@ inline void down_v2_kernel_post(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline void up_pre_kernel_vec( double variable[*][SIMD_VEC], int up_scratch[*][SIMD_VEC], int idx ) {
+inline void up_pre_kernel_vec( double variable[][SIMD_VEC], int up_scratch[][SIMD_VEC], int idx ) {
     variable[VAR_DENSITY][idx] = 0.0;
     variable[VAR_MOMENTUM+0][idx] = 0.0;
     variable[VAR_MOMENTUM+1][idx] = 0.0;
@@ -229,9 +229,9 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
   args[1] = arg1;
   //create aligned pointers for dats
   ALIGNED_double       double * __restrict__ ptr0 = (double *) arg0.data;
-  __assume_aligned(ptr0,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr0,double_ALIGN);
   ALIGNED_int       int * __restrict__ ptr1 = (int *) arg1.data;
-  __assume_aligned(ptr1,int_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr1,int_ALIGN);
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;

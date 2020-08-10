@@ -219,7 +219,7 @@ inline void compute_flux_edge_kernel(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline void compute_flux_edge_kernel_vec( const double variables_a[*][SIMD_VEC], const double variables_b[*][SIMD_VEC], const double *edge_weight, double fluxes_a[*][SIMD_VEC], double fluxes_b[*][SIMD_VEC], int idx ) {
+inline void compute_flux_edge_kernel_vec( const double variables_a[][SIMD_VEC], const double variables_b[][SIMD_VEC], const double *edge_weight, double fluxes_a[][SIMD_VEC], double fluxes_b[][SIMD_VEC], int idx ) {
   double ewt = std::sqrt(edge_weight[0]*edge_weight[0] +
                          edge_weight[1]*edge_weight[1] +
                          edge_weight[2]*edge_weight[2]);
@@ -426,15 +426,15 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
   args[4] = arg4;
   //create aligned pointers for dats
   ALIGNED_double const double * __restrict__ ptr0 = (double *) arg0.data;
-  __assume_aligned(ptr0,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr0,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr1 = (double *) arg1.data;
-  __assume_aligned(ptr1,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr1,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr2 = (double *) arg2.data;
-  __assume_aligned(ptr2,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr2,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr3 = (double *) arg3.data;
-  __assume_aligned(ptr3,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr3,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr4 = (double *) arg4.data;
-  __assume_aligned(ptr4,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr4,double_ALIGN);
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;

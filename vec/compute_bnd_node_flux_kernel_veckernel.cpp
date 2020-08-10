@@ -215,7 +215,7 @@ inline void compute_flux_edge_kernel(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline void compute_bnd_node_flux_kernel_vec( const int *g, const double *edge_weight, const double variables_b[*][SIMD_VEC], double fluxes_b[*][SIMD_VEC], int idx ) {
+inline void compute_bnd_node_flux_kernel_vec( const int *g, const double *edge_weight, const double variables_b[][SIMD_VEC], double fluxes_b[][SIMD_VEC], int idx ) {
 
 
 
@@ -384,13 +384,13 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
   args[3] = arg3;
   //create aligned pointers for dats
   ALIGNED_int const int * __restrict__ ptr0 = (int *) arg0.data;
-  __assume_aligned(ptr0,int_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr0,int_ALIGN);
   ALIGNED_double const double * __restrict__ ptr1 = (double *) arg1.data;
-  __assume_aligned(ptr1,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr1,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr2 = (double *) arg2.data;
-  __assume_aligned(ptr2,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr2,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr3 = (double *) arg3.data;
-  __assume_aligned(ptr3,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr3,double_ALIGN);
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;

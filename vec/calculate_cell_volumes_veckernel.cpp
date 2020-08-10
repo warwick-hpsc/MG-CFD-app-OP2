@@ -91,7 +91,7 @@ inline void dampen_ewt(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline void calculate_cell_volumes_vec( const double coords1[*][SIMD_VEC], const double coords2[*][SIMD_VEC], double* ewt, double vol1[*][SIMD_VEC], double vol2[*][SIMD_VEC], int idx ) {
+inline void calculate_cell_volumes_vec( const double coords1[][SIMD_VEC], const double coords2[][SIMD_VEC], double* ewt, double vol1[][SIMD_VEC], double vol2[][SIMD_VEC], int idx ) {
     double d[NDIM];
     double dist = 0.0;
     for (int i=0; i<NDIM; i++) {
@@ -141,15 +141,15 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
   args[4] = arg4;
   //create aligned pointers for dats
   ALIGNED_double const double * __restrict__ ptr0 = (double *) arg0.data;
-  __assume_aligned(ptr0,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr0,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr1 = (double *) arg1.data;
-  __assume_aligned(ptr1,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr1,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr2 = (double *) arg2.data;
-  __assume_aligned(ptr2,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr2,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr3 = (double *) arg3.data;
-  __assume_aligned(ptr3,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr3,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr4 = (double *) arg4.data;
-  __assume_aligned(ptr4,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr4,double_ALIGN);
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;

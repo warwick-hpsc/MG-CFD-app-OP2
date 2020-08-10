@@ -206,7 +206,7 @@ inline void down_v2_kernel_post(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline void down_kernel_vec( double* variable, const double* residual, const double* coord, const double residual_above[*][SIMD_VEC], const double coord_above[*][SIMD_VEC], int idx ) {
+inline void down_kernel_vec( double* variable, const double* residual, const double* coord, const double residual_above[][SIMD_VEC], const double coord_above[][SIMD_VEC], int idx ) {
     double dx = fabs(coord[0] - coord_above[0][idx]);
     double dy = fabs(coord[1] - coord_above[1][idx]);
     double dz = fabs(coord[2] - coord_above[2][idx]);
@@ -239,15 +239,15 @@ void op_par_loop_down_kernel(char const *name, op_set set,
   args[4] = arg4;
   //create aligned pointers for dats
   ALIGNED_double       double * __restrict__ ptr0 = (double *) arg0.data;
-  __assume_aligned(ptr0,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr0,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr1 = (double *) arg1.data;
-  __assume_aligned(ptr1,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr1,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr2 = (double *) arg2.data;
-  __assume_aligned(ptr2,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr2,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr3 = (double *) arg3.data;
-  __assume_aligned(ptr3,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr3,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr4 = (double *) arg4.data;
-  __assume_aligned(ptr4,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr4,double_ALIGN);
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
