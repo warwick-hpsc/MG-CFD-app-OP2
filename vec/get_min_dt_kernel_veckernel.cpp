@@ -121,24 +121,24 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
   if (exec_size >0) {
 
     #ifdef VECTORIZE
-    double dat1[SIMD_VEC];
-    for ( int i=0; i<SIMD_VEC; i++ ){
-      dat1[i] = INFINITY;
-    }
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
+    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
+      double dat1[SIMD_BLOCK_SIZE];
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+        dat1[i] = INFINITY;
+      }
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         get_min_dt_kernel(
           &(ptr0)[1 * (n+i)],
           &dat1[i]);
       }
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         *(double*)arg1.data = MIN(*(double*)arg1.data,dat1[i]);
       }
     }
     //remainder
-    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif

@@ -219,7 +219,10 @@ inline void compute_flux_edge_kernel(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline void compute_flux_edge_kernel_vec( const double variables_a[][SIMD_VEC], const double variables_b[][SIMD_VEC], const double *edge_weight, double fluxes_a[][SIMD_VEC], double fluxes_b[][SIMD_VEC], int idx ) {
+#if defined __clang__ || defined __GNUC__
+__attribute__((always_inline))
+#endif
+inline void compute_flux_edge_kernel_vec( const double variables_a[][SIMD_BLOCK_SIZE], const double variables_b[][SIMD_BLOCK_SIZE], const double *edge_weight, double fluxes_a[][SIMD_BLOCK_SIZE], double fluxes_b[][SIMD_BLOCK_SIZE], int idx ) {
   double ewt = std::sqrt(edge_weight[0]*edge_weight[0] +
                          edge_weight[1]*edge_weight[1] +
                          edge_weight[2]*edge_weight[2]);
@@ -461,8 +464,9 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
     #ifdef VECTORIZE
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      if (n+SIMD_VEC >= set->core_size) {
+    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
+      if (n+SIMD_BLOCK_SIZE >= set->core_size) {
+
         #ifdef PAPI
           if (num_events > 0)
             my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
@@ -478,12 +482,12 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
         }
         #endif
       }
-      ALIGNED_double double dat0[5][SIMD_VEC];
-      ALIGNED_double double dat1[5][SIMD_VEC];
-      ALIGNED_double double dat3[5][SIMD_VEC];
-      ALIGNED_double double dat4[5][SIMD_VEC];
+      ALIGNED_double double dat0[5][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat1[5][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat3[5][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat4[5][SIMD_BLOCK_SIZE];
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         int idx0_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx1_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 1];
 
@@ -513,7 +517,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
       }
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         compute_flux_edge_kernel_vec(
           dat0,
           dat1,
@@ -522,7 +526,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
           dat4,
           i);
       }
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         int idx3_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx4_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 1];
 
@@ -550,7 +554,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
     #endif
 
     //remainder
-    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif

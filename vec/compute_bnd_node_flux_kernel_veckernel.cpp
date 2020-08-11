@@ -215,7 +215,10 @@ inline void compute_flux_edge_kernel(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline void compute_bnd_node_flux_kernel_vec( const int *g, const double *edge_weight, const double variables_b[][SIMD_VEC], double fluxes_b[][SIMD_VEC], int idx ) {
+#if defined __clang__ || defined __GNUC__
+__attribute__((always_inline))
+#endif
+inline void compute_bnd_node_flux_kernel_vec( const int *g, const double *edge_weight, const double variables_b[][SIMD_BLOCK_SIZE], double fluxes_b[][SIMD_BLOCK_SIZE], int idx ) {
 
 
 
@@ -407,14 +410,14 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
     #ifdef VECTORIZE
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      if (n+SIMD_VEC >= set->core_size) {
+    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
+      if (n+SIMD_BLOCK_SIZE >= set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      ALIGNED_double double dat2[5][SIMD_VEC];
-      ALIGNED_double double dat3[5][SIMD_VEC];
+      ALIGNED_double double dat2[5][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat3[5][SIMD_BLOCK_SIZE];
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         int idx2_5 = 5 * arg2.map_data[(n+i) * arg2.map->dim + 0];
 
         dat2[0][i] = (ptr2)[idx2_5 + 0];
@@ -431,7 +434,7 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
       }
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         compute_bnd_node_flux_kernel_vec(
           &(ptr0)[1 * (n+i)],
           &(ptr1)[3 * (n+i)],
@@ -439,7 +442,7 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
           dat3,
           i);
       }
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         int idx3_5 = 5 * arg2.map_data[(n+i) * arg2.map->dim + 0];
 
         (ptr3)[idx3_5 + 0] += dat3[0][i];
@@ -452,7 +455,7 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
     }
 
     //remainder
-    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif
