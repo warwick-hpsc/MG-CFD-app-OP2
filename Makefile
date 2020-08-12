@@ -318,6 +318,7 @@ $(OBJ_DIR)/mgcfd_slope_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE \
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
+	    -I$(SRC_DIR)/../slope \
 		-c -o $@ $^
 $(OBJ_DIR)/mgcfd_slope_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(SLOPE_KERNELS)
 	mkdir -p $(OBJ_DIR)

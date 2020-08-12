@@ -44,6 +44,35 @@
 // OP2:
 #include  "op_lib_cpp.h"
 
+#define double_ALIGN 128
+#define float_ALIGN 64
+#define int_ALIGN 64
+#ifdef VECTORIZE
+#define SIMD_VEC 4
+#ifdef __clang__
+  // Clang-compiled SIMD loop always performs 2 serial iterations,
+  // so need to make the SIMD loop wider than 'SIMD_VEC'
+  #define SIMD_BLOCK_SIZE ((SIMD_VEC*3)+2)
+  // #define SIMD_BLOCK_SIZE ((SIMD_VEC*2)+2)
+#else
+  #define SIMD_BLOCK_SIZE SIMD_VEC
+#endif
+#define ALIGNED_double __attribute__((aligned(double_ALIGN)))
+#define ALIGNED_float __attribute__((aligned(float_ALIGN)))
+#define ALIGNED_int __attribute__((aligned(int_ALIGN)))
+#ifdef __ICC
+  #define DECLARE_PTR_ALIGNED(X, Y) __assume_aligned(X, Y)
+#else
+  #define DECLARE_PTR_ALIGNED(X, Y)
+#endif
+#include "compute_flux_edge_kernel_veckernel.h"
+#else
+#define ALIGNED_double
+#define ALIGNED_float
+#define ALIGNED_int
+#define DECLARE_PTR_ALIGNED(X, Y)
+#endif
+
 //
 // op_par_loop declarations
 //
@@ -722,6 +751,7 @@ int main(int argc, char** argv)
     double rms = 0.0;
     int bad_val_count = 0;
     double min_dt = std::numeric_limits<double>::max();
+    double flux_cpu_t1, flux_cpu_t2, flux_wall_t1, flux_wall_t2, flux_time=0.0;
     while(i < conf.num_cycles)
     {
         #ifdef LOG_PROGRESS
@@ -781,14 +811,83 @@ int main(int argc, char** argv)
                     iterations_list& iterations_0 = tile_get_iterations (tile, 0);
                     loop_size = tile_loop_size (tile, 0);
 
-                    for (int k = 0; k < loop_size; k++) {
-                        compute_flux_edge_kernel(
-                            (double*)(p_variables[level]->data + ((le2n_0[k*2 + 0] * 5) * sizeof(double))),
-                            (double*)(p_variables[level]->data + ((le2n_0[k*2 + 1] * 5) * sizeof(double))),
-                            (double*)(p_edge_weights[level]->data + ((iterations_0[k] * 3) * sizeof(double))),
-                            (double*)(p_fluxes[level]->data + ((le2n_0[k*2 + 0] * 5) * sizeof(double))),
-                            (double*)(p_fluxes[level]->data + ((le2n_0[k*2 + 1] * 5) * sizeof(double))));
-                    }
+                    op_timers_core(&flux_cpu_t1, &flux_wall_t1);
+
+                    const double* p_variables_data = (double*)(p_variables[level]->data);
+                    const double* p_edge_weights_data = (double*)(p_edge_weights[level]->data);
+                    double* p_fluxes_data    = (double*)(p_fluxes[level]->data);
+
+                    #ifndef VECTORIZE
+                      for (int k = 0; k < loop_size; k++) {
+                          compute_flux_edge_kernel(
+                              &p_variables_data[le2n_0[k*2 + 0] * 5],
+                              &p_variables_data[le2n_0[k*2 + 1] * 5],
+                              &p_edge_weights_data[iterations_0[k] * 3],
+                              &p_fluxes_data[le2n_0[k*2 + 0] * 5],
+                              &p_fluxes_data[le2n_0[k*2 + 1] * 5]);
+                      }
+                    #else
+                      int simd_end = (loop_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE;
+
+                      ALIGNED_double double dat0[5][SIMD_BLOCK_SIZE];
+                      ALIGNED_double double dat1[5][SIMD_BLOCK_SIZE];
+                      ALIGNED_double double dat3[5][SIMD_BLOCK_SIZE];
+                      ALIGNED_double double dat4[5][SIMD_BLOCK_SIZE];
+
+                      for (int n=0 ; n < simd_end; n+=SIMD_BLOCK_SIZE) {
+                          // "sl" is SIMD lane:
+                          for (int sl=0; sl<SIMD_BLOCK_SIZE; sl++ ){
+                            int k = n+sl;
+                            int idx0 = le2n_0[k*2 + 0];
+                            int idx1 = le2n_0[k*2 + 1];
+
+                            for (int v=0; v<5; v++) {
+                                dat0[v][sl] = p_variables_data[idx0*5 + v];
+                                dat1[v][sl] = p_variables_data[idx1*5 + v];
+                                dat3[v][sl] = 0.0;
+                                dat4[v][sl] = 0.0;
+                            }
+                          }
+
+                          #pragma omp simd simdlen(SIMD_VEC)
+                          for (int sl=0; sl<SIMD_BLOCK_SIZE; sl++ ){
+                            int k = n+sl;
+                            int ewt_idx = iterations_0[k];
+                            compute_flux_edge_kernel_vec(
+                              dat0,
+                              dat1,
+                              &p_edge_weights_data[ewt_idx*3],
+                              dat3,
+                              dat4,
+                              sl);
+                          }
+
+                          for ( int sl=0; sl<SIMD_BLOCK_SIZE; sl++ ){
+                            int k = n+sl;
+                            int idx3 = le2n_0[k*2 + 0];
+                            int idx4 = le2n_0[k*2 + 1];
+
+                            for (int v=0; v<5; v++) {
+                                p_fluxes_data[idx3*5 + v] += dat3[v][sl];
+                                p_fluxes_data[idx4*5 + v] += dat4[v][sl];
+                            }
+                          }
+                      }
+
+                      // remainder:
+                      for (int n = simd_end ; n < loop_size; n++) {
+                          int k = n;
+                          compute_flux_edge_kernel(
+                              &p_variables_data[le2n_0[k*2 + 0] * 5],
+                              &p_variables_data[le2n_0[k*2 + 1] * 5],
+                              &p_edge_weights_data[iterations_0[k] * 3],
+                              &p_fluxes_data[le2n_0[k*2 + 0] * 5],
+                              &p_fluxes_data[le2n_0[k*2 + 1] * 5]);
+                      }
+                    #endif
+
+                    op_timers_core(&flux_cpu_t2, &flux_wall_t2);
+                    flux_time += flux_wall_t2 - flux_wall_t1;
 
                     // loop compute_bnd_node_flux
                     iterations_list& lbe2n_1 = tile_get_local_map (tile, 1, sl_maps_bnd_node_to_node[level]);
@@ -986,6 +1085,7 @@ int main(int argc, char** argv)
 
     op_timers(&cpu_t2, &wall_t2);
     op_printf("Max total runtime = %f\n", wall_t2 - wall_t1);
+    op_printf("- flux compute = %f\n", flux_time);
 
     // Write summary performance data to stdout:
     op_timing_output();
