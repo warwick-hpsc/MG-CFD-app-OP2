@@ -206,7 +206,10 @@ inline void down_v2_kernel_post(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline void down_v2_kernel_vec( const double coord2a[*][SIMD_VEC], const double coord2b[*][SIMD_VEC], const double coord1a[*][SIMD_VEC], const double coord1b[*][SIMD_VEC], const double residuals1a[*][SIMD_VEC], const double residuals1b[*][SIMD_VEC], double residuals1a_prolonged[*][SIMD_VEC], double residuals1b_prolonged[*][SIMD_VEC], double residuals1a_prolonged_wsum[*][SIMD_VEC], double residuals1b_prolonged_wsum[*][SIMD_VEC], int idx ) {
+#if defined __clang__ || defined __GNUC__
+__attribute__((always_inline))
+#endif
+inline void down_v2_kernel_vec( const double coord2a[][SIMD_BLOCK_SIZE], const double coord2b[][SIMD_BLOCK_SIZE], const double coord1a[][SIMD_BLOCK_SIZE], const double coord1b[][SIMD_BLOCK_SIZE], const double residuals1a[][SIMD_BLOCK_SIZE], const double residuals1b[][SIMD_BLOCK_SIZE], double residuals1a_prolonged[][SIMD_BLOCK_SIZE], double residuals1b_prolonged[][SIMD_BLOCK_SIZE], double residuals1a_prolonged_wsum[][SIMD_BLOCK_SIZE], double residuals1b_prolonged_wsum[][SIMD_BLOCK_SIZE], int idx ) {
 
 
 
@@ -313,25 +316,25 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
   args[9] = arg9;
   //create aligned pointers for dats
   ALIGNED_double const double * __restrict__ ptr0 = (double *) arg0.data;
-  __assume_aligned(ptr0,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr0,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr1 = (double *) arg1.data;
-  __assume_aligned(ptr1,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr1,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr2 = (double *) arg2.data;
-  __assume_aligned(ptr2,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr2,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr3 = (double *) arg3.data;
-  __assume_aligned(ptr3,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr3,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr4 = (double *) arg4.data;
-  __assume_aligned(ptr4,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr4,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr5 = (double *) arg5.data;
-  __assume_aligned(ptr5,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr5,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr6 = (double *) arg6.data;
-  __assume_aligned(ptr6,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr6,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr7 = (double *) arg7.data;
-  __assume_aligned(ptr7,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr7,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr8 = (double *) arg8.data;
-  __assume_aligned(ptr8,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr8,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr9 = (double *) arg9.data;
-  __assume_aligned(ptr9,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr9,double_ALIGN);
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
@@ -348,22 +351,22 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
 
     #ifdef VECTORIZE
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      if (n+SIMD_VEC >= set->core_size) {
+    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
+      if (n+SIMD_BLOCK_SIZE >= set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      ALIGNED_double double dat0[3][SIMD_VEC];
-      ALIGNED_double double dat1[3][SIMD_VEC];
-      ALIGNED_double double dat2[3][SIMD_VEC];
-      ALIGNED_double double dat3[3][SIMD_VEC];
-      ALIGNED_double double dat4[5][SIMD_VEC];
-      ALIGNED_double double dat5[5][SIMD_VEC];
-      ALIGNED_double double dat6[5][SIMD_VEC];
-      ALIGNED_double double dat7[5][SIMD_VEC];
-      ALIGNED_double double dat8[1][SIMD_VEC];
-      ALIGNED_double double dat9[1][SIMD_VEC];
+      ALIGNED_double double dat0[3][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat1[3][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat2[3][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat3[3][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat4[5][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat5[5][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat6[5][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat7[5][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat8[1][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat9[1][SIMD_BLOCK_SIZE];
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         int idx0_3 = 3 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx1_3 = 3 * arg0.map_data[(n+i) * arg0.map->dim + 1];
         int idx2_3 = 3 * arg2.map_data[(n+i) * arg2.map->dim + 0];
@@ -417,7 +420,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
 
       }
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         down_v2_kernel_vec(
           dat0,
           dat1,
@@ -431,7 +434,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
           dat9,
           i);
       }
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         int idx6_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx7_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 1];
         int idx8_1 = 1 * arg0.map_data[(n+i) * arg0.map->dim + 0];
@@ -457,7 +460,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
     }
 
     //remainder
-    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif

@@ -206,7 +206,10 @@ inline void down_v2_kernel_post(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline void up_pre_kernel_vec( double variable[*][SIMD_VEC], int up_scratch[*][SIMD_VEC], int idx ) {
+#if defined __clang__ || defined __GNUC__
+__attribute__((always_inline))
+#endif
+inline void up_pre_kernel_vec( double variable[][SIMD_BLOCK_SIZE], int up_scratch[][SIMD_BLOCK_SIZE], int idx ) {
     variable[VAR_DENSITY][idx] = 0.0;
     variable[VAR_MOMENTUM+0][idx] = 0.0;
     variable[VAR_MOMENTUM+1][idx] = 0.0;
@@ -229,9 +232,9 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
   args[1] = arg1;
   //create aligned pointers for dats
   ALIGNED_double       double * __restrict__ ptr0 = (double *) arg0.data;
-  __assume_aligned(ptr0,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr0,double_ALIGN);
   ALIGNED_int       int * __restrict__ ptr1 = (int *) arg1.data;
-  __assume_aligned(ptr1,int_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr1,int_ALIGN);
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
@@ -248,26 +251,26 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
 
     #ifdef VECTORIZE
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      if (n+SIMD_VEC >= set->core_size) {
+    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
+      if (n+SIMD_BLOCK_SIZE >= set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      ALIGNED_double double dat0[5][SIMD_VEC];
-      ALIGNED_int int dat1[1][SIMD_VEC];
+      ALIGNED_double double dat0[5][SIMD_BLOCK_SIZE];
+      ALIGNED_int int dat1[1][SIMD_BLOCK_SIZE];
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         int idx0_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx1_1 = 1 * arg0.map_data[(n+i) * arg0.map->dim + 0];
 
       }
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         up_pre_kernel_vec(
           dat0,
           dat1,
           i);
       }
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         int idx0_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx1_1 = 1 * arg0.map_data[(n+i) * arg0.map->dim + 0];
 
@@ -283,7 +286,7 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
     }
 
     //remainder
-    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif

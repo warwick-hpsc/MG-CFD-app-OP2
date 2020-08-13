@@ -9,6 +9,7 @@
 
 #ifdef PAPI
 #include <papi.h>
+#include "const.h"
 #endif
 void op_par_loop_compute_flux_edge_kernel_instrumented(
   char const *name, op_set set,
