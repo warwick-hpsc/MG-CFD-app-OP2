@@ -53,6 +53,8 @@ else
   OPTIMISE := -O3
 endif
 
+OPTIMISE += -DVECTORIZE
+
 BIN_DIR = bin
 OBJ_DIR = obj
 SRC_DIR = src
