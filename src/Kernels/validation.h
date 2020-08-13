@@ -93,7 +93,7 @@ inline void count_non_zeros(
     int* count)
 {   
     for (int v=0; v<NVAR; v++) {
-        if ((*value) > 0.0) {
+        if (value[v] > 0.0) {
             (*count)++;
         }
     }
