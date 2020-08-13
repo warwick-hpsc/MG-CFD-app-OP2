@@ -17,7 +17,7 @@ data_dirpath="<DATA_DIRPATH>"
 # MG-CFD run variables:
 mg_cycles=<MG_CYCLES>
 validate_solution=<VALIDATE_SOLUTION>
-output_intermediate_flows_interval=<OUTPUT_INTERMEDIATE_FLOWS_INTERVAL>
+output_flow_interval=<OUTPUT_FLOW_INTERVAL>
 
 partitioner=<PARTITIONER>
 partitioner_method=<PARTITIONER_METHOD>
@@ -123,8 +123,8 @@ else
   fi
 fi
 exec_command+=" $bin_filepath -i $input_dat_filename -o ${run_outdir}/ -g $mg_cycles -m $partitioner -r $partitioner_method"
-if [ "$output_intermediate_flows_interval" -gt "0" ]; then
-  exec_command+=" -I $output_intermediate_flows_interval"
+if [ "$output_flow_interval" -gt "0" ]; then
+  exec_command+=" -I $output_flow_interval"
 fi
 if $papi ; then
   exec_command+=" -p ${run_outdir}/papi.conf"

@@ -406,7 +406,7 @@ inline void dump_file_io_perf_data_to_file(
         data_line << ',' << conf.partitioner_string;
         data_line << ',' << l;
 
-        data_line << ',' << conf.output_intermediate_flows_interval;
+        data_line << ',' << conf.output_flow_interval;
         data_line << ',' << number_of_file_io_writes;
         data_line << ',' << file_io_times[l];
 

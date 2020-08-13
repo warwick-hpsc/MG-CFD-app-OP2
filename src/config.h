@@ -94,7 +94,7 @@ typedef struct {
 
     bool output_final_anything;
 
-    int output_intermediate_flows_interval;
+    int output_flow_interval;
 } config;
 
 extern config conf;
@@ -150,7 +150,7 @@ inline void set_config_defaults() {
     conf.output_variables = false;
     conf.output_final_anything = false;
 
-    conf.output_intermediate_flows_interval = 0;
+    conf.output_flow_interval = 0;
 }
 
 inline void set_config_param(const char* const key, const char* const value) {
@@ -229,8 +229,8 @@ inline void set_config_param(const char* const key, const char* const value) {
         }
     }
 
-    else if (strcmp(key,"output_intermediate_flows_interval")==0) {
-        conf.output_intermediate_flows_interval = atoi(value);
+    else if (strcmp(key,"output_flow_interval")==0) {
+        conf.output_flow_interval = atoi(value);
     }
 
     else {
@@ -340,6 +340,10 @@ inline void print_help(void)
     fprintf(stderr, "-v, --validate-result\n");
     fprintf(stderr, "        check final state against pre-calculated solution\n");
     fprintf(stderr, "\n");
+    fprintf(stderr, "-I, --output-flow-interval=INT\n");
+    fprintf(stderr, "        number of multigrid cycles between writes of flow.\n");
+    fprintf(stderr, "        Set to positive INT to activate writing.\n");
+    fprintf(stderr, "\n");
     fprintf(stderr, "DEBUGGING ARGUMENTS\n");
     fprintf(stderr, "--output-variables\n");
     fprintf(stderr, "        write Euler equation variable values to HDF5 file\n");
@@ -347,11 +351,6 @@ inline void print_help(void)
     fprintf(stderr, "        write flux accumulations to HDF5 file\n");
     fprintf(stderr, "--output-step-factors\n");
     fprintf(stderr, "        write time-step factors to HDF5 file\n");
-
-    fprintf(stderr, "-I, --output-intermediate-flows-interval=INT\n");
-    fprintf(stderr, "        interval between writes of intermediate flow states, \n");
-    fprintf(stderr, "        as number of multigrid cycles. Set to positive INT to \n");
-    fprintf(stderr, "        activate writing. \n");
     fprintf(stderr, "\n");
 }
 
@@ -394,7 +393,7 @@ inline bool parse_arguments(int argc, char** argv) {
                 conf.validate_result = true;
                 break;
             case 'I':
-                set_config_param("output_intermediate_flows_interval", strdup(optarg));
+                set_config_param("output_flow_interval", strdup(optarg));
                 break;
             case '\0':
                 break;

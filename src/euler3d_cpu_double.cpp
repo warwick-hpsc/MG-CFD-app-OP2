@@ -536,8 +536,8 @@ int main(int argc, char** argv)
             op_printf("\n");
         }
 
-        if (conf.output_intermediate_flows_interval > 0 &&
-            ((i+1) % conf.output_intermediate_flows_interval) == 0 &&
+        if (conf.output_flow_interval > 0 &&
+            ((i+1) % conf.output_flow_interval) == 0 &&
             level == 0)
         {
             const char* old_name = p_variables[level]->name;
