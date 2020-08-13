@@ -35,6 +35,7 @@
 #include "op_seq.h"
 
 #include "config.h"
+#include "const.h"
 
 inline void my_papi_start(int event_set)
 {

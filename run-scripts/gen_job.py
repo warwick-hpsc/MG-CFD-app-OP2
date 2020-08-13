@@ -51,6 +51,7 @@ defaults["num threads per task"] = None
 defaults["num threads"] = [1]
 defaults["num repeats"] = 1
 defaults["mg cycles"] = 50
+defaults["output flow interval"] = 0
 # Partitioning:
 defaults["partitioners"] = ["parmetis"]
 defaults["partitioner methods"] = None
@@ -203,6 +204,7 @@ if __name__=="__main__":
 
     num_repeats = get_key_value(profile, "run", "num repeats")
     mg_cycles = get_key_value(profile, "run", "mg cycles")
+    output_flow_interval = get_key_value(profile, "run", "output flow interval")
     validate_solution = get_key_value(profile, "run", "validate solution")
     mgcfd_unit_runtime_secs = get_key_value(profile, "run", "unit walltime")
     partitioners = get_key_value(profile, "run", "partitioners")
@@ -380,6 +382,7 @@ if __name__=="__main__":
             py_sed(batch_tmp_filepath, "<PARTITIONER>", partitioner)
             py_sed(batch_tmp_filepath, "<PARTITIONER_METHOD>", part_method)
             py_sed(batch_tmp_filepath, "<MG_CYCLES>", mg_cycles)
+            py_sed(batch_tmp_filepath, "<OUTPUT_FLOWS_INTERVAL>", output_flow_interval)
             py_sed(batch_tmp_filepath, "<VALIDATE_SOLUTION>", str(validate_solution).lower())
 
             ## - Walltime estimation:

@@ -20,6 +20,10 @@
 #define MACRO_TO_STR(s) #s
 #define DO_PRAGMA(x) _Pragma ( #x )
 
+#ifdef __clang__
+#define restrict __restrict__
+#endif
+
 /*
  * Options
  *

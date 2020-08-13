@@ -92,29 +92,32 @@ typedef struct {
     bool output_fluxes;
     bool output_variables;
 
-    bool output_anything;
+    bool output_final_anything;
+
+    int output_flow_interval;
 } config;
 
 extern config conf;
 
 static struct option long_opts[] = 
 {
-    { "help",               no_argument,       NULL, 'h' },
-    { "config-filepath",    required_argument, NULL, 'c'}, 
-    { "legacy-mode",        no_argument,       NULL, 'l' },
-    { "input-file",         required_argument, NULL, 'i' },
-    { "input-directory",    required_argument, NULL, 'd' },
-    { "papi-config-file",   required_argument, NULL, 'p' },
-    { "output-file-prefix", required_argument, NULL, 'o' },
-    { "num-cycles",         required_argument, NULL, 'g' },
-    { "partitioner",        required_argument, NULL, 'm' },
-    { "partitioner-method", required_argument, NULL, 'r' },
-    { "validate",           no_argument,       NULL, 'v' },
-    { "output-variables",   no_argument,       (int*)&conf.output_variables,    1 },
-    { "output-fluxes",      no_argument,       (int*)&conf.output_fluxes,       1 },
-    { "output-step-factors",no_argument,       (int*)&conf.output_step_factors, 1 },
+    { "help",                 no_argument,       NULL, 'h' },
+    { "config-filepath",      required_argument, NULL, 'c'}, 
+    { "legacy-mode",          no_argument,       NULL, 'l' },
+    { "input-file",           required_argument, NULL, 'i' },
+    { "input-directory",      required_argument, NULL, 'd' },
+    { "papi-config-file",     required_argument, NULL, 'p' },
+    { "output-file-prefix",   required_argument, NULL, 'o' },
+    { "num-cycles",           required_argument, NULL, 'g' },
+    { "partitioner",          required_argument, NULL, 'm' },
+    { "partitioner-method",   required_argument, NULL, 'r' },
+    { "validate",             no_argument,       NULL, 'v' },
+    { "output-variables",     no_argument,       (int*)&conf.output_variables,    1 },
+    { "output-fluxes",        no_argument,       (int*)&conf.output_fluxes,       1 },
+    { "output-step-factors",  no_argument,       (int*)&conf.output_step_factors, 1 },
+    { "output-flow-interval", required_argument, NULL, 'I' },
 };
-#define GETOPTS "hc:li:d:p:o:g:m:r:v"
+#define GETOPTS "hc:li:d:p:o:g:m:r:vI:"
 
 inline void set_config_defaults() {
     conf.config_filepath = (char*)malloc(sizeof(char));
@@ -145,7 +148,9 @@ inline void set_config_defaults() {
     conf.output_step_factors = false;
     conf.output_fluxes  = false;
     conf.output_variables = false;
-    conf.output_anything = false;
+    conf.output_final_anything = false;
+
+    conf.output_flow_interval = 0;
 }
 
 inline void set_config_param(const char* const key, const char* const value) {
@@ -223,6 +228,11 @@ inline void set_config_param(const char* const key, const char* const value) {
             conf.output_variables = true;
         }
     }
+
+    else if (strcmp(key,"output_flow_interval")==0) {
+        conf.output_flow_interval = atoi(value);
+    }
+
     else {
         printf("WARNING: Unknown key '%s' encountered during parsing of config file.\n", key);
     }
@@ -330,6 +340,10 @@ inline void print_help(void)
     fprintf(stderr, "-v, --validate-result\n");
     fprintf(stderr, "        check final state against pre-calculated solution\n");
     fprintf(stderr, "\n");
+    fprintf(stderr, "-I, --output-flow-interval=INT\n");
+    fprintf(stderr, "        number of multigrid cycles between writes of flow.\n");
+    fprintf(stderr, "        Set to positive INT to activate writing.\n");
+    fprintf(stderr, "\n");
     fprintf(stderr, "DEBUGGING ARGUMENTS\n");
     fprintf(stderr, "--output-variables\n");
     fprintf(stderr, "        write Euler equation variable values to HDF5 file\n");
@@ -378,6 +392,9 @@ inline bool parse_arguments(int argc, char** argv) {
             case 'v':
                 conf.validate_result = true;
                 break;
+            case 'I':
+                set_config_param("output_flow_interval", strdup(optarg));
+                break;
             case '\0':
                 break;
             default:
@@ -385,7 +402,7 @@ inline bool parse_arguments(int argc, char** argv) {
         }
     }
 
-    conf.output_anything = 
+    conf.output_final_anything = 
         conf.output_volumes | conf.output_step_factors | conf.output_edge_mx | 
         conf.output_edge_my | conf.output_edge_mz | conf.output_edge_p  | 
         conf.output_edge_pe | conf.output_fluxes  | conf.output_variables;

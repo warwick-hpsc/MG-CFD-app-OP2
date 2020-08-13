@@ -30,6 +30,10 @@
         "mg cycles": 10,
 
 
+        "output flow interval comment": "[Optional] Write flow after every N multigrid cycles",
+        "output flow interval": 5,
+
+
         "partitioners comment": "[Optional, Iterable] Which partitioners to use. Supported are 'parmetis', 'ptscotch', 'inertial'",
         "partitioners": ["parmetis"],
 

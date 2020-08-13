@@ -7,13 +7,24 @@
 #define int_ALIGN 64
 #ifdef VECTORIZE
 #define SIMD_VEC 4
+#ifdef __clang__
+  #define SIMD_BLOCK_SIZE ((SIMD_VEC*3)+2)
+#else
+  #define SIMD_BLOCK_SIZE SIMD_VEC
+#endif
 #define ALIGNED_double __attribute__((aligned(double_ALIGN)))
 #define ALIGNED_float __attribute__((aligned(float_ALIGN)))
 #define ALIGNED_int __attribute__((aligned(int_ALIGN)))
+#ifdef __ICC
+  #define DECLARE_PTR_ALIGNED(X, Y) __assume_aligned(X, Y)
+#else
+  #define DECLARE_PTR_ALIGNED(X, Y)
+#endif
 #else
 #define ALIGNED_double
 #define ALIGNED_float
 #define ALIGNED_int
+#define DECLARE_PTR_ALIGNED(X, Y)
 #endif
 
 // global constants
@@ -23,6 +34,7 @@
 
 #ifdef PAPI
 #include <papi.h>
+#include "const.h"
 #endif
 void op_par_loop_compute_flux_edge_kernel_instrumented(
   char const *name, op_set set,
