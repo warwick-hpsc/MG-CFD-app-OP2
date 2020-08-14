@@ -44,6 +44,7 @@
 // OP2:
 #include  "op_lib_cpp.h"
 
+#ifdef SLOPE
 #define double_ALIGN 128
 #define float_ALIGN 64
 #define int_ALIGN 64
@@ -71,6 +72,7 @@
 #define ALIGNED_float
 #define ALIGNED_int
 #define DECLARE_PTR_ALIGNED(X, Y)
+#endif
 #endif
 
 //
