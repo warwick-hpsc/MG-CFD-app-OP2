@@ -753,7 +753,6 @@ int main(int argc, char** argv)
     double rms = 0.0;
     int bad_val_count = 0;
     double min_dt = std::numeric_limits<double>::max();
-    double flux_cpu_t1, flux_cpu_t2, flux_wall_t1, flux_wall_t2, flux_time=0.0;
     while(i < conf.num_cycles)
     {
         #ifdef LOG_PROGRESS
@@ -787,6 +786,10 @@ int main(int argc, char** argv)
                     op_arg_gbl(&min_dt,1,"double",OP_READ),
                     op_arg_dat(p_step_factors[level],-1,OP_ID,1,"double",OP_WRITE));
         #ifdef SLOPE
+        const int compute_flux_op2_id = 9;
+        const int indirect_rw_op2_id = 12;
+        op_timing_realloc_manytime(compute_flux_op2_id, omp_get_max_threads());
+        op_timing_realloc_manytime(indirect_rw_op2_id, omp_get_max_threads());
         int ncolors = exec_num_colors (exec[level]);
         #endif
         int rkCycle;
@@ -798,27 +801,38 @@ int main(int argc, char** argv)
 
             #ifdef SLOPE
             //for each colour
+            OP_kernels[compute_flux_op2_id].count++;
+            OP_kernels[indirect_rw_op2_id].count++;
             for (int color = 0; color < ncolors; color++) {
             // for all tiles of this color
                 const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
 
-                #pragma omp parallel for
-                for (int j = 0; j < n_tiles_per_color; j++) {
+                // #pragma omp parallel for
+                // for (int j = 0; j < n_tiles_per_color; j++) {
+                // Switch to manual OMP decomposition to enable thread timers:
+                #pragma omp parallel
+                {
+
+                int nthreads = omp_get_num_threads();
+                int thr = omp_get_thread_num();
+                int thr_start = (n_tiles_per_color * thr) / nthreads;
+                int thr_end = (n_tiles_per_color * (thr+1)) / nthreads;
+                double thr_wall_t1, thr_wall_t2;
+                if (thr_end > n_tiles_per_color) thr_end = n_tiles_per_color;
+                for (int j=thr_start; j<thr_end; j++) {
+
                     // execute the tile
                     tile_t* tile = exec_tile_at (exec[level], color, j);
                     int loop_size;
 
                     // loop compute_flux_edge
+                    thr_wall_t1 = omp_get_wtime();
                     iterations_list& le2n_0 = tile_get_local_map (tile, 0, sl_maps_edge_to_nodes[level]);
                     iterations_list& iterations_0 = tile_get_iterations (tile, 0);
                     loop_size = tile_loop_size (tile, 0);
-
-                    op_timers_core(&flux_cpu_t1, &flux_wall_t1);
-
                     const double* p_variables_data = (double*)(p_variables[level]->data);
                     const double* p_edge_weights_data = (double*)(p_edge_weights[level]->data);
                     double* p_fluxes_data    = (double*)(p_fluxes[level]->data);
-
                     #ifndef VECTORIZE
                       for (int k = 0; k < loop_size; k++) {
                           compute_flux_edge_kernel(
@@ -887,9 +901,9 @@ int main(int argc, char** argv)
                               &p_fluxes_data[le2n_0[k*2 + 1] * 5]);
                       }
                     #endif
-
-                    op_timers_core(&flux_cpu_t2, &flux_wall_t2);
-                    flux_time += flux_wall_t2 - flux_wall_t1;
+                    thr_wall_t2 = omp_get_wtime();
+                    OP_kernels[compute_flux_op2_id].name = "compute_flux_edge";
+                    OP_kernels[compute_flux_op2_id].times[thr]  += thr_wall_t2 - thr_wall_t1;
 
                     // loop compute_bnd_node_flux
                     iterations_list& lbe2n_1 = tile_get_local_map (tile, 1, sl_maps_bnd_node_to_node[level]);
@@ -918,6 +932,7 @@ int main(int argc, char** argv)
                     }
 
                       // loop indirect_rw
+                    thr_wall_t1 = omp_get_wtime();
                     iterations_list& le2n_3 = tile_get_local_map (tile, 3, sl_maps_edge_to_nodes[level]);
                     iterations_list& iterations_3 = tile_get_iterations (tile, 3);
                     loop_size = tile_loop_size (tile, 3);
@@ -930,6 +945,9 @@ int main(int argc, char** argv)
                             (double*)(p_fluxes[level]->data + ((le2n_3[2 * k + 0] * 5) * sizeof(double))),
                             (double*)(p_fluxes[level]->data + ((le2n_3[2 * k + 1] * 5) * sizeof(double))));
                     }
+                    thr_wall_t2 = omp_get_wtime();
+                    OP_kernels[indirect_rw_op2_id].name = "indirect_rw";
+                    OP_kernels[indirect_rw_op2_id].times[thr]  += thr_wall_t2 - thr_wall_t1;
 
                      // loop zero_5d_array
                     iterations_list& iterations_4 = tile_get_iterations (tile, 4);
@@ -940,7 +958,8 @@ int main(int argc, char** argv)
                             (double*)(p_fluxes[level]->data + ((iterations_4[k] * 5) * sizeof(double))));
                     }
                 }
-                
+                } // Close omp parallel
+
             }
 	
             #else
@@ -1087,7 +1106,6 @@ int main(int argc, char** argv)
 
     op_timers(&cpu_t2, &wall_t2);
     op_printf("Max total runtime = %f\n", wall_t2 - wall_t1);
-    op_printf("- flux compute = %f\n", flux_time);
 
     // Write summary performance data to stdout:
     op_timing_output();
