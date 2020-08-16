@@ -244,7 +244,7 @@ OP2_SEQ_OBJECTS := $(OBJ_DIR)/mgcfd_seq_main.o \
 OP2_SLOPE_OBJECTS := $(OBJ_DIR)/mgcfd_slope_main.o \
                     $(OBJ_DIR)/mgcfd_slope_kernels.o
 
-OP2_SLOPE_VEC_OBJECTS := $(OBJ_DIR)/mgcfd_slope_main.o \
+OP2_SLOPE_VEC_OBJECTS := $(OBJ_DIR)/mgcfd_slope_vec_main.o \
                          $(OBJ_DIR)/mgcfd_slope_vec_kernels.o
 
 OP2_MPI_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_main.o \
@@ -333,13 +333,12 @@ $(OBJ_DIR)/mgcfd_slope_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE \
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
-	    -I$(SRC_DIR)/../slope \
 		-c -o $@ $^
-$(OBJ_DIR)/mgcfd_slope_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(SLOPE_KERNELS)
+$(OBJ_DIR)/mgcfd_slope_kernels.o: $(SRC_DIR)/../slope/_kernels.cpp $(SLOPE_KERNELS)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE \
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
-		-c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
+		-Iopenmp -c -o $@ $(SRC_DIR)/../slope/_kernels.cpp
 $(BIN_DIR)/mgcfd_slope: $(OP2_SLOPE_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) -DSLOPE \
@@ -347,11 +346,17 @@ $(BIN_DIR)/mgcfd_slope: $(OP2_SLOPE_OBJECTS)
 		-o $@
 
 ## SLOPE + SIMD
-$(OBJ_DIR)/mgcfd_slope_vec_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(SLOPE_KERNELS)
+$(OBJ_DIR)/mgcfd_slope_vec_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE \
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
-		-c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
+	    -I$(SRC_DIR)/../slope \
+		-c -o $@ $^
+$(OBJ_DIR)/mgcfd_slope_vec_kernels.o: $(SRC_DIR)/../slope/_kernels.cpp $(SLOPE_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
+		-Iopenmp -c -o $@ $(SRC_DIR)/../slope/_kernels.cpp
 $(BIN_DIR)/mgcfd_slope_vec: $(OP2_SLOPE_VEC_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) -DSLOPE \
@@ -380,6 +385,7 @@ $(OBJ_DIR)/mgcfd_openmp_vec_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(OMP_K
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) \
 		$(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) \
+	    -I$(SRC_DIR)/../slope \
 		-c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
 $(BIN_DIR)/mgcfd_openmp_vec: $(OP2_OMP_VEC_OBJECTS)
 	mkdir -p $(BIN_DIR)
