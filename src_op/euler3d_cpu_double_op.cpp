@@ -682,10 +682,19 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     double *p_variables_data_l0, *p_variables_data_l1, *p_variables_data_l2, *p_variables_data_l3;
     double *p_variables_recv_l0, *p_variables_recv_l1, *p_variables_recv_l2, *p_variables_recv_l3;
 
+    op_printf("Stage 0\n");
+    int null_check;
+
     for (int z = 0; z < 4; z++) {
-        nodes_sizes[z] = op_get_size(op_nodes[z]);
+        nodes_sizes[z] = 0;
     }
 
+    for (int z = 0; z < levels; z++) {
+        null_check = op_get_size(op_nodes[z]);
+        nodes_sizes[z] = null_check;
+    }
+
+    op_printf("Stage 0.5\n");
     if (internal_rank == MPI_ROOT) {
         for(int z = 0; z < total_coupler_unit_count; z++){
             MPI_Send(nodes_sizes, 4, MPI_INT, units[unit_count].coupler_ranks[z], 0, MPI_COMM_WORLD);
@@ -702,6 +711,9 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     p_variables_recv_l2 = (double*) malloc(nodes_sizes[2] * NVAR * sizeof(double));
     p_variables_recv_l3 = (double*) malloc(nodes_sizes[3] * NVAR * sizeof(double));
 
+    double *p_variables_pointers[4] = {p_variables_recv_l0,p_variables_recv_l1,p_variables_recv_l2,p_variables_recv_l3}; 
+
+    op_printf("Stage 1\n");
     while(i < conf.num_cycles)
     {
         #ifdef LOG_PROGRESS
@@ -716,12 +728,11 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
         if(i != prev_cycle && ((i % upd_freq) == 0)){
             prev_cycle=i;
-
-            op_fetch_data(p_variables[0], p_variables_data_l0);
-            op_fetch_data(p_variables[1], p_variables_data_l1);
-            op_fetch_data(p_variables[2], p_variables_data_l2);
-            op_fetch_data(p_variables[3], p_variables_data_l3);
-
+            op_printf("Stage 2\n");
+            for (int z = 0; z < levels; z++) {
+                op_fetch_data(p_variables[z], p_variables_pointers[z]);
+            }
+            op_printf("Stage 3\n");
             if(internal_rank == MPI_ROOT){
                 op_printf("Cycle %d comms starting\n", i);
 
@@ -1126,6 +1137,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
     return 0;
 }
+
 
 
 
