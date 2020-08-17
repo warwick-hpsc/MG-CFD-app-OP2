@@ -98,6 +98,24 @@ ifeq ($(COMPILER),gnu)
   OMPFLAGS 	= -fopenmp
   MPIFLAGS 	= $(CPPFLAGS)
 else
+ifeq ($(COMPILER),clang)
+  CPP := clang++
+  CFLAGS	= -fPIC -DUNIX
+  OPT_REPORT_OPTIONS := 
+  OPT_REPORT_OPTIONS += -Rpass-missed=loop-vec ## Report SIMD failures
+  OPT_REPORT_OPTIONS += -Rpass=loop-vec ## Report SIMD success
+  # OPT_REPORT_OPTIONS += -Rpass-missed=.*
+  # OPT_REPORT_OPTIONS += -Rpass=.*
+  OPT_REPORT_OPTIONS += -fsave-optimization-record -gline-tables-only -gcolumn-info
+  CFLAGS += $(OPT_REPORT_OPTIONS)
+  ## Disable C math function error checking, as prevents SIMD:
+  CFLAGS += -fno-math-errno
+  CPPFLAGS 	= $(CFLAGS)
+  OMPFLAGS 	= -fopenmp
+  MPIFLAGS 	= $(CPPFLAGS)
+  MPICC += -cc=clang
+  MPICPP += -cxx=clang++
+else
 ifeq ($(COMPILER),intel)
   CPP = icpc
   #CFLAGS = -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -DVECTORIZE -qopt-report=5 -Wall
@@ -146,6 +164,7 @@ ifeq ($(COMPILER),cray)
   MPIFLAGS      = $(CPPFLAGS)
 else
   $(error unrecognised value for COMPILER: $(COMPILER))
+endif
 endif
 endif
 endif

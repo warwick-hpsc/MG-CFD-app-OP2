@@ -110,13 +110,13 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
   args[4] = arg4;
   //create aligned pointers for dats
   ALIGNED_double const double * __restrict__ ptr1 = (double *) arg1.data;
-  __assume_aligned(ptr1,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr1,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr2 = (double *) arg2.data;
-  __assume_aligned(ptr2,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr2,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr3 = (double *) arg3.data;
-  __assume_aligned(ptr3,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr3,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr4 = (double *) arg4.data;
-  __assume_aligned(ptr4,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr4,double_ALIGN);
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
@@ -133,14 +133,14 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
   if (exec_size >0) {
 
     #ifdef VECTORIZE
-    int dat0[SIMD_VEC];
-    for ( int i=0; i<SIMD_VEC; i++ ){
-      dat0[i] = *((int*)arg0.data);
-    }
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
+    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
+      int dat0[SIMD_BLOCK_SIZE];
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+        dat0[i] = *((int*)arg0.data);
+      }
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         time_step_kernel(
           &dat0[i],
           &(ptr1)[1 * (n+i)],
@@ -148,11 +148,11 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
           &(ptr3)[5 * (n+i)],
           &(ptr4)[5 * (n+i)]);
       }
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
       }
     }
     //remainder
-    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif

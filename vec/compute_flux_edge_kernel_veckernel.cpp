@@ -16,6 +16,10 @@
 #include "global.h"
 #include "config.h"
 
+#ifdef PAPI
+#include "papi_funcs.h"
+#endif
+
 inline void compute_bnd_node_flux_kernel(
   const int *g, 
   const double *edge_weight, 
@@ -215,7 +219,10 @@ inline void compute_flux_edge_kernel(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline void compute_flux_edge_kernel_vec( const double variables_a[*][SIMD_VEC], const double variables_b[*][SIMD_VEC], const double *edge_weight, double fluxes_a[*][SIMD_VEC], double fluxes_b[*][SIMD_VEC], int idx ) {
+#if defined __clang__ || defined __GNUC__
+__attribute__((always_inline))
+#endif
+inline void compute_flux_edge_kernel_vec( const double variables_a[][SIMD_BLOCK_SIZE], const double variables_b[][SIMD_BLOCK_SIZE], const double *edge_weight, double fluxes_a[][SIMD_BLOCK_SIZE], double fluxes_b[][SIMD_BLOCK_SIZE], int idx ) {
   double ewt = std::sqrt(edge_weight[0]*edge_weight[0] +
                          edge_weight[1]*edge_weight[1] +
                          edge_weight[2]*edge_weight[2]);
@@ -422,15 +429,15 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
   args[4] = arg4;
   //create aligned pointers for dats
   ALIGNED_double const double * __restrict__ ptr0 = (double *) arg0.data;
-  __assume_aligned(ptr0,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr0,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr1 = (double *) arg1.data;
-  __assume_aligned(ptr1,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr1,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr2 = (double *) arg2.data;
-  __assume_aligned(ptr2,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr2,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr3 = (double *) arg3.data;
-  __assume_aligned(ptr3,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr3,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr4 = (double *) arg4.data;
-  __assume_aligned(ptr4,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr4,double_ALIGN);
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
@@ -445,18 +452,42 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
   if (exec_size >0) {
 
+    #ifdef PAPI
+      // Init and start PAPI
+      long_long* temp_count_stores = NULL;
+      if (num_events > 0) {
+        temp_count_stores = (long_long*)malloc(sizeof(long_long)*num_events);
+        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+        my_papi_start(event_set);
+      }
+    #endif
+
     #ifdef VECTORIZE
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      if (n+SIMD_VEC >= set->core_size) {
+    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
+      if (n+SIMD_BLOCK_SIZE >= set->core_size) {
+
+        #ifdef PAPI
+          if (num_events > 0)
+            my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
+        #endif
+
         op_mpi_wait_all(nargs, args);
+
+        #ifdef PAPI
+          if (num_events > 0) {
+            // Restart PAPI
+            for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+            my_papi_start(event_set);
+        }
+        #endif
       }
-      ALIGNED_double double dat0[5][SIMD_VEC];
-      ALIGNED_double double dat1[5][SIMD_VEC];
-      ALIGNED_double double dat3[5][SIMD_VEC];
-      ALIGNED_double double dat4[5][SIMD_VEC];
+      ALIGNED_double double dat0[5][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat1[5][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat3[5][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat4[5][SIMD_BLOCK_SIZE];
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         int idx0_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx1_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 1];
 
@@ -486,7 +517,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
       }
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         compute_flux_edge_kernel_vec(
           dat0,
           dat1,
@@ -495,7 +526,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
           dat4,
           i);
       }
-      for ( int i=0; i<SIMD_VEC; i++ ){
+      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
         int idx3_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx4_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 1];
 
@@ -513,9 +544,17 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
       }
     }
+    
+    #ifdef PAPI
+      if (num_events > 0) {
+        my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
+        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+        free(temp_count_stores);
+      }
+    #endif
 
     //remainder
-    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif
