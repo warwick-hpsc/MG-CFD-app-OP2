@@ -424,6 +424,8 @@ int main(int argc, char** argv)
            p_volumes[levels],
            p_step_factors[levels],
            p_fluxes[levels];
+    op_dat p_dummy_variables[levels],
+           p_dummy_fluxes[levels];
     op_dat p_up_scratch[levels];
 
     // Setup OP2
@@ -675,6 +677,11 @@ int main(int argc, char** argv)
             sprintf(op_name, "p_fluxes_L%d", i);
             p_fluxes[i] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
 
+            sprintf(op_name, "p_dummy_variables_L%d", i);
+            p_dummy_variables[i] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
+            sprintf(op_name, "p_dummy_fluxes_L%d", i);
+            p_dummy_fluxes[i] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
+
             if (i > 0) {
                 sprintf(op_name, "p_up_scratch_L%d", i);
                 p_up_scratch[i] = op_decl_dat_temp_char(op_nodes[i], 1, "int", sizeof(double), op_name);
@@ -839,25 +846,14 @@ int main(int argc, char** argv)
 
                     for (int k = 0; k < loop_size; k++) {
                         indirect_rw_kernel(
-                            (double*)(p_variables[level]->data + ((le2n_3[2 * k + 0] * 5) * sizeof(double))),
-                            (double*)(p_variables[level]->data + ((le2n_3[2 * k + 1] * 5) * sizeof(double))),
+                            (double*)(p_dummy_variables[level]->data + ((le2n_3[2 * k + 0] * 5) * sizeof(double))),
+                            (double*)(p_dummy_variables[level]->data + ((le2n_3[2 * k + 1] * 5) * sizeof(double))),
                             (double*)(p_edge_weights[level]->data + ((iterations_3[k] * 3) * sizeof(double))),
-                            (double*)(p_fluxes[level]->data + ((le2n_3[2 * k + 0] * 5) * sizeof(double))),
-                            (double*)(p_fluxes[level]->data + ((le2n_3[2 * k + 1] * 5) * sizeof(double))));
+                            (double*)(p_dummy_fluxes[level]->data + ((le2n_3[2 * k + 0] * 5) * sizeof(double))),
+                            (double*)(p_dummy_fluxes[level]->data + ((le2n_3[2 * k + 1] * 5) * sizeof(double))));
                     }
 
-                    // Immediately zero fluxes, so that time_step() does not change variables[].
-                    // An alternative fix is to modify time_step() to write non-zero numbers to a dummy array, 
-                    // but then compiler might notice that and optimise-out the entire loop!
-                    iterations_list& iterations_4 = tile_get_iterations (tile, 4);
-                    loop_size = tile_loop_size (tile, 4);
-                    #pragma omp simd
-                    for (int k = 0; k < loop_size; k++) {
-                        zero_5d_array_kernel(
-                            (double*)(p_fluxes[level]->data + ((iterations_4[k] * 5) * sizeof(double))));
-                    }
-
-                    // time_step (hopefully compiler does not realise it is just adding zeroes!)
+                    // time_step
                     iterations_list& iterations_2 = tile_get_iterations (tile, 2);
                     loop_size = tile_loop_size (tile, 2);
                     
@@ -865,9 +861,9 @@ int main(int argc, char** argv)
                         time_step_kernel(
                             &rkCycle,
                             (double*)(p_step_factors[level]->data + ((iterations_2[k] * 1) * sizeof(double))),
-                            (double*)(p_fluxes[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
+                            (double*)(p_dummy_fluxes[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
                             (double*)(p_old_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
-                            (double*)(p_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))));
+                            (double*)(p_dummy_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))));
                     }
 
                 }
