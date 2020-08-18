@@ -67,6 +67,7 @@
   #define DECLARE_PTR_ALIGNED(X, Y)
 #endif
 #include "compute_flux_edge_kernel_veckernel.h"
+#include "indirect_rw_kernel_veckernel.h"
 #else
 #define ALIGNED_double
 #define ALIGNED_float
@@ -978,14 +979,75 @@ int main(int argc, char** argv)
                     double* p_variables_data = (double*)(p_dummy_variables[level]->data);
                     const double* p_edge_weights_data = (double*)(p_edge_weights[level]->data);
                     double* p_fluxes_data    = (double*)(p_dummy_fluxes[level]->data);
-                    for (int k = 0; k < loop_size; k++) {
-                        indirect_rw_kernel(
+                    #ifndef VECTORIZE
+                      for (int k = 0; k < loop_size; k++) {
+                          indirect_rw_kernel(
+                                &p_variables_data[le2n_3[k*2 + 0] * 5],
+                                &p_variables_data[le2n_3[k*2 + 1] * 5],
+                                &p_edge_weights_data[iterations_3[k] * 3],
+                                &p_fluxes_data[le2n_3[k*2 + 0] * 5],
+                                &p_fluxes_data[le2n_3[k*2 + 1] * 5]);
+                      }
+                    #else
+
+                      int simd_end = (loop_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE;
+
+                      ALIGNED_double double dat0[5][SIMD_BLOCK_SIZE];
+                      ALIGNED_double double dat1[5][SIMD_BLOCK_SIZE];
+                      ALIGNED_double double dat3[5][SIMD_BLOCK_SIZE];
+                      ALIGNED_double double dat4[5][SIMD_BLOCK_SIZE];
+
+                      for (int n=0 ; n < simd_end; n+=SIMD_BLOCK_SIZE) {
+                          // "sl" is SIMD lane:
+                          for (int sl=0; sl<SIMD_BLOCK_SIZE; sl++ ){
+                            int k = n+sl;
+                            int idx0 = le2n_3[k*2 + 0];
+                            int idx1 = le2n_3[k*2 + 1];
+
+                            for (int v=0; v<5; v++) {
+                                dat0[v][sl] = p_variables_data[idx0*5 + v];
+                                dat1[v][sl] = p_variables_data[idx1*5 + v];
+                                dat3[v][sl] = 0.0;
+                                dat4[v][sl] = 0.0;
+                            }
+                          }
+
+                          #pragma omp simd simdlen(SIMD_VEC)
+                          for (int sl=0; sl<SIMD_BLOCK_SIZE; sl++ ){
+                            int k = n+sl;
+                            int ewt_idx = iterations_3[k];
+                            indirect_rw_kernel_vec(
+                              dat0,
+                              dat1,
+                              &p_edge_weights_data[ewt_idx*3],
+                              dat3,
+                              dat4,
+                              sl);
+                          }
+
+                          for ( int sl=0; sl<SIMD_BLOCK_SIZE; sl++ ){
+                            int k = n+sl;
+                            int idx3 = le2n_3[k*2 + 0];
+                            int idx4 = le2n_3[k*2 + 1];
+
+                            for (int v=0; v<5; v++) {
+                                p_fluxes_data[idx3*5 + v] += dat3[v][sl];
+                                p_fluxes_data[idx4*5 + v] += dat4[v][sl];
+                            }
+                          }
+                      }
+
+                      // remainder:
+                      for (int n = simd_end ; n < loop_size; n++) {
+                          int k = n;
+                          indirect_rw_kernel(
                               &p_variables_data[le2n_3[k*2 + 0] * 5],
                               &p_variables_data[le2n_3[k*2 + 1] * 5],
                               &p_edge_weights_data[iterations_3[k] * 3],
                               &p_fluxes_data[le2n_3[k*2 + 0] * 5],
                               &p_fluxes_data[le2n_3[k*2 + 1] * 5]);
-                    }
+                      }
+                    #endif
 
                     // time_step
                     iterations_list& iterations_2 = tile_get_iterations (tile, 2);
