@@ -16,7 +16,6 @@
 #define op_par_loop_compute_flux_edge_kernel op_par_loop_compute_flux_edge_kernel_gpu
 #define op_par_loop_compute_bnd_node_flux_kernel op_par_loop_compute_bnd_node_flux_kernel_gpu
 #define op_par_loop_time_step_kernel op_par_loop_time_step_kernel_gpu
-#define op_par_loop_indirect_rw_kernel op_par_loop_indirect_rw_kernel_gpu
 #define op_par_loop_residual_kernel op_par_loop_residual_kernel_gpu
 #define op_par_loop_calc_rms_kernel op_par_loop_calc_rms_kernel_gpu
 #define op_par_loop_count_bad_vals op_par_loop_count_bad_vals_gpu
@@ -42,7 +41,6 @@
 #undef op_par_loop_compute_flux_edge_kernel
 #undef op_par_loop_compute_bnd_node_flux_kernel
 #undef op_par_loop_time_step_kernel
-#undef op_par_loop_indirect_rw_kernel
 #undef op_par_loop_residual_kernel
 #undef op_par_loop_calc_rms_kernel
 #undef op_par_loop_count_bad_vals
@@ -68,7 +66,6 @@
 #define op_par_loop_compute_flux_edge_kernel op_par_loop_compute_flux_edge_kernel_cpu
 #define op_par_loop_compute_bnd_node_flux_kernel op_par_loop_compute_bnd_node_flux_kernel_cpu
 #define op_par_loop_time_step_kernel op_par_loop_time_step_kernel_cpu
-#define op_par_loop_indirect_rw_kernel op_par_loop_indirect_rw_kernel_cpu
 #define op_par_loop_residual_kernel op_par_loop_residual_kernel_cpu
 #define op_par_loop_calc_rms_kernel op_par_loop_calc_rms_kernel_cpu
 #define op_par_loop_count_bad_vals op_par_loop_count_bad_vals_cpu
@@ -94,7 +91,6 @@
 #undef op_par_loop_compute_flux_edge_kernel
 #undef op_par_loop_compute_bnd_node_flux_kernel
 #undef op_par_loop_time_step_kernel
-#undef op_par_loop_indirect_rw_kernel
 #undef op_par_loop_residual_kernel
 #undef op_par_loop_calc_rms_kernel
 #undef op_par_loop_count_bad_vals
@@ -569,58 +565,6 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
   op_arg arg4){
 
   op_par_loop_time_step_kernel_gpu(name, set,
-    arg0,
-    arg1,
-    arg2,
-    arg3,
-    arg4);
-
-  }
-#endif //OP_HYBRID_GPU
-
-void op_par_loop_indirect_rw_kernel_gpu(char const *name, op_set set,
-  op_arg arg0,
-  op_arg arg1,
-  op_arg arg2,
-  op_arg arg3,
-  op_arg arg4);
-
-//GPU host stub function
-#if OP_HYBRID_GPU
-void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
-  op_arg arg0,
-  op_arg arg1,
-  op_arg arg2,
-  op_arg arg3,
-  op_arg arg4){
-
-  if (OP_hybrid_gpu) {
-    op_par_loop_indirect_rw_kernel_gpu(name, set,
-      arg0,
-      arg1,
-      arg2,
-      arg3,
-      arg4);
-
-    }else{
-    op_par_loop_indirect_rw_kernel_cpu(name, set,
-      arg0,
-      arg1,
-      arg2,
-      arg3,
-      arg4);
-
-  }
-}
-#else
-void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
-  op_arg arg0,
-  op_arg arg1,
-  op_arg arg2,
-  op_arg arg3,
-  op_arg arg4){
-
-  op_par_loop_indirect_rw_kernel_gpu(name, set,
     arg0,
     arg1,
     arg2,

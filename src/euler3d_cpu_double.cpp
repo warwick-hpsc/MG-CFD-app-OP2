@@ -59,7 +59,6 @@ config conf;
 #include "time_stepping_kernels.h"
 #include "compute_node_area_kernel.h"
 #include "validation.h"
-#include "indirect_rw.h"
 
 int main(int argc, char** argv)
 {
@@ -497,15 +496,6 @@ int main(int argc, char** argv)
                         op_arg_dat(p_fluxes[level],        -1, OP_ID, NVAR, "double", OP_INC),
                         op_arg_dat(p_old_variables[level], -1, OP_ID, NVAR, "double", OP_READ),
                         op_arg_dat(p_variables[level],     -1, OP_ID, NVAR, "double", OP_WRITE));
-
-            op_par_loop(indirect_rw_kernel, "indirect_rw_kernel", op_edges[level],
-                        op_arg_dat(p_variables[level], 0, p_edge_to_nodes[level], NVAR, "double", OP_READ),
-                        op_arg_dat(p_variables[level], 1, p_edge_to_nodes[level], NVAR, "double", OP_READ),
-                        op_arg_dat(p_edge_weights[level], -1, OP_ID, NDIM, "double", OP_READ),
-                        op_arg_dat(p_fluxes[level], 0, p_edge_to_nodes[level], NVAR, "double", OP_INC),
-                        op_arg_dat(p_fluxes[level], 1, p_edge_to_nodes[level], NVAR, "double", OP_INC));
-            op_par_loop(zero_5d_array_kernel, "zero_5d_array_kernel", op_nodes[level],
-                        op_arg_dat(p_fluxes[level], -1, OP_ID, NVAR, "double", OP_WRITE));
         }
 
         op_par_loop(residual_kernel, "residual_kernel", op_nodes[level],
