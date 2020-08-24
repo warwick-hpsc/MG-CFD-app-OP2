@@ -3,7 +3,7 @@
 //
 
 //user function
-__device__ void indirect_rw_kernel_gpu( 
+__device__ void unstructured_stream_kernel_gpu( 
     const double *variables_a,
     const double *variables_b,
     const double *edge_weight,
@@ -56,7 +56,7 @@ __device__ void indirect_rw_kernel_gpu(
 }
 
 // CUDA kernel function
-__global__ void op_cuda_indirect_rw_kernel(
+__global__ void op_cuda_unstructured_stream_kernel(
   const double *__restrict ind_arg0,
   double *__restrict ind_arg1,
   const int *__restrict opDat0Map,
@@ -112,7 +112,7 @@ __global__ void op_cuda_indirect_rw_kernel(
 
 
       //user-supplied kernel call
-      indirect_rw_kernel_gpu(ind_arg0+map0idx*5,
+      unstructured_stream_kernel_gpu(ind_arg0+map0idx*5,
                        ind_arg0+map1idx*5,
                        arg2+(n+offset_b)*3,
                        arg3_l,
@@ -152,7 +152,7 @@ __global__ void op_cuda_indirect_rw_kernel(
 
 
 //host stub function
-void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
+void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg0,
   op_arg arg1,
   op_arg arg2,
@@ -180,7 +180,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
   int    inds[5] = {0,0,-1,1,1};
 
   if (OP_diags>2) {
-    printf(" kernel routine with indirection: indirect_rw_kernel\n");
+    printf(" kernel routine with indirection: unstructured_stream_kernel\n");
   }
 
   //get plan
@@ -211,7 +211,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
       dim3 nblocks = dim3(Plan->ncolblk[col] >= (1<<16) ? 65535 : Plan->ncolblk[col],
       Plan->ncolblk[col] >= (1<<16) ? (Plan->ncolblk[col]-1)/65535+1: 1, 1);
       if (Plan->ncolblk[col] > 0) {
-        op_cuda_indirect_rw_kernel<<<nblocks,nthread>>>(
+        op_cuda_unstructured_stream_kernel<<<nblocks,nthread>>>(
         (double *)arg0.data_d,
         (double *)arg3.data_d,
         arg0.map_data_d,

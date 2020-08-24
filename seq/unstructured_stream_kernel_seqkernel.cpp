@@ -3,10 +3,10 @@
 //
 
 //user function
-#include ".././src/Kernels/indirect_rw.h"
+#include ".././src/Kernels/unstructured_stream.h"
 
 // host stub function
-void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
+void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg0,
   op_arg arg1,
   op_arg arg2,
@@ -28,7 +28,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
   op_timers_core(&cpu_t1, &wall_t1);
 
   if (OP_diags>2) {
-    printf(" kernel routine with indirection: indirect_rw_kernel\n");
+    printf(" kernel routine with indirection: unstructured_stream_kernel\n");
   }
 
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
@@ -43,7 +43,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
       int map1idx = arg0.map_data[n * arg0.map->dim + 1];
 
 
-      indirect_rw_kernel(
+      unstructured_stream_kernel(
         &((double*)arg0.data)[5 * map0idx],
         &((double*)arg0.data)[5 * map1idx],
         &((double*)arg2.data)[3 * n],

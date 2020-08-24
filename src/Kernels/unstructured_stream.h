@@ -1,10 +1,10 @@
-#ifndef INDIRECT_RW_H
-#define INDIRECT_RW_H
+#ifndef UNSTRUCTURED_STREAM_H
+#define UNSTRUCTURED_STREAM_H
 
-// Indirect R/W kernel
+// Unstructured stream kernel
 // - performs same data movement as compute_flux_edge() but with minimal arithmetic. 
 //   Measures upper bound on performance achievable by compute_flux_edge()
-inline void indirect_rw_kernel(
+inline void unstructured_stream_kernel(
     const double *variables_a,
     const double *variables_b,
     const double *edge_weight,

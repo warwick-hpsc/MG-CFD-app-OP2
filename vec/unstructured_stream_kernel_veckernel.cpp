@@ -3,13 +3,13 @@
 //
 
 //user function
-#ifndef INDIRECT_RW_H
-#define INDIRECT_RW_H
+#ifndef UNSTRUCTURED_STREAM_H
+#define UNSTRUCTURED_STREAM_H
 
-// Indirect R/W kernel
+// Unstructured stream kernel
 // - performs same data movement as compute_flux_edge() but with minimal arithmetic. 
 //   Measures upper bound on performance achievable by compute_flux_edge()
-inline void indirect_rw_kernel(
+inline void unstructured_stream_kernel(
     const double *variables_a,
     const double *variables_b,
     const double *edge_weight,
@@ -67,7 +67,7 @@ inline void indirect_rw_kernel(
 #if defined __clang__ || defined __GNUC__
 __attribute__((always_inline))
 #endif
-inline void indirect_rw_kernel_vec( const double variables_a[][SIMD_BLOCK_SIZE], const double variables_b[][SIMD_BLOCK_SIZE], const double *edge_weight, double fluxes_a[][SIMD_BLOCK_SIZE], double fluxes_b[][SIMD_BLOCK_SIZE], int idx ) {
+inline void unstructured_stream_kernel_vec( const double variables_a[][SIMD_BLOCK_SIZE], const double variables_b[][SIMD_BLOCK_SIZE], const double *edge_weight, double fluxes_a[][SIMD_BLOCK_SIZE], double fluxes_b[][SIMD_BLOCK_SIZE], int idx ) {
     double ex = edge_weight[0];
     double ey = edge_weight[1];
     double ez = edge_weight[2];
@@ -116,7 +116,7 @@ inline void indirect_rw_kernel_vec( const double variables_a[][SIMD_BLOCK_SIZE],
 #endif
 
 // host stub function
-void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
+void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg0,
   op_arg arg1,
   op_arg arg2,
@@ -149,7 +149,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
   op_timers_core(&cpu_t1, &wall_t1);
 
   if (OP_diags>2) {
-    printf(" kernel routine with indirection: indirect_rw_kernel\n");
+    printf(" kernel routine with indirection: unstructured_stream_kernel\n");
   }
 
   int exec_size = op_mpi_halo_exchanges(set, nargs, args);
@@ -198,7 +198,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
       }
       #pragma omp simd simdlen(SIMD_VEC)
       for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
-        indirect_rw_kernel_vec(
+        unstructured_stream_kernel_vec(
           dat0,
           dat1,
           &(ptr2)[3 * (n+i)],
@@ -236,7 +236,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
       int map0idx = arg0.map_data[n * arg0.map->dim + 0];
       int map1idx = arg0.map_data[n * arg0.map->dim + 1];
 
-      indirect_rw_kernel(
+      unstructured_stream_kernel(
         &(ptr0)[5 * map0idx],
         &(ptr1)[5 * map1idx],
         &(ptr2)[3 * n],

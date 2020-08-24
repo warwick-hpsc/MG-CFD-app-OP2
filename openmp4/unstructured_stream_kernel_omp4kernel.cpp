@@ -5,7 +5,7 @@
 //user function
 //user function
 
-void indirect_rw_kernel_omp4_kernel(
+void unstructured_stream_kernel_omp4_kernel(
   int *map0,
   int map0size,
   double *data2,
@@ -22,7 +22,7 @@ void indirect_rw_kernel_omp4_kernel(
   int nthread);
 
 // host stub function
-void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
+void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg0,
   op_arg arg1,
   op_arg arg2,
@@ -49,7 +49,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
   int  inds[5] = {0,0,-1,1,1};
 
   if (OP_diags>2) {
-    printf(" kernel routine with indirection: indirect_rw_kernel\n");
+    printf(" kernel routine with indirection: unstructured_stream_kernel\n");
   }
 
   // get plan
@@ -95,7 +95,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
       int start = Plan->col_offsets[0][col];
       int end = Plan->col_offsets[0][col+1];
 
-      indirect_rw_kernel_omp4_kernel(
+      unstructured_stream_kernel_omp4_kernel(
         map0,
         map0size,
         data2,
