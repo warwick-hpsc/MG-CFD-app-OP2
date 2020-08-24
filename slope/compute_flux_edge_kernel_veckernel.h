@@ -11,11 +11,11 @@
 __attribute__((always_inline))
 #endif
 inline void compute_flux_edge_kernel_vec(
-  const double variables_a[][SIMD_BLOCK_SIZE], 
-  const double variables_b[][SIMD_BLOCK_SIZE], 
+  const double variables_a[][SIMD_VEC], 
+  const double variables_b[][SIMD_VEC], 
   const double *edge_weight, 
-  double fluxes_a[][SIMD_BLOCK_SIZE], 
-  double fluxes_b[][SIMD_BLOCK_SIZE], int idx )
+  double fluxes_a[][SIMD_VEC], 
+  double fluxes_b[][SIMD_VEC], int idx )
 {
   double ewt = std::sqrt(edge_weight[0]*edge_weight[0] +
                          edge_weight[1]*edge_weight[1] +

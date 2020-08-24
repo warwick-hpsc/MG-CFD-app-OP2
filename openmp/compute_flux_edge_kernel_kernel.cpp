@@ -7,14 +7,6 @@
 #define int_ALIGN 64
 #ifdef VECTORIZE
 #define SIMD_VEC 4
-#ifdef __clang__
-  // Clang-compiled SIMD loop always performs 2 serial iterations,
-  // so need to make the SIMD loop wider than 'SIMD_VEC'
-  #define SIMD_BLOCK_SIZE ((SIMD_VEC*3)+2)
-  // #define SIMD_BLOCK_SIZE ((SIMD_VEC*2)+2)
-#else
-  #define SIMD_BLOCK_SIZE SIMD_VEC
-#endif
 #define ALIGNED_double __attribute__((aligned(double_ALIGN)))
 #define ALIGNED_float __attribute__((aligned(float_ALIGN)))
 #define ALIGNED_int __attribute__((aligned(int_ALIGN)))
@@ -157,14 +149,14 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
           #else
             int loop_size = nelem;
             int loop_end = offset_b+nelem;
-            int simd_end = offset_b+(loop_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE;
-            ALIGNED_double double dat0[5][SIMD_BLOCK_SIZE];
-            ALIGNED_double double dat1[5][SIMD_BLOCK_SIZE];
-            ALIGNED_double double dat3[5][SIMD_BLOCK_SIZE];
-            ALIGNED_double double dat4[5][SIMD_BLOCK_SIZE];
-            for (int o=offset_b ; o < simd_end; o+=SIMD_BLOCK_SIZE) {
+            int simd_end = offset_b+(loop_size/SIMD_VEC)*SIMD_VEC;
+            ALIGNED_double double dat0[5][SIMD_VEC];
+            ALIGNED_double double dat1[5][SIMD_VEC];
+            ALIGNED_double double dat3[5][SIMD_VEC];
+            ALIGNED_double double dat4[5][SIMD_VEC];
+            for (int o=offset_b ; o < simd_end; o+=SIMD_VEC) {
                 // "sl" is SIMD lane:
-                for (int sl=0; sl<SIMD_BLOCK_SIZE; sl++ ){
+                for (int sl=0; sl<SIMD_VEC; sl++ ){
                   int n = o+sl;
                   int map0idx = arg0.map_data[n * arg0.map->dim + 0];
                   int map1idx = arg0.map_data[n * arg0.map->dim + 1];
@@ -178,7 +170,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
                 }
 
                 #pragma omp simd simdlen(SIMD_VEC)
-                for (int sl=0; sl<SIMD_BLOCK_SIZE; sl++ ){
+                for (int sl=0; sl<SIMD_VEC; sl++ ){
                   int n = o+sl;
                   compute_flux_edge_kernel_vec(
                     dat0,
@@ -189,7 +181,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
                     sl);
                 }
 
-                for ( int sl=0; sl<SIMD_BLOCK_SIZE; sl++ ){
+                for ( int sl=0; sl<SIMD_VEC; sl++ ){
                   int n = o+sl;
                   int map0idx = arg0.map_data[n * arg0.map->dim + 0];
                   int map1idx = arg0.map_data[n * arg0.map->dim + 1];

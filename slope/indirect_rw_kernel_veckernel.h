@@ -6,7 +6,7 @@
 #if defined __clang__ || defined __GNUC__
 __attribute__((always_inline))
 #endif
-inline void indirect_rw_kernel_vec( const double variables_a[][SIMD_BLOCK_SIZE], const double variables_b[][SIMD_BLOCK_SIZE], const double *edge_weight, double fluxes_a[][SIMD_BLOCK_SIZE], double fluxes_b[][SIMD_BLOCK_SIZE], int idx ) {
+inline void indirect_rw_kernel_vec( const double variables_a[][SIMD_VEC], const double variables_b[][SIMD_VEC], const double *edge_weight, double fluxes_a[][SIMD_VEC], double fluxes_b[][SIMD_VEC], int idx ) {
     double ex = edge_weight[0];
     double ey = edge_weight[1];
     double ez = edge_weight[2];
