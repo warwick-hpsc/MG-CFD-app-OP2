@@ -209,7 +209,7 @@ inline void down_v2_kernel_post(
 #if defined __clang__ || defined __GNUC__
 __attribute__((always_inline))
 #endif
-inline void down_v2_kernel_vec( const double coord2a[][SIMD_BLOCK_SIZE], const double coord2b[][SIMD_BLOCK_SIZE], const double coord1a[][SIMD_BLOCK_SIZE], const double coord1b[][SIMD_BLOCK_SIZE], const double residuals1a[][SIMD_BLOCK_SIZE], const double residuals1b[][SIMD_BLOCK_SIZE], double residuals1a_prolonged[][SIMD_BLOCK_SIZE], double residuals1b_prolonged[][SIMD_BLOCK_SIZE], double residuals1a_prolonged_wsum[][SIMD_BLOCK_SIZE], double residuals1b_prolonged_wsum[][SIMD_BLOCK_SIZE], int idx ) {
+inline void down_v2_kernel_vec( const double coord2a[][SIMD_VEC], const double coord2b[][SIMD_VEC], const double coord1a[][SIMD_VEC], const double coord1b[][SIMD_VEC], const double residuals1a[][SIMD_VEC], const double residuals1b[][SIMD_VEC], double residuals1a_prolonged[][SIMD_VEC], double residuals1b_prolonged[][SIMD_VEC], double residuals1a_prolonged_wsum[][SIMD_VEC], double residuals1b_prolonged_wsum[][SIMD_VEC], int idx ) {
 
 
 
@@ -231,24 +231,24 @@ inline void down_v2_kernel_vec( const double coord2a[][SIMD_BLOCK_SIZE], const d
     } else {
 
         const double idist_a1a2 = 1.0/sqrt(dx_a1a2*dx_a1a2 + dy_a1a2*dy_a1a2 + dz_a1a2*dz_a1a2);
-        residuals1a_prolonged[VAR_DENSITY][idx]        += idist_a1a2*residuals1a[VAR_DENSITY][idx];
-        residuals1a_prolonged[VAR_MOMENTUM+0][idx]     += idist_a1a2*residuals1a[VAR_MOMENTUM+0][idx];
-        residuals1a_prolonged[VAR_MOMENTUM+1][idx]     += idist_a1a2*residuals1a[VAR_MOMENTUM+1][idx];
-        residuals1a_prolonged[VAR_MOMENTUM+2][idx]     += idist_a1a2*residuals1a[VAR_MOMENTUM+2][idx];
-        residuals1a_prolonged[VAR_DENSITY_ENERGY][idx] += idist_a1a2*residuals1a[VAR_DENSITY_ENERGY][idx];
-        residuals1a_prolonged_wsum[0][idx]+= idist_a1a2;
+        residuals1a_prolonged[VAR_DENSITY][idx]        = idist_a1a2*residuals1a[VAR_DENSITY][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+0][idx]     = idist_a1a2*residuals1a[VAR_MOMENTUM+0][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+1][idx]     = idist_a1a2*residuals1a[VAR_MOMENTUM+1][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+2][idx]     = idist_a1a2*residuals1a[VAR_MOMENTUM+2][idx];
+        residuals1a_prolonged[VAR_DENSITY_ENERGY][idx] = idist_a1a2*residuals1a[VAR_DENSITY_ENERGY][idx];
+        residuals1a_prolonged_wsum[0][idx]= idist_a1a2;
 
         double dx_b1a2 = coord1b[0][idx] - coord2a[0][idx];
         double dy_b1a2 = coord1b[1][idx] - coord2a[1][idx];
         double dz_b1a2 = coord1b[2][idx] - coord2a[2][idx];
 
         const double idist_b1a2 = 1.0/sqrt(dx_b1a2*dx_b1a2 + dy_b1a2*dy_b1a2 + dz_b1a2*dz_b1a2);
-        residuals1a_prolonged[VAR_DENSITY][idx]        += idist_b1a2*residuals1b[VAR_DENSITY][idx];
-        residuals1a_prolonged[VAR_MOMENTUM+0][idx]     += idist_b1a2*residuals1b[VAR_MOMENTUM+0][idx];
-        residuals1a_prolonged[VAR_MOMENTUM+1][idx]     += idist_b1a2*residuals1b[VAR_MOMENTUM+1][idx];
-        residuals1a_prolonged[VAR_MOMENTUM+2][idx]     += idist_b1a2*residuals1b[VAR_MOMENTUM+2][idx];
-        residuals1a_prolonged[VAR_DENSITY_ENERGY][idx] += idist_b1a2*residuals1b[VAR_DENSITY_ENERGY][idx];
-        residuals1a_prolonged_wsum[0][idx]+= idist_b1a2;
+        residuals1a_prolonged[VAR_DENSITY][idx]        = idist_b1a2*residuals1b[VAR_DENSITY][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+0][idx]     = idist_b1a2*residuals1b[VAR_MOMENTUM+0][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+1][idx]     = idist_b1a2*residuals1b[VAR_MOMENTUM+1][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+2][idx]     = idist_b1a2*residuals1b[VAR_MOMENTUM+2][idx];
+        residuals1a_prolonged[VAR_DENSITY_ENERGY][idx] = idist_b1a2*residuals1b[VAR_DENSITY_ENERGY][idx];
+        residuals1a_prolonged_wsum[0][idx]= idist_b1a2;
     }
 
     double dx_b1b2 = coord2b[0][idx] - coord1b[0][idx];
@@ -265,24 +265,24 @@ inline void down_v2_kernel_vec( const double coord2a[][SIMD_BLOCK_SIZE], const d
     } else {
 
         const double idist_b1b2 = 1.0/sqrt(dx_b1b2*dx_b1b2 + dy_b1b2*dy_b1b2 + dz_b1b2*dz_b1b2);
-        residuals1b_prolonged[VAR_DENSITY][idx]        += idist_b1b2*residuals1b[VAR_DENSITY][idx];
-        residuals1b_prolonged[VAR_MOMENTUM+0][idx]     += idist_b1b2*residuals1b[VAR_MOMENTUM+0][idx];
-        residuals1b_prolonged[VAR_MOMENTUM+1][idx]     += idist_b1b2*residuals1b[VAR_MOMENTUM+1][idx];
-        residuals1b_prolonged[VAR_MOMENTUM+2][idx]     += idist_b1b2*residuals1b[VAR_MOMENTUM+2][idx];
-        residuals1b_prolonged[VAR_DENSITY_ENERGY][idx] += idist_b1b2*residuals1b[VAR_DENSITY_ENERGY][idx];
-        residuals1b_prolonged_wsum[0][idx]+= idist_b1b2;
+        residuals1b_prolonged[VAR_DENSITY][idx]        = idist_b1b2*residuals1b[VAR_DENSITY][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+0][idx]     = idist_b1b2*residuals1b[VAR_MOMENTUM+0][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+1][idx]     = idist_b1b2*residuals1b[VAR_MOMENTUM+1][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+2][idx]     = idist_b1b2*residuals1b[VAR_MOMENTUM+2][idx];
+        residuals1b_prolonged[VAR_DENSITY_ENERGY][idx] = idist_b1b2*residuals1b[VAR_DENSITY_ENERGY][idx];
+        residuals1b_prolonged_wsum[0][idx]= idist_b1b2;
 
         double dx_a1b2 = coord1a[0][idx] - coord2b[0][idx];
         double dy_a1b2 = coord1a[1][idx] - coord2b[1][idx];
         double dz_a1b2 = coord1a[2][idx] - coord2b[2][idx];
 
         const double idist_a1b2 = 1.0/sqrt(dx_a1b2*dx_a1b2 + dy_a1b2*dy_a1b2 + dz_a1b2*dz_a1b2);
-        residuals1b_prolonged[VAR_DENSITY][idx]        += idist_a1b2*residuals1b[VAR_DENSITY][idx];
-        residuals1b_prolonged[VAR_MOMENTUM+0][idx]     += idist_a1b2*residuals1b[VAR_MOMENTUM+0][idx];
-        residuals1b_prolonged[VAR_MOMENTUM+1][idx]     += idist_a1b2*residuals1b[VAR_MOMENTUM+1][idx];
-        residuals1b_prolonged[VAR_MOMENTUM+2][idx]     += idist_a1b2*residuals1b[VAR_MOMENTUM+2][idx];
-        residuals1b_prolonged[VAR_DENSITY_ENERGY][idx] += idist_a1b2*residuals1b[VAR_DENSITY_ENERGY][idx];
-        residuals1b_prolonged_wsum[0][idx]+= idist_a1b2;
+        residuals1b_prolonged[VAR_DENSITY][idx]        = idist_a1b2*residuals1b[VAR_DENSITY][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+0][idx]     = idist_a1b2*residuals1b[VAR_MOMENTUM+0][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+1][idx]     = idist_a1b2*residuals1b[VAR_MOMENTUM+1][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+2][idx]     = idist_a1b2*residuals1b[VAR_MOMENTUM+2][idx];
+        residuals1b_prolonged[VAR_DENSITY_ENERGY][idx] = idist_a1b2*residuals1b[VAR_DENSITY_ENERGY][idx];
+        residuals1b_prolonged_wsum[0][idx]= idist_a1b2;
     }
 
 }
@@ -351,22 +351,22 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
 
     #ifdef VECTORIZE
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
-      if (n+SIMD_BLOCK_SIZE >= set->core_size) {
+    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
+      if (n+SIMD_VEC >= set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      ALIGNED_double double dat0[3][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat1[3][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat2[3][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat3[3][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat4[5][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat5[5][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat6[5][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat7[5][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat8[1][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat9[1][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat0[3][SIMD_VEC];
+      ALIGNED_double double dat1[3][SIMD_VEC];
+      ALIGNED_double double dat2[3][SIMD_VEC];
+      ALIGNED_double double dat3[3][SIMD_VEC];
+      ALIGNED_double double dat4[5][SIMD_VEC];
+      ALIGNED_double double dat5[5][SIMD_VEC];
+      ALIGNED_double double dat6[5][SIMD_VEC];
+      ALIGNED_double double dat7[5][SIMD_VEC];
+      ALIGNED_double double dat8[1][SIMD_VEC];
+      ALIGNED_double double dat9[1][SIMD_VEC];
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         int idx0_3 = 3 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx1_3 = 3 * arg0.map_data[(n+i) * arg0.map->dim + 1];
         int idx2_3 = 3 * arg2.map_data[(n+i) * arg2.map->dim + 0];
@@ -420,7 +420,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
 
       }
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         down_v2_kernel_vec(
           dat0,
           dat1,
@@ -434,7 +434,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
           dat9,
           i);
       }
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         int idx6_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx7_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 1];
         int idx8_1 = 1 * arg0.map_data[(n+i) * arg0.map->dim + 0];
@@ -460,7 +460,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
     }
 
     //remainder
-    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif

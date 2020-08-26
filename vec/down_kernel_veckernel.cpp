@@ -209,7 +209,7 @@ inline void down_v2_kernel_post(
 #if defined __clang__ || defined __GNUC__
 __attribute__((always_inline))
 #endif
-inline void down_kernel_vec( double* variable, const double* residual, const double* coord, const double residual_above[][SIMD_BLOCK_SIZE], const double coord_above[][SIMD_BLOCK_SIZE], int idx ) {
+inline void down_kernel_vec( double* variable, const double* residual, const double* coord, const double residual_above[][SIMD_VEC], const double coord_above[][SIMD_VEC], int idx ) {
     double dx = fabs(coord[0] - coord_above[0][idx]);
     double dy = fabs(coord[1] - coord_above[1][idx]);
     double dz = fabs(coord[2] - coord_above[2][idx]);
@@ -267,14 +267,14 @@ void op_par_loop_down_kernel(char const *name, op_set set,
 
     #ifdef VECTORIZE
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
-      if (n+SIMD_BLOCK_SIZE >= set->core_size) {
+    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
+      if (n+SIMD_VEC >= set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      ALIGNED_double double dat3[5][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat4[3][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat3[5][SIMD_VEC];
+      ALIGNED_double double dat4[3][SIMD_VEC];
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         int idx3_5 = 5 * arg3.map_data[(n+i) * arg3.map->dim + 0];
         int idx4_3 = 3 * arg3.map_data[(n+i) * arg3.map->dim + 0];
 
@@ -290,7 +290,7 @@ void op_par_loop_down_kernel(char const *name, op_set set,
 
       }
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         down_kernel_vec(
           &(ptr0)[5 * (n+i)],
           &(ptr1)[5 * (n+i)],
@@ -299,13 +299,13 @@ void op_par_loop_down_kernel(char const *name, op_set set,
           dat4,
           i);
       }
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
 
       }
     }
 
     //remainder
-    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif

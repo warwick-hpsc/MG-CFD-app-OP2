@@ -222,7 +222,7 @@ inline void compute_flux_edge_kernel(
 #if defined __clang__ || defined __GNUC__
 __attribute__((always_inline))
 #endif
-inline void compute_flux_edge_kernel_vec( const double variables_a[][SIMD_BLOCK_SIZE], const double variables_b[][SIMD_BLOCK_SIZE], const double *edge_weight, double fluxes_a[][SIMD_BLOCK_SIZE], double fluxes_b[][SIMD_BLOCK_SIZE], int idx ) {
+inline void compute_flux_edge_kernel_vec( const double variables_a[][SIMD_VEC], const double variables_b[][SIMD_VEC], const double *edge_weight, double fluxes_a[][SIMD_VEC], double fluxes_b[][SIMD_VEC], int idx ) {
   double ewt = std::sqrt(edge_weight[0]*edge_weight[0] +
                          edge_weight[1]*edge_weight[1] +
                          edge_weight[2]*edge_weight[2]);
@@ -322,61 +322,61 @@ inline void compute_flux_edge_kernel_vec( const double variables_a[][SIMD_BLOCK_
 
   double factor_x = -0.5*edge_weight[0], factor_y = -0.5*edge_weight[1], factor_z = -0.5*edge_weight[2];
 
-  fluxes_a[VAR_DENSITY][idx] +=
+  fluxes_a[VAR_DENSITY][idx] =
       factor_a*(p_a - p_b)
     + factor_x*(momentum_a.x + momentum_b.x)
     + factor_y*(momentum_a.y + momentum_b.y)
     + factor_z*(momentum_a.z + momentum_b.z);
 
-  fluxes_a[VAR_DENSITY_ENERGY][idx] +=
+  fluxes_a[VAR_DENSITY_ENERGY][idx] =
       factor_a*(pe_a - pe_b)
     + factor_x*(flux_contribution_i_density_energy_a[0] + flux_contribution_i_density_energy_b[0])
     + factor_y*(flux_contribution_i_density_energy_a[1] + flux_contribution_i_density_energy_b[1])
     + factor_z*(flux_contribution_i_density_energy_a[2] + flux_contribution_i_density_energy_b[2]);
 
-  fluxes_a[VAR_MOMENTUM + 0][idx] +=
+  fluxes_a[VAR_MOMENTUM + 0][idx] =
       factor_a*(momentum_a.x - momentum_b.x)
     + factor_x*(flux_contribution_i_momentum_x_a[0] + flux_contribution_i_momentum_x_b[0])
     + factor_y*(flux_contribution_i_momentum_x_a[1] + flux_contribution_i_momentum_x_b[1])
     + factor_z*(flux_contribution_i_momentum_x_a[2] + flux_contribution_i_momentum_x_b[2]);
 
-  fluxes_a[VAR_MOMENTUM + 1][idx] +=
+  fluxes_a[VAR_MOMENTUM + 1][idx] =
       factor_a*(momentum_a.y - momentum_b.y)
     + factor_x*(flux_contribution_i_momentum_y_a[0] + flux_contribution_i_momentum_y_b[0])
     + factor_y*(flux_contribution_i_momentum_y_a[1] + flux_contribution_i_momentum_y_b[1])
     + factor_z*(flux_contribution_i_momentum_y_a[2] + flux_contribution_i_momentum_y_b[2]);
 
-  fluxes_a[VAR_MOMENTUM + 2][idx] +=
+  fluxes_a[VAR_MOMENTUM + 2][idx] =
       factor_a*(momentum_a.z - momentum_b.z)
     + factor_x*(flux_contribution_i_momentum_z_a[0] + flux_contribution_i_momentum_z_b[0])
     + factor_y*(flux_contribution_i_momentum_z_a[1] + flux_contribution_i_momentum_z_b[1])
     + factor_z*(flux_contribution_i_momentum_z_a[2] + flux_contribution_i_momentum_z_b[2]);
 
-  fluxes_b[VAR_DENSITY][idx] +=
+  fluxes_b[VAR_DENSITY][idx] =
       factor_b*(p_b - p_a)
     - factor_x*(momentum_a.x + momentum_b.x)
     - factor_y*(momentum_a.y + momentum_b.y)
     - factor_z*(momentum_a.z + momentum_b.z);
 
-  fluxes_b[VAR_DENSITY_ENERGY][idx] +=
+  fluxes_b[VAR_DENSITY_ENERGY][idx] =
       factor_b*(pe_b - pe_a)
     - factor_x*(flux_contribution_i_density_energy_a[0] + flux_contribution_i_density_energy_b[0])
     - factor_y*(flux_contribution_i_density_energy_a[1] + flux_contribution_i_density_energy_b[1])
     - factor_z*(flux_contribution_i_density_energy_a[2] + flux_contribution_i_density_energy_b[2]);
 
-  fluxes_b[VAR_MOMENTUM + 0][idx] +=
+  fluxes_b[VAR_MOMENTUM + 0][idx] =
       factor_b*(momentum_b.x - momentum_a.x)
     - factor_x*(flux_contribution_i_momentum_x_a[0] + flux_contribution_i_momentum_x_b[0])
     - factor_y*(flux_contribution_i_momentum_x_a[1] + flux_contribution_i_momentum_x_b[1])
     - factor_z*(flux_contribution_i_momentum_x_a[2] + flux_contribution_i_momentum_x_b[2]);
 
-  fluxes_b[VAR_MOMENTUM + 1][idx] +=
+  fluxes_b[VAR_MOMENTUM + 1][idx] =
       factor_b*(momentum_b.y - momentum_a.y)
     - factor_x*(flux_contribution_i_momentum_y_a[0] + flux_contribution_i_momentum_y_b[0])
     - factor_y*(flux_contribution_i_momentum_y_a[1] + flux_contribution_i_momentum_y_b[1])
     - factor_z*(flux_contribution_i_momentum_y_a[2] + flux_contribution_i_momentum_y_b[2]);
 
-  fluxes_b[VAR_MOMENTUM + 2][idx] +=
+  fluxes_b[VAR_MOMENTUM + 2][idx] =
       factor_b*(momentum_b.z - momentum_a.z)
     - factor_x*(flux_contribution_i_momentum_z_a[0] + flux_contribution_i_momentum_z_b[0])
     - factor_y*(flux_contribution_i_momentum_z_a[1] + flux_contribution_i_momentum_z_b[1])
@@ -464,8 +464,8 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
     #ifdef VECTORIZE
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
-      if (n+SIMD_BLOCK_SIZE >= set->core_size) {
+    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
+      if (n+SIMD_VEC >= set->core_size) {
 
         #ifdef PAPI
           if (num_events > 0)
@@ -482,12 +482,12 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
         }
         #endif
       }
-      ALIGNED_double double dat0[5][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat1[5][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat3[5][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat4[5][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat0[5][SIMD_VEC];
+      ALIGNED_double double dat1[5][SIMD_VEC];
+      ALIGNED_double double dat3[5][SIMD_VEC];
+      ALIGNED_double double dat4[5][SIMD_VEC];
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         int idx0_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx1_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 1];
 
@@ -517,7 +517,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
       }
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         compute_flux_edge_kernel_vec(
           dat0,
           dat1,
@@ -526,7 +526,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
           dat4,
           i);
       }
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         int idx3_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx4_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 1];
 
@@ -554,7 +554,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
     #endif
 
     //remainder
-    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif
