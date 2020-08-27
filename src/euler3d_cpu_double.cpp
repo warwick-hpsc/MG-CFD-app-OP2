@@ -408,7 +408,7 @@ int main(int argc, char** argv)
             op_par_loop(calculate_cell_volumes, "calculate_cell_volumes", op_edges[i], 
                         op_arg_dat(p_node_coords[i],   0, p_edge_to_nodes[i], NDIM, "double", OP_READ), 
                         op_arg_dat(p_node_coords[i],   1, p_edge_to_nodes[i], NDIM, "double", OP_READ), 
-                        op_arg_dat(p_edge_weights[i], -1, OP_ID,              NDIM, "double", OP_INC),
+                        op_arg_dat(p_edge_weights[i], -1, OP_ID,              NDIM, "double", OP_RW),
                         op_arg_dat(p_volumes[i],       0, p_edge_to_nodes[i], 1,    "double", OP_INC), 
                         op_arg_dat(p_volumes[i],       1, p_edge_to_nodes[i], 1,    "double", OP_INC));
         }
