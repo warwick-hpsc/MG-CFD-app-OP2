@@ -17,7 +17,7 @@ struct unit{
   char type;//either M for MG-CFD or C for Coupler unit
   int processes;
   std::vector<std::vector<int>> mgcfd_ranks;//each coupler unit has 2 MG-CFD instances, MG-CFD units will only have themselves
-  std::vector<int> coupler_ranks;//MG-CFD instances can have multiple couplers
+  std::vector<std::vector<int>> coupler_ranks;//MG-CFD instances can have multiple couplers
   std::vector<int> mgcfd_units;//the 2 MG-CFD units coupled by this coupler unit
 };
 
@@ -26,3 +26,4 @@ struct locators{//one locator per rank - states type and relative position
   int placelocator;//e.g 1 for 1st coupler/mgcfd unit, 2 for 2nd coupler/mgcfd unit
 };
 #endif
+

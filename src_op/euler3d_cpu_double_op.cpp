@@ -647,7 +647,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     std::vector<bool> left;
     
     for(int z = 0; z < total_coupler_unit_count; z++){
-        int coupler_rank = units[unit_count].coupler_ranks[z]; /* This assumes only 1 coupler unit per 2 MG-CFD sessions */
+        int coupler_rank = units[unit_count].coupler_ranks[z][0]; //This can be left alone since the instance number is the same for all ranks in a coupler unit
         int coupler_position = relative_positions[coupler_rank].placelocator; /* converts coupler instance number to relative index for units AoS - needed due to stack nature of coupler allocation */
         found = false;
         int unit_count_2 = 0;
@@ -673,7 +673,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         }
     }
         
-    int coupler_rank = units[unit_count].coupler_ranks[0]; /* This assumes only 1 coupler unit per 2 MG-CFD sessions */
+    int coupler_rank = units[unit_count].coupler_ranks[0][0]; /* This assumes only 1 coupler unit per 2 MG-CFD sessions */
 
     int *recv_buffer = new int[recv_size];
     int prev_cycle = -1;
@@ -682,7 +682,6 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     double *p_variables_data_l0, *p_variables_data_l1, *p_variables_data_l2, *p_variables_data_l3;
     double *p_variables_recv_l0, *p_variables_recv_l1, *p_variables_recv_l2, *p_variables_recv_l3;
 
-    op_printf("Stage 0\n");
     int null_check;
 
     for (int z = 0; z < 4; z++) {
@@ -694,10 +693,9 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         nodes_sizes[z] = null_check;
     }
 
-    op_printf("Stage 0.5\n");
     if (internal_rank == MPI_ROOT) {
         for(int z = 0; z < total_coupler_unit_count; z++){
-            MPI_Send(nodes_sizes, 4, MPI_INT, units[unit_count].coupler_ranks[z], 0, MPI_COMM_WORLD);
+            MPI_Send(nodes_sizes, 4, MPI_INT, units[unit_count].coupler_ranks[z][0], 0, MPI_COMM_WORLD);//this needs to be a loop to send the data to all of the ranks in the coupler unit
         }
     }
 
@@ -713,7 +711,6 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
     double *p_variables_pointers[4] = {p_variables_recv_l0,p_variables_recv_l1,p_variables_recv_l2,p_variables_recv_l3}; 
 
-    op_printf("Stage 1\n");
     while(i < conf.num_cycles)
     {
         #ifdef LOG_PROGRESS
@@ -728,16 +725,14 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
         if(i != prev_cycle && ((i % upd_freq) == 0)){
             prev_cycle=i;
-            op_printf("Stage 2\n");
             for (int z = 0; z < levels; z++) {
                 op_fetch_data(p_variables[z], p_variables_pointers[z]);
             }
-            op_printf("Stage 3\n");
             if(internal_rank == MPI_ROOT){
                 op_printf("Cycle %d comms starting\n", i);
 
                 for(int z = 0; z < total_coupler_unit_count; z++){ 
-                    coupler_rank = units[unit_count].coupler_ranks[z]; /* This assumes only 1 coupler unit per 2 MG-CFD sessions */
+                    coupler_rank = units[unit_count].coupler_ranks[z][0];//Again needs to be a loop to send the data to all of the ranks in the coupler unit
                     if(left[z]){
                         //op_printf("I am rank %d, I am sending to coupler with rank %d\n", worldrank, coupler_rank);
                         MPI_Send(p_variables_data_l0, nodes_sizes[0], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);

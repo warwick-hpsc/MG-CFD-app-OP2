@@ -134,13 +134,13 @@ int main(int argc, char** argv){
 					temp_coupler_processes.push_back(j);//add coupler ranks to the temp_coupler_processes vector to transfer to the units[k].coupler_ranks
 				}
 			}
-			units[i].coupler_ranks = temp_coupler_processes;
+			units[i].coupler_ranks.push_back(temp_coupler_processes);
 
 			int k2 = units[i].mgcfd_units[0] - 1;//keep k to store the mgcfd processes in the coupler unit 'mgcfd_ranks' vector
 
-            for(int j = 0; j < temp_coupler_processes.size(); j++) {
-			    units[k2].coupler_ranks.push_back(temp_coupler_processes[j]);
-            }
+        
+			units[k2].coupler_ranks.push_back(temp_coupler_processes);
+            
 
 			std::vector<int> temp_mgcfd_processes;
 			for(int j=0; j<temp_marker; j++){
@@ -154,9 +154,9 @@ int main(int argc, char** argv){
 
 			int k3 = units[i].mgcfd_units[1] - 1;//k3 is the 2nd MGCFD instance that the coupler unit manages
 
-            for(int j = 0; j < temp_coupler_processes.size(); j++) {
-			    units[k3].coupler_ranks.push_back(temp_coupler_processes[j]);
-            }
+
+			units[k3].coupler_ranks.push_back(temp_coupler_processes);
+
 
 			temp_mgcfd_processes.clear();
 			for(int j=0; j<temp_marker; j++){
@@ -179,7 +179,10 @@ int main(int argc, char** argv){
 
 		for(int i = 0; i<num_of_units; i++){
 			printf("\n\nType %c\n", units[i].type);
-			printf("Coupler rank: %d\n", units[i].coupler_ranks[0]);
+			int no_of_elements_coupler = units[i].coupler_ranks[0].size();
+			for(int j = 0; j < no_of_elements_coupler; j++){
+				printf("Coupler ranks: %d\n", units[i].coupler_ranks[0][j]);
+			}
 			int no_of_elements = units[i].mgcfd_ranks[0].size();
 			for(int j = 0; j < no_of_elements; j++){
 				printf("MGCFD Ranks: %d\n", units[i].mgcfd_ranks[0][j]);
@@ -201,13 +204,16 @@ int main(int argc, char** argv){
 
 	for(int i=0; i<num_of_units;i++){
 		if(units[i].type == 'C'){
-			int ranks[1] = {units[i].coupler_ranks[0]};
+			int ranks[units[i].coupler_ranks[0].size()];
+			std::copy(units[i].coupler_ranks[0].begin(), units[i].coupler_ranks[0].end(), ranks);
 			MPI_Group_incl(world_group, 1, ranks, &new_groups[i]);
 			MPI_Comm_create_group(MPI_COMM_WORLD, new_groups[i], 0, &new_comms[i]);
-			if(rank == ranks[0]){
-				new_comm=new_comms[i];
-				is_coupler = true;
-				instance_number = relative_positions[rank].placelocator;
+			for(int j=units[i].coupler_ranks[0][0]; j<units[i].coupler_ranks[0][0]+units[i].coupler_ranks[0].size();j++){//if rank of processes matches a rank for a particular coupler unit, assign the new communicator
+				if(rank == j){
+					new_comm=new_comms[i];
+					is_coupler = true;
+					instance_number = relative_positions[rank].placelocator;
+				}
 			}
 		}
 		if(units[i].type == 'M'){
@@ -236,10 +242,12 @@ int main(int argc, char** argv){
 		bool found = false;
 		int unit_count = 0;
     	while(!found){
-			if(units[unit_count].type == 'C' && units[unit_count].coupler_ranks[0] == rank){
-				found=true;
-			}else{
-				unit_count++;
+			for(int j=units[unit_count].coupler_ranks[0][0]; j<units[unit_count].coupler_ranks[0][0]+units[unit_count].coupler_ranks[0].size();j++){//if rank of processes matches a rank for a particular coupler unit, assign the new communicator
+				if(units[unit_count].type == 'C' && rank == j){
+					found=true;
+				}else{
+					unit_count++;
+				}
 			}
     	}
 
@@ -300,6 +308,7 @@ int main(int argc, char** argv){
 	}
     
 }
+
 
 
 
