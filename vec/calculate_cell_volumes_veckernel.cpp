@@ -110,8 +110,8 @@ inline void calculate_cell_volumes_vec( const double coords1[][SIMD_VEC], const 
     area = sqrt(area);
 
     double tetra_volume = (1.0/3.0)*0.5 *dist *area;
-    vol1[0][idx]= tetra_volume;
-    vol2[0][idx]= tetra_volume;
+    vol1[0][idx]+= tetra_volume;
+    vol2[0][idx]+= tetra_volume;
 
     for (int i=0; i<NDIM; i++) {
         ewt[i][idx] = (d[i] / dist) * area;
@@ -216,9 +216,9 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
         int idx3_1 = 1 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx4_1 = 1 * arg0.map_data[(n+i) * arg0.map->dim + 1];
 
-        (ptr2)[idx2_3 + 0]  = dat2[0][i];
-        (ptr2)[idx2_3 + 1]  = dat2[1][i];
-        (ptr2)[idx2_3 + 2]  = dat2[2][i];
+        (ptr2)[idx2_3 + 0] = dat2[0][i];
+        (ptr2)[idx2_3 + 1] = dat2[1][i];
+        (ptr2)[idx2_3 + 2] = dat2[2][i];
 
         (ptr3)[idx3_1 + 0] += dat3[0][i];
 
