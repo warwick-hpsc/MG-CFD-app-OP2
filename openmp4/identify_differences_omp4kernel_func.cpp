@@ -38,7 +38,7 @@ void identify_differences_omp4_kernel(
 
 
 
-      const double acceptable_relative_difference = 10.0e-9;
+      const double acceptable_relative_difference = 10.0e-8;
 
       for (int v=0; v<NVAR; v++) {
           double acceptable_difference = master_value[v] * acceptable_relative_difference;
