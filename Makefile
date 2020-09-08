@@ -100,12 +100,14 @@ ifeq ($(COMPILER),clang)
   CPP := clang++
   CFLAGS	= -fPIC -DUNIX -DVECTORIZE
   OPT_REPORT_OPTIONS := 
-  OPT_REPORT_OPTIONS += -Rpass-missed=loop-vec ## Report SIMD failures
-  OPT_REPORT_OPTIONS += -Rpass=loop-vec ## Report SIMD success
+  OPT_REPORT_OPTIONS += -Rpass-missed=loop-vec ## Report vectorisation failures
+  OPT_REPORT_OPTIONS += -Rpass="loop-(unroll|vec)" ## Report loop transformations
+  # OPT_REPORT_OPTIONS += -Rpass-analysis=loop-vectorize ## Report WHY vectorize failed
   OPT_REPORT_OPTIONS += -fsave-optimization-record -gline-tables-only -gcolumn-info
   CFLAGS += $(OPT_REPORT_OPTIONS)
-  ## Disable C math function error checking, as prevents SIMD:
-  CFLAGS += -fno-math-errno
+  CFLAGS += -fno-math-errno ## Disable C math function error checking, as prevents vectorisation
+  OPTIMISE += -fno-unroll-loops ## Loop unrolling interferes with vectorisation
+  OPTIMISE += -march=native
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -fopenmp
   MPIFLAGS 	= $(CPPFLAGS)

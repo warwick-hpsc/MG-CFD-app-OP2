@@ -118,15 +118,15 @@ void op_par_loop_dampen_ewt(char const *name, op_set set,
 
     #ifdef VECTORIZE
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
+    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         dampen_ewt(
           &(ptr0)[3 * (n+i)]);
       }
     }
     //remainder
-    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif

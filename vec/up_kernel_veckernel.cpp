@@ -209,12 +209,12 @@ inline void down_v2_kernel_post(
 #if defined __clang__ || defined __GNUC__
 __attribute__((always_inline))
 #endif
-inline void up_kernel_vec( const double* variable, double variable_above[][SIMD_BLOCK_SIZE], int up_scratch[][SIMD_BLOCK_SIZE], int idx ) {
-    variable_above[VAR_DENSITY][idx]        += variable[VAR_DENSITY];
-    variable_above[VAR_MOMENTUM+0][idx]     += variable[VAR_MOMENTUM+0];
-    variable_above[VAR_MOMENTUM+1][idx]     += variable[VAR_MOMENTUM+1];
-    variable_above[VAR_MOMENTUM+2][idx]     += variable[VAR_MOMENTUM+2];
-    variable_above[VAR_DENSITY_ENERGY][idx] += variable[VAR_DENSITY_ENERGY];
+inline void up_kernel_vec( const double variable[][SIMD_VEC], double variable_above[][SIMD_VEC], int up_scratch[][SIMD_VEC], int idx ) {
+    variable_above[VAR_DENSITY][idx]        += variable[VAR_DENSITY][idx];
+    variable_above[VAR_MOMENTUM+0][idx]     += variable[VAR_MOMENTUM+0][idx];
+    variable_above[VAR_MOMENTUM+1][idx]     += variable[VAR_MOMENTUM+1][idx];
+    variable_above[VAR_MOMENTUM+2][idx]     += variable[VAR_MOMENTUM+2][idx];
+    variable_above[VAR_DENSITY_ENERGY][idx] += variable[VAR_DENSITY_ENERGY][idx];
     up_scratch[0][idx]+= 1;
 
 }
@@ -255,14 +255,22 @@ void op_par_loop_up_kernel(char const *name, op_set set,
 
     #ifdef VECTORIZE
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
-      if (n+SIMD_BLOCK_SIZE >= set->core_size) {
+    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
+      if (n+SIMD_VEC >= set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      ALIGNED_double double dat1[5][SIMD_BLOCK_SIZE];
-      ALIGNED_int int dat2[1][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat0[5][SIMD_VEC];
+      ALIGNED_double double dat1[5][SIMD_VEC];
+      ALIGNED_int int dat2[1][SIMD_VEC];
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
+        int idx0_5 = 5 * (n+i);
+
+        dat0[0][i] = (ptr0)[idx0_5 + 0];
+        dat0[1][i] = (ptr0)[idx0_5 + 1];
+        dat0[2][i] = (ptr0)[idx0_5 + 2];
+        dat0[3][i] = (ptr0)[idx0_5 + 3];
+        dat0[4][i] = (ptr0)[idx0_5 + 4];
 
         dat1[0][i] = 0.0;
         dat1[1][i] = 0.0;
@@ -274,14 +282,14 @@ void op_par_loop_up_kernel(char const *name, op_set set,
 
       }
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         up_kernel_vec(
-          &(ptr0)[5 * (n+i)],
+          dat0,
           dat1,
           dat2,
           i);
       }
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         int idx1_5 = 5 * arg1.map_data[(n+i) * arg1.map->dim + 0];
         int idx2_1 = 1 * arg1.map_data[(n+i) * arg1.map->dim + 0];
 
@@ -297,7 +305,7 @@ void op_par_loop_up_kernel(char const *name, op_set set,
     }
 
     //remainder
-    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif

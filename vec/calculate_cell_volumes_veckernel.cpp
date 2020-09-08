@@ -94,7 +94,7 @@ inline void dampen_ewt(
 #if defined __clang__ || defined __GNUC__
 __attribute__((always_inline))
 #endif
-inline void calculate_cell_volumes_vec( const double coords1[][SIMD_BLOCK_SIZE], const double coords2[][SIMD_BLOCK_SIZE], double* ewt, double vol1[][SIMD_BLOCK_SIZE], double vol2[][SIMD_BLOCK_SIZE], int idx ) {
+inline void calculate_cell_volumes_vec( const double coords1[][SIMD_VEC], const double coords2[][SIMD_VEC], double ewt[][SIMD_VEC], double vol1[][SIMD_VEC], double vol2[][SIMD_VEC], int idx ) {
     double d[NDIM];
     double dist = 0.0;
     for (int i=0; i<NDIM; i++) {
@@ -105,7 +105,7 @@ inline void calculate_cell_volumes_vec( const double coords1[][SIMD_BLOCK_SIZE],
 
     double area = 0.0;
     for (int i=0; i<NDIM; i++) {
-        area += ewt[i]*ewt[i];
+        area += ewt[i][idx]*ewt[i][idx];
     }
     area = sqrt(area);
 
@@ -114,13 +114,13 @@ inline void calculate_cell_volumes_vec( const double coords1[][SIMD_BLOCK_SIZE],
     vol2[0][idx]+= tetra_volume;
 
     for (int i=0; i<NDIM; i++) {
-        ewt[i] = (d[i] / dist) * area;
+        ewt[i][idx] = (d[i] / dist) * area;
     }
 
 
 
     for (int i=0; i<NDIM; i++) {
-        ewt[i] /= dist;
+        ewt[i][idx] /= dist;
     }
 
 }
@@ -169,18 +169,20 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
 
     #ifdef VECTORIZE
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
-      if (n+SIMD_BLOCK_SIZE >= set->core_size) {
+    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
+      if (n+SIMD_VEC >= set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      ALIGNED_double double dat0[3][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat1[3][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat3[1][SIMD_BLOCK_SIZE];
-      ALIGNED_double double dat4[1][SIMD_BLOCK_SIZE];
+      ALIGNED_double double dat0[3][SIMD_VEC];
+      ALIGNED_double double dat1[3][SIMD_VEC];
+      ALIGNED_double double dat2[3][SIMD_VEC];
+      ALIGNED_double double dat3[1][SIMD_VEC];
+      ALIGNED_double double dat4[1][SIMD_VEC];
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         int idx0_3 = 3 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx1_3 = 3 * arg0.map_data[(n+i) * arg0.map->dim + 1];
+        int idx2_3 = 3 * (n+i);
 
         dat0[0][i] = (ptr0)[idx0_3 + 0];
         dat0[1][i] = (ptr0)[idx0_3 + 1];
@@ -190,24 +192,33 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
         dat1[1][i] = (ptr1)[idx1_3 + 1];
         dat1[2][i] = (ptr1)[idx1_3 + 2];
 
+        dat2[0][i] = (ptr2)[idx2_3 + 0];
+        dat2[1][i] = (ptr2)[idx2_3 + 1];
+        dat2[2][i] = (ptr2)[idx2_3 + 2];
+
         dat3[0][i] = 0.0;
 
         dat4[0][i] = 0.0;
 
       }
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         calculate_cell_volumes_vec(
           dat0,
           dat1,
-          &(ptr2)[3 * (n+i)],
+          dat2,
           dat3,
           dat4,
           i);
       }
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
+        int idx2_3 = 3 * (n+i);
         int idx3_1 = 1 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx4_1 = 1 * arg0.map_data[(n+i) * arg0.map->dim + 1];
+
+        (ptr2)[idx2_3 + 0] = dat2[0][i];
+        (ptr2)[idx2_3 + 1] = dat2[1][i];
+        (ptr2)[idx2_3 + 2] = dat2[2][i];
 
         (ptr3)[idx3_1 + 0] += dat3[0][i];
 
@@ -217,7 +228,7 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
     }
 
     //remainder
-    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif
