@@ -11,7 +11,7 @@ inline void count_non_zeros_openacc(
     const double* value,
     int* count) {
     for (int v=0; v<NVAR; v++) {
-        if ((*value) > 0.0) {
+        if (value[v] > 0.0) {
             (*count)++;
         }
     }
