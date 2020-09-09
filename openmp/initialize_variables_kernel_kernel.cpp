@@ -25,7 +25,7 @@ void op_par_loop_initialize_variables_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  initialize_variables_kernel");
   }
 
-  op_mpi_halo_exchanges(set, nargs, args);
+  int set_size = op_mpi_halo_exchanges(set, nargs, args);
   // set number of threads
   #ifdef _OPENMP
     int nthreads = omp_get_max_threads();
@@ -33,7 +33,7 @@ void op_par_loop_initialize_variables_kernel(char const *name, op_set set,
     int nthreads = 1;
   #endif
 
-  if (set->size >0) {
+  if (set_size >0) {
 
     // execute plan
     // Pause process timing, and switch to per-thread timing:
@@ -52,7 +52,6 @@ void op_par_loop_initialize_variables_kernel(char const *name, op_set set,
       op_timers_core(&thr_cpu_t2, &thr_wall_t2);
       OP_kernels[0].times[thr]  += thr_wall_t2 - thr_wall_t1;
     }
-
     // OpenMP block complete, so switch back to process timing:
     op_timers_core(&cpu_t1, &wall_t1);
   }

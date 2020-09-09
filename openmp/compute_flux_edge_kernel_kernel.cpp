@@ -80,7 +80,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
   op_timers_core(&inner_cpu_t2, &inner_wall_t2);
   sync_time += inner_wall_t2 - inner_wall_t1;
 
-  if (set->size >0) {
+  if (set_size >0) {
 
     op_plan *Plan = op_plan_get_stage_upload(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_ALL,0);
 
@@ -97,7 +97,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
       op_timers_core(&inner_cpu_t1, &inner_wall_t1);
       // Pause process timing and switch to per-thread timing:
-      cpu_t2=inner_cpu_t1; wall_t2=inner_wall_t1;
+      op_timers_core(&cpu_t2, &wall_t2);
       non_thread_walltime += wall_t2 - wall_t1;
       #pragma omp parallel
       {

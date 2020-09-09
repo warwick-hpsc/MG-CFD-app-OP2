@@ -68,7 +68,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
   op_timers_core(&inner_cpu_t2, &inner_wall_t2);
   sync_time += inner_wall_t2 - inner_wall_t1;
 
-  if (set->size >0) {
+  if (set_size >0) {
 
     #ifdef PAPI
       // Init and start PAPI

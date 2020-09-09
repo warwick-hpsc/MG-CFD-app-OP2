@@ -38,10 +38,10 @@ void op_par_loop_copy_double_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  copy_double_kernel");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
+  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
 
 
-  if (set->size >0) {
+  if (set_size >0) {
 
 
     //Set up typed device pointers for OpenACC

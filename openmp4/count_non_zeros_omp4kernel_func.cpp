@@ -24,7 +24,7 @@ void count_non_zeros_omp4_kernel(
     //inline function
     
       for (int v=0; v<NVAR; v++) {
-          if ((*value) > 0.0) {
+          if (value[v] > 0.0) {
               (*count)++;
           }
       }
