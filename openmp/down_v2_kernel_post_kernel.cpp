@@ -22,7 +22,7 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc_manytime(21, omp_get_max_threads());
+  op_timing_realloc_manytime(20, omp_get_max_threads());
   op_timers_core(&cpu_t1, &wall_t1);
   double non_thread_walltime = 0.0;
 
@@ -59,7 +59,7 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
           &((double*)arg3.data)[5*n]);
       }
       op_timers_core(&thr_cpu_t2, &thr_wall_t2);
-      OP_kernels[21].times[thr]  += thr_wall_t2 - thr_wall_t1;
+      OP_kernels[20].times[thr]  += thr_wall_t2 - thr_wall_t1;
     }
 
     // OpenMP block complete, so switch back to process timing:
@@ -72,11 +72,11 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
   non_thread_walltime += wall_t2 - wall_t1;
-  OP_kernels[21].name      = name;
-  OP_kernels[21].count    += 1;
-  OP_kernels[21].times[0] += non_thread_walltime;
-  OP_kernels[21].transfer += (float)set->size * arg0.size;
-  OP_kernels[21].transfer += (float)set->size * arg1.size;
-  OP_kernels[21].transfer += (float)set->size * arg2.size;
-  OP_kernels[21].transfer += (float)set->size * arg3.size * 2.0f;
+  OP_kernels[20].name      = name;
+  OP_kernels[20].count    += 1;
+  OP_kernels[20].times[0] += non_thread_walltime;
+  OP_kernels[20].transfer += (float)set->size * arg0.size;
+  OP_kernels[20].transfer += (float)set->size * arg1.size;
+  OP_kernels[20].transfer += (float)set->size * arg2.size;
+  OP_kernels[20].transfer += (float)set->size * arg3.size * 2.0f;
 }

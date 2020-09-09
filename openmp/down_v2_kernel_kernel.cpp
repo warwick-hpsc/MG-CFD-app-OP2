@@ -34,7 +34,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc_manytime(20, omp_get_max_threads());
+  op_timing_realloc_manytime(19, omp_get_max_threads());
   op_timers_core(&cpu_t1, &wall_t1);
   double non_thread_walltime = 0.0;
 
@@ -46,8 +46,8 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
   }
 
   // get plan
-  #ifdef OP_PART_SIZE_20
-    int part_size = OP_PART_SIZE_20;
+  #ifdef OP_PART_SIZE_19
+    int part_size = OP_PART_SIZE_19;
   #else
     int part_size = OP_part_size;
   #endif
@@ -105,7 +105,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
         }
 
         op_timers_core(&thr_cpu_t2, &thr_wall_t2);
-        OP_kernels[20].times[thr]  += thr_wall_t2 - thr_wall_t1;
+        OP_kernels[19].times[thr]  += thr_wall_t2 - thr_wall_t1;
       }
 
       // Revert to process-level timing:
@@ -113,8 +113,8 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
 
       block_offset += nblocks;
     }
-    OP_kernels[20].transfer  += Plan->transfer;
-    OP_kernels[20].transfer2 += Plan->transfer2;
+    OP_kernels[19].transfer  += Plan->transfer;
+    OP_kernels[19].transfer2 += Plan->transfer2;
   }
 
   if (set_size == 0 || set_size == set->core_size) {
@@ -126,7 +126,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
   non_thread_walltime += wall_t2 - wall_t1;
-  OP_kernels[20].name      = name;
-  OP_kernels[20].count    += 1;
-  OP_kernels[20].times[0] += non_thread_walltime;
+  OP_kernels[19].name      = name;
+  OP_kernels[19].count    += 1;
+  OP_kernels[19].times[0] += non_thread_walltime;
 }
