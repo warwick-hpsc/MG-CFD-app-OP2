@@ -45,7 +45,7 @@ endif
 PTSCOTCH_INC += -DHAVE_PTSCOTCH
 PTSCOTCH_LIB += -lptscotch -lscotch -lptscotcherr
 
-
+PAPI = 1
 
 ifdef DEBUG
   OPTIMISE := -pg -g -O0
@@ -102,14 +102,14 @@ ifeq ($(COMPILER),clang)
   CPP := clang++
   CFLAGS	= -fPIC -DUNIX
   OPT_REPORT_OPTIONS := 
-  OPT_REPORT_OPTIONS += -Rpass-missed=loop-vec ## Report SIMD failures
-  OPT_REPORT_OPTIONS += -Rpass=loop-vec ## Report SIMD success
-  # OPT_REPORT_OPTIONS += -Rpass-missed=.*
-  # OPT_REPORT_OPTIONS += -Rpass=.*
+  OPT_REPORT_OPTIONS += -Rpass-missed=loop-vec ## Report vectorisation failures
+  OPT_REPORT_OPTIONS += -Rpass="loop-(unroll|vec)" ## Report loop transformations
+  OPT_REPORT_OPTIONS += -Rpass-analysis=loop-vec ## Report WHY vectorize failed
   OPT_REPORT_OPTIONS += -fsave-optimization-record -gline-tables-only -gcolumn-info
   CFLAGS += $(OPT_REPORT_OPTIONS)
-  ## Disable C math function error checking, as prevents SIMD:
-  CFLAGS += -fno-math-errno
+  CFLAGS += -fno-math-errno ## Disable C math function error checking, as prevents vectorisation
+  OPTIMISE += -fno-unroll-loops ## Loop unrolling interferes with vectorisation
+  OPTIMISE += -march=native
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -fopenmp
   MPIFLAGS 	= $(CPPFLAGS)
@@ -118,7 +118,7 @@ ifeq ($(COMPILER),clang)
 else
 ifeq ($(COMPILER),intel)
   CPP = icpc
-  #CFLAGS = -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -DVECTORIZE -qopt-report=5 -Wall
+  #CFLAGS = -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -qopt-report=5 -Wall
   #CFLAGS += -restrict
   #CFLAGS	= -fPIC -Wall -Wextra -restrict -xHost
   CFLAGS	= -fPIC -Wall -Wextra -restrict
@@ -225,7 +225,8 @@ endif
 ## its compute and sync times.
 # MGCFD_INCS += -DDUMP_EXT_PERF_DATA
 
-all: mpi mpi_vec openmp openmp_vec slope slope_vec
+# all: mpi mpi_vec openmp openmp_vec slope slope_vec
+all: mpi mpi_vec openmp openmp_vec
 # all: seq slope openmp mpi mpi_vec mpi_openmp
 # all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda
 # all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda openacc openmp4
@@ -370,12 +371,12 @@ $(OBJ_DIR)/mgcfd_slope_vec_main.o: $(OP2_MAIN_SRC)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE \
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
 	    -I$(SRC_DIR)/../slope \
-		-c -o $@ $^
+		-c -o $@ $^ 2>&1 | tee $@.log
 $(OBJ_DIR)/mgcfd_slope_vec_kernels.o: $(SRC_DIR)/../slope/_kernels.cpp $(SLOPE_KERNELS)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE \
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
-		-Iopenmp -c -o $@ $(SRC_DIR)/../slope/_kernels.cpp
+		-Iopenmp -c -o $@ $(SRC_DIR)/../slope/_kernels.cpp 2>&1 | tee $@.log
 $(BIN_DIR)/mgcfd_slope_vec: $(OP2_SLOPE_VEC_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) -DSLOPE \
@@ -405,7 +406,7 @@ $(OBJ_DIR)/mgcfd_openmp_vec_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(OMP_K
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) \
 		$(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) \
 	    -I$(SRC_DIR)/../slope \
-		-c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
+		-c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp 2>&1 | tee $@.log
 $(BIN_DIR)/mgcfd_openmp_vec: $(OP2_OMP_VEC_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
@@ -421,7 +422,7 @@ $(OBJ_DIR)/mgcfd_mpi_main.o: $(OP2_MAIN_SRC)
 $(OBJ_DIR)/mgcfd_mpi_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(SEQ_KERNELS)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-	     -DMPI_ON -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
+	     -DMPI_ON -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp 2>&1 | tee $@.log
 $(BIN_DIR)/mgcfd_mpi: $(OP2_MPI_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
@@ -437,7 +438,7 @@ $(OBJ_DIR)/mgcfd_mpi_vec_main.o: $(OP2_MAIN_SRC)
 $(OBJ_DIR)/mgcfd_mpi_vec_kernels.o: $(SRC_DIR)/../vec/_veckernels.cpp $(VEC_KERNELS)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-        -DMPI_ON -c -o $@ $(SRC_DIR)/../vec/_veckernels.cpp
+        -DMPI_ON -c -o $@ $(SRC_DIR)/../vec/_veckernels.cpp 2>&1 | tee $@.log
 $(BIN_DIR)/mgcfd_mpi_vec: $(OP2_MPI_VEC_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \

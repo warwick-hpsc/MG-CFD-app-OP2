@@ -3,7 +3,12 @@
 //
 
 //user function
+#include ".././src/Kernels/flux.h"
 #include ".././src/Kernels/indirect_rw.h"
+
+#ifdef PAPI
+#include "papi_funcs.h"
+#endif
 
 // host stub function
 void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
@@ -12,6 +17,33 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
   op_arg arg2,
   op_arg arg3,
   op_arg arg4){
+
+  
+  op_par_loop_indirect_rw_kernel_instrumented(name, set, 
+    arg0, arg1, arg2, arg3, arg4
+    #ifdef VERIFY_OP2_TIMING
+      , NULL, NULL
+    #endif
+    , NULL
+    #ifdef PAPI
+    , NULL, 0, 0
+    #endif
+    );
+};
+
+// host stub function
+void op_par_loop_indirect_rw_kernel_instrumented(
+  char const *name, op_set set,
+  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
+  #ifdef VERIFY_OP2_TIMING
+    , double* compute_time_ptr, double* sync_time_ptr
+  #endif
+  , long* iter_counts_ptr
+  #ifdef PAPI
+  , long_long* restrict event_counts, int event_set, int num_events
+  #endif
+  )
+{
 
   int nargs = 5;
   op_arg args[5];
@@ -35,9 +67,32 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
 
   if (set->size >0) {
 
+    #ifdef PAPI
+      // Init and start PAPI
+      long_long* temp_count_stores = NULL;
+      if (num_events > 0) {
+        temp_count_stores = (long_long*)malloc(sizeof(long_long)*num_events);
+        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+        my_papi_start(event_set);
+      }
+    #endif
+
     for ( int n=0; n<set_size; n++ ){
       if (n==set->core_size) {
+        #ifdef PAPI
+          if (num_events > 0)
+            my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
+        #endif
+
         op_mpi_wait_all(nargs, args);
+
+        #ifdef PAPI
+          if (num_events > 0) {
+            // Restart PAPI
+            for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+            my_papi_start(event_set);
+        }
+        #endif
       }
       int map0idx = arg0.map_data[n * arg0.map->dim + 0];
       int map1idx = arg0.map_data[n * arg0.map->dim + 1];
@@ -50,6 +105,14 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
         &((double*)arg3.data)[5 * map0idx],
         &((double*)arg3.data)[5 * map1idx]);
     }
+
+    #ifdef PAPI
+      if (num_events > 0) {
+        my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
+        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+        free(temp_count_stores);
+      }
+    #endif
   }
 
   if (set_size == 0 || set_size == set->core_size) {

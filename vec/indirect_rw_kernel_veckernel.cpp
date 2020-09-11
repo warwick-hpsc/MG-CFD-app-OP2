@@ -6,6 +6,10 @@
 #ifndef INDIRECT_RW_H
 #define INDIRECT_RW_H
 
+#ifdef PAPI
+#include "papi_funcs.h"
+#endif
+
 // Indirect R/W kernel
 // - performs same data movement as compute_flux_edge() but with minimal arithmetic. 
 //   Measures upper bound on performance achievable by compute_flux_edge()
@@ -67,10 +71,10 @@ inline void indirect_rw_kernel(
 #if defined __clang__ || defined __GNUC__
 __attribute__((always_inline))
 #endif
-inline void indirect_rw_kernel_vec( const double variables_a[][SIMD_VEC], const double variables_b[][SIMD_VEC], const double *edge_weight, double fluxes_a[][SIMD_VEC], double fluxes_b[][SIMD_VEC], int idx ) {
-    double ex = edge_weight[0];
-    double ey = edge_weight[1];
-    double ez = edge_weight[2];
+inline void indirect_rw_kernel_vec( const double variables_a[][SIMD_VEC], const double variables_b[][SIMD_VEC], const double edge_weight[][SIMD_VEC], double fluxes_a[][SIMD_VEC], double fluxes_b[][SIMD_VEC], int idx ) {
+    double ex = edge_weight[0][idx];
+    double ey = edge_weight[1][idx];
+    double ez = edge_weight[2][idx];
 
     double p_a, pe_a;
     double3 momentum_a;
@@ -100,17 +104,17 @@ inline void indirect_rw_kernel_vec( const double variables_a[][SIMD_VEC], const 
     double my_b_val = momentum_a.y;
     double mz_b_val = momentum_a.z;
 
-    fluxes_a[VAR_DENSITY][idx]  += p_a_val;
-    fluxes_a[VAR_MOMENTUM+0][idx] += mx_a_val;
-    fluxes_a[VAR_MOMENTUM+1][idx] += my_a_val;
-    fluxes_a[VAR_MOMENTUM+2][idx] += mz_a_val;
-    fluxes_a[VAR_DENSITY_ENERGY][idx] += pe_a_val;
+    fluxes_a[VAR_DENSITY][idx]  = p_a_val;
+    fluxes_a[VAR_MOMENTUM+0][idx] = mx_a_val;
+    fluxes_a[VAR_MOMENTUM+1][idx] = my_a_val;
+    fluxes_a[VAR_MOMENTUM+2][idx] = mz_a_val;
+    fluxes_a[VAR_DENSITY_ENERGY][idx] = pe_a_val;
 
-    fluxes_b[VAR_DENSITY][idx]  += p_b_val;
-    fluxes_b[VAR_MOMENTUM+0][idx] += mx_b_val;
-    fluxes_b[VAR_MOMENTUM+1][idx] += my_b_val;
-    fluxes_b[VAR_MOMENTUM+2][idx] += mz_b_val;
-    fluxes_b[VAR_DENSITY_ENERGY][idx] += pe_b_val;
+    fluxes_b[VAR_DENSITY][idx]  = p_b_val;
+    fluxes_b[VAR_MOMENTUM+0][idx] = mx_b_val;
+    fluxes_b[VAR_MOMENTUM+1][idx] = my_b_val;
+    fluxes_b[VAR_MOMENTUM+2][idx] = mz_b_val;
+    fluxes_b[VAR_DENSITY_ENERGY][idx] = pe_b_val;
 
 }
 #endif
@@ -122,6 +126,33 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
   op_arg arg2,
   op_arg arg3,
   op_arg arg4){
+
+  
+  op_par_loop_indirect_rw_kernel_instrumented(name, set, 
+    arg0, arg1, arg2, arg3, arg4
+    #ifdef VERIFY_OP2_TIMING
+      , NULL, NULL
+    #endif
+    , NULL
+    #ifdef PAPI
+    , NULL, 0, 0
+    #endif
+    );
+};
+
+// host stub function
+void op_par_loop_indirect_rw_kernel_instrumented(
+  char const *name, op_set set,
+  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
+  #ifdef VERIFY_OP2_TIMING
+    , double* compute_time_ptr, double* sync_time_ptr
+  #endif
+  , long* iter_counts_ptr
+  #ifdef PAPI
+  , long_long* restrict event_counts, int event_set, int num_events
+  #endif
+  )
+{
 
   int nargs = 5;
   op_arg args[5];
@@ -156,6 +187,16 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
 
   if (exec_size >0) {
 
+    #ifdef PAPI
+      // Init and start PAPI
+      long_long* temp_count_stores = NULL;
+      if (num_events > 0) {
+        temp_count_stores = (long_long*)malloc(sizeof(long_long)*num_events);
+        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+        my_papi_start(event_set);
+      }
+    #endif
+
     #ifdef VECTORIZE
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
@@ -164,6 +205,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
       }
       ALIGNED_double double dat0[5][SIMD_VEC];
       ALIGNED_double double dat1[5][SIMD_VEC];
+      ALIGNED_double double dat2[5][SIMD_VEC];
       ALIGNED_double double dat3[5][SIMD_VEC];
       ALIGNED_double double dat4[5][SIMD_VEC];
       #pragma omp simd simdlen(SIMD_VEC)
@@ -183,6 +225,11 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
         dat1[3][i] = (ptr1)[idx1_5 + 3];
         dat1[4][i] = (ptr1)[idx1_5 + 4];
 
+
+        for (int v=0; v<3; v++) {
+            dat2[v][i] = ((double*)arg2.data)[(n+i)*3 + v];
+        }
+
         dat3[0][i] = 0.0;
         dat3[1][i] = 0.0;
         dat3[2][i] = 0.0;
@@ -201,7 +248,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
         indirect_rw_kernel_vec(
           dat0,
           dat1,
-          &(ptr2)[3 * (n+i)],
+          dat2,
           dat3,
           dat4,
           i);
@@ -224,6 +271,14 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
 
       }
     }
+
+    #ifdef PAPI
+      if (num_events > 0) {
+        my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
+        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+        free(temp_count_stores);
+      }
+    #endif
 
     //remainder
     for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){

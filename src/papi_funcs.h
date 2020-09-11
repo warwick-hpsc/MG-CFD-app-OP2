@@ -35,6 +35,7 @@
 #include "op_seq.h"
 
 #include "config.h"
+#include "const.h"
 
 inline void my_papi_start(int event_set)
 {
@@ -202,6 +203,7 @@ inline void dump_papi_counters_to_file(
     int num_events,
     int* events,  
     long_long* flux_kernel_event_counts, 
+    long_long* indirect_rw_kernel_event_counts, 
     char* output_file_prefix)
 {
     std::string filepath = std::string(output_file_prefix);
@@ -252,6 +254,20 @@ inline void dump_papi_counters_to_file(
 
             const int idx = l*num_events + eid;
             event_data_line << ',' << flux_kernel_event_counts[idx];
+
+            outfile << event_data_line.str() << std::endl;
+        }
+        for (int l=0; l<num_levels; l++) {
+            std::ostringstream event_data_line;
+            event_data_line << rank;
+            event_data_line << "," << conf.partitioner_string;
+            event_data_line << "," << eventName;
+
+            event_data_line << "," << "indirect_rw_kernel";
+            event_data_line << "," << l;
+
+            const int idx = l*num_events + eid;
+            event_data_line << ',' << indirect_rw_kernel_event_counts[idx];
 
             outfile << event_data_line.str() << std::endl;
         }
