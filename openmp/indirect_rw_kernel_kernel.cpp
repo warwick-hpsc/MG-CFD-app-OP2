@@ -97,8 +97,7 @@ void op_par_loop_indirect_rw_kernel_instrumented(
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
 
   if (set->size >0) {
-    // int nthreads = omp_get_max_threads();
-    int nthreads = 1;
+    int nthreads = omp_get_max_threads();
 
     #ifdef PAPI
       // Init and start PAPI
