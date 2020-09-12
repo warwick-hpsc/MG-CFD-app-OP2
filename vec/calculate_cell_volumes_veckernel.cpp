@@ -110,8 +110,8 @@ inline void calculate_cell_volumes_vec( const double coords1[][SIMD_VEC], const 
     area = sqrt(area);
 
     double tetra_volume = (1.0/3.0)*0.5 *dist *area;
-    vol1[0][idx]+= tetra_volume;
-    vol2[0][idx]+= tetra_volume;
+    vol1[0][idx]= tetra_volume;
+    vol2[0][idx]= tetra_volume;
 
     for (int i=0; i<NDIM; i++) {
         ewt[i][idx] = (d[i] / dist) * area;
@@ -170,7 +170,7 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
     #ifdef VECTORIZE
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      if (n+SIMD_VEC >= set->core_size) {
+      if ((n+SIMD_VEC >= set->core_size) && (n+SIMD_VEC-set->core_size < SIMD_VEC)) {
         op_mpi_wait_all(nargs, args);
       }
       ALIGNED_double double dat0[3][SIMD_VEC];
