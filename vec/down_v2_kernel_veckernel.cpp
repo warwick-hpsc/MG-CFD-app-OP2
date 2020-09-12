@@ -352,7 +352,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
     #ifdef VECTORIZE
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      if (n+SIMD_VEC >= set->core_size) {
+      if ((n+SIMD_VEC >= set->core_size) && (n+SIMD_VEC-set->core_size < SIMD_VEC)) {
         op_mpi_wait_all(nargs, args);
       }
       ALIGNED_double double dat0[3][SIMD_VEC];
