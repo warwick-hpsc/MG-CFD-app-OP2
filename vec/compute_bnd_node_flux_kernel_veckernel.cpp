@@ -278,11 +278,11 @@ inline void compute_bnd_node_flux_kernel_vec( const int g[][SIMD_VEC], const dou
               flux_contribution_i_momentum_z_b,
               flux_contribution_i_density_energy_b);
       
-          fluxes_b[VAR_DENSITY][idx]        += 0;
-          fluxes_b[VAR_MOMENTUM +0][idx]    += edge_weight[0][idx]*pressure_b;
-          fluxes_b[VAR_MOMENTUM +1][idx]    += edge_weight[1][idx]*pressure_b;
-          fluxes_b[VAR_MOMENTUM +2][idx]    += edge_weight[2][idx]*pressure_b;
-          fluxes_b[VAR_DENSITY_ENERGY][idx] += 0;
+          fluxes_b[VAR_DENSITY][idx]        = 0;
+          fluxes_b[VAR_MOMENTUM +0][idx]    = edge_weight[0][idx]*pressure_b;
+          fluxes_b[VAR_MOMENTUM +1][idx]    = edge_weight[1][idx]*pressure_b;
+          fluxes_b[VAR_MOMENTUM +2][idx]    = edge_weight[2][idx]*pressure_b;
+          fluxes_b[VAR_DENSITY_ENERGY][idx] = 0;
       
 
     } else if ((g[0][idx]) == 3 || ((g[0][idx]) >= 4 && (g[0][idx]) <= 7) ) {
@@ -340,27 +340,27 @@ inline void compute_bnd_node_flux_kernel_vec( const int g[][SIMD_VEC], const dou
                  factor_y = 0.5 * edge_weight[1][idx],
                  factor_z = 0.5 * edge_weight[2][idx];
       
-          fluxes_b[VAR_DENSITY][idx] +=
+          fluxes_b[VAR_DENSITY][idx] =
                 factor_x*(ff_variable[VAR_MOMENTUM+0] + momentum_b.x)
               + factor_y*(ff_variable[VAR_MOMENTUM+1] + momentum_b.y)
               + factor_z*(ff_variable[VAR_MOMENTUM+2] + momentum_b.z);
       
-          fluxes_b[VAR_DENSITY_ENERGY][idx] += 
+          fluxes_b[VAR_DENSITY_ENERGY][idx] = 
                 factor_x*(ff_flux_contribution_density_energy[0] + flux_contribution_i_density_energy_b[0])
               + factor_y*(ff_flux_contribution_density_energy[1] + flux_contribution_i_density_energy_b[1])
               + factor_z*(ff_flux_contribution_density_energy[2] + flux_contribution_i_density_energy_b[2]);
       
-          fluxes_b[VAR_MOMENTUM + 0][idx] += 
+          fluxes_b[VAR_MOMENTUM + 0][idx] = 
                 factor_x*(ff_flux_contribution_momentum_x[0] + flux_contribution_i_momentum_x_b[0])
               + factor_y*(ff_flux_contribution_momentum_x[1] + flux_contribution_i_momentum_x_b[1])
               + factor_z*(ff_flux_contribution_momentum_x[2] + flux_contribution_i_momentum_x_b[2]);
       
-          fluxes_b[VAR_MOMENTUM + 1][idx] += 
+          fluxes_b[VAR_MOMENTUM + 1][idx] = 
                 factor_x*(ff_flux_contribution_momentum_y[0] + flux_contribution_i_momentum_y_b[0])
               + factor_y*(ff_flux_contribution_momentum_y[1] + flux_contribution_i_momentum_y_b[1])
               + factor_z*(ff_flux_contribution_momentum_y[2] + flux_contribution_i_momentum_y_b[2]);
       
-          fluxes_b[VAR_MOMENTUM + 2][idx] += 
+          fluxes_b[VAR_MOMENTUM + 2][idx] = 
                 factor_x*(ff_flux_contribution_momentum_z[0] + flux_contribution_i_momentum_z_b[0])
               + factor_y*(ff_flux_contribution_momentum_z[1] + flux_contribution_i_momentum_z_b[1])
               + factor_z*(ff_flux_contribution_momentum_z[2] + flux_contribution_i_momentum_z_b[2]);

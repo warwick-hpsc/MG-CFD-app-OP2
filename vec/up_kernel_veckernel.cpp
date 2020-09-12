@@ -210,12 +210,12 @@ inline void down_v2_kernel_post(
 __attribute__((always_inline))
 #endif
 inline void up_kernel_vec( const double variable[][SIMD_VEC], double variable_above[][SIMD_VEC], int up_scratch[][SIMD_VEC], int idx ) {
-    variable_above[VAR_DENSITY][idx]        += variable[VAR_DENSITY][idx];
-    variable_above[VAR_MOMENTUM+0][idx]     += variable[VAR_MOMENTUM+0][idx];
-    variable_above[VAR_MOMENTUM+1][idx]     += variable[VAR_MOMENTUM+1][idx];
-    variable_above[VAR_MOMENTUM+2][idx]     += variable[VAR_MOMENTUM+2][idx];
-    variable_above[VAR_DENSITY_ENERGY][idx] += variable[VAR_DENSITY_ENERGY][idx];
-    up_scratch[0][idx]+= 1;
+    variable_above[VAR_DENSITY][idx]        = variable[VAR_DENSITY][idx];
+    variable_above[VAR_MOMENTUM+0][idx]     = variable[VAR_MOMENTUM+0][idx];
+    variable_above[VAR_MOMENTUM+1][idx]     = variable[VAR_MOMENTUM+1][idx];
+    variable_above[VAR_MOMENTUM+2][idx]     = variable[VAR_MOMENTUM+2][idx];
+    variable_above[VAR_DENSITY_ENERGY][idx] = variable[VAR_DENSITY_ENERGY][idx];
+    up_scratch[0][idx]= 1;
 
 }
 #endif
