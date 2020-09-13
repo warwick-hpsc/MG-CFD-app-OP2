@@ -225,8 +225,8 @@ endif
 ## its compute and sync times.
 # MGCFD_INCS += -DDUMP_EXT_PERF_DATA
 
-# all: mpi mpi_vec openmp openmp_vec slope slope_vec
-all: mpi mpi_vec openmp openmp_vec
+all: mpi mpi_vec openmp openmp_vec slope slope_vec
+# all: mpi mpi_vec openmp openmp_vec
 # all: seq slope openmp mpi mpi_vec mpi_openmp
 # all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda
 # all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda openacc openmp4

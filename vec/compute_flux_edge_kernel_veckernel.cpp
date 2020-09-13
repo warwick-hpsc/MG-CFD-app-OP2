@@ -465,7 +465,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
     #ifdef VECTORIZE
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      if (n+SIMD_VEC >= set->core_size) {
+      if ((n+SIMD_VEC >= set->core_size) && (n+SIMD_VEC-set->core_size < SIMD_VEC)) {
 
         #ifdef PAPI
           if (num_events > 0)

@@ -200,18 +200,33 @@ void op_par_loop_indirect_rw_kernel_instrumented(
     #ifdef VECTORIZE
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      if (n+SIMD_VEC >= set->core_size) {
+      if ((n+SIMD_VEC >= set->core_size) && (n+SIMD_VEC-set->core_size < SIMD_VEC)) {
+
+        #ifdef PAPI
+          if (num_events > 0)
+            my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
+        #endif
+
         op_mpi_wait_all(nargs, args);
+
+        #ifdef PAPI
+          if (num_events > 0) {
+            // Restart PAPI
+            for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+            my_papi_start(event_set);
+        }
+        #endif
       }
       ALIGNED_double double dat0[5][SIMD_VEC];
       ALIGNED_double double dat1[5][SIMD_VEC];
-      ALIGNED_double double dat2[5][SIMD_VEC];
+      ALIGNED_double double dat2[3][SIMD_VEC];
       ALIGNED_double double dat3[5][SIMD_VEC];
       ALIGNED_double double dat4[5][SIMD_VEC];
       #pragma omp simd simdlen(SIMD_VEC)
       for ( int i=0; i<SIMD_VEC; i++ ){
         int idx0_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 0];
         int idx1_5 = 5 * arg0.map_data[(n+i) * arg0.map->dim + 1];
+        int idx2_3 = 3 * (n+i);
 
         dat0[0][i] = (ptr0)[idx0_5 + 0];
         dat0[1][i] = (ptr0)[idx0_5 + 1];
@@ -225,10 +240,9 @@ void op_par_loop_indirect_rw_kernel_instrumented(
         dat1[3][i] = (ptr1)[idx1_5 + 3];
         dat1[4][i] = (ptr1)[idx1_5 + 4];
 
-
-        for (int v=0; v<3; v++) {
-            dat2[v][i] = ((double*)arg2.data)[(n+i)*3 + v];
-        }
+        dat2[0][i] = (ptr2)[idx2_3 + 0];
+        dat2[1][i] = (ptr2)[idx2_3 + 1];
+        dat2[2][i] = (ptr2)[idx2_3 + 2];
 
         dat3[0][i] = 0.0;
         dat3[1][i] = 0.0;
