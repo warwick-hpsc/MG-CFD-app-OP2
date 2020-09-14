@@ -816,6 +816,17 @@ int main(int argc, char** argv)
         op_timing_realloc_manytime(compute_flux_op2_id, omp_get_max_threads());
         op_timing_realloc_manytime(indirect_rw_op2_id, omp_get_max_threads());
         int ncolors = exec_num_colors (exec[level]);
+        #ifdef PAPI
+          // Init PAPI
+          long_long* temp_count_stores = NULL;
+          if (num_events > 0) {
+            temp_count_stores = (long_long*)malloc(sizeof(long_long)*num_events);
+            for (int e=0; e<num_events; e++) {
+              temp_count_stores[e] = 0;
+            }
+          }
+        #endif
+
         #endif
         int rkCycle;
         for (rkCycle=0; rkCycle<RK; rkCycle++)
@@ -845,6 +856,15 @@ int main(int argc, char** argv)
                 int thr_start = (n_tiles_per_color * thr) / nthreads;
                 int thr_end = (n_tiles_per_color * (thr+1)) / nthreads;
                 if (thr_end > n_tiles_per_color) thr_end = n_tiles_per_color;
+
+                #ifdef PAPI
+                  if (thr == 0) {
+                    if (num_events > 0) {
+                      my_papi_start(event_set);
+                    }
+                  }
+                #endif
+
                 for (int j=thr_start; j<thr_end; j++) {
 
                     // execute the tile
@@ -878,11 +898,13 @@ int main(int argc, char** argv)
 
                       for (int n=0 ; n < simd_end; n+=SIMD_VEC) {
                           // "sl" is SIMD lane:
+                          #pragma omp simd simdlen(SIMD_VEC)
                           for (int sl=0; sl<SIMD_VEC; sl++ ){
                             int k = n+sl;
                             int idx0 = le2n_0[k*2 + 0];
                             int idx1 = le2n_0[k*2 + 1];
 
+                            #pragma unroll
                             for (int v=0; v<5; v++) {
                                 dat0[v][sl] = p_variables_data[idx0*5 + v];
                                 dat1[v][sl] = p_variables_data[idx1*5 + v];
@@ -891,6 +913,7 @@ int main(int argc, char** argv)
                             }
 
                             int ewt_idx = iterations_0[k];
+                            #pragma unroll
                             for (int v=0; v<3; v++) {
                               dat2[v][sl] = p_edge_weights_data[ewt_idx*3 + v];
                             }
@@ -898,8 +921,6 @@ int main(int argc, char** argv)
 
                           #pragma omp simd simdlen(SIMD_VEC)
                           for (int sl=0; sl<SIMD_VEC; sl++ ){
-                            int k = n+sl;
-                            int ewt_idx = iterations_0[k];
                             compute_flux_edge_kernel_vec(
                               dat0,
                               dat1,
@@ -914,6 +935,7 @@ int main(int argc, char** argv)
                             int idx3 = le2n_0[k*2 + 0];
                             int idx4 = le2n_0[k*2 + 1];
 
+                            #pragma unroll
                             for (int v=0; v<5; v++) {
                                 p_fluxes_data[idx3*5 + v] += dat3[v][sl];
                                 p_fluxes_data[idx4*5 + v] += dat4[v][sl];
@@ -962,6 +984,16 @@ int main(int argc, char** argv)
                 thr_wall_t2 = omp_get_wtime();
                 OP_kernels[compute_flux_op2_id].name = "fluxes_and_timestep";
                 OP_kernels[compute_flux_op2_id].times[thr]  += thr_wall_t2 - thr_wall_t1;
+
+                #ifdef PAPI
+                  if (thr == 0) {
+                    if (num_events > 0) {
+                      my_papi_stop(&flux_kernel_event_counts[level*num_events], temp_count_stores, event_set, num_events);
+                      for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+                    }
+                  }
+                #endif
+
                 } // Close omp parallel
             }
 
@@ -989,6 +1021,15 @@ int main(int argc, char** argv)
                 int thr_start = (n_tiles_per_color * thr) / nthreads;
                 int thr_end = (n_tiles_per_color * (thr+1)) / nthreads;
                 if (thr_end > n_tiles_per_color) thr_end = n_tiles_per_color;
+
+                #ifdef PAPI
+                  if (thr == 0) {
+                    if (num_events > 0) {
+                      my_papi_start(event_set);
+                    }
+                  }
+                #endif
+
                 for (int j=thr_start; j<thr_end; j++) {
                   
                     // execute the tile
@@ -1023,11 +1064,13 @@ int main(int argc, char** argv)
 
                       for (int n=0 ; n < simd_end; n+=SIMD_VEC) {
                           // "sl" is SIMD lane:
+                          #pragma omp simd simdlen(SIMD_VEC)
                           for (int sl=0; sl<SIMD_VEC; sl++ ){
                             int k = n+sl;
                             int idx0 = le2n_3[k*2 + 0];
                             int idx1 = le2n_3[k*2 + 1];
 
+                            #pragma unroll
                             for (int v=0; v<5; v++) {
                                 dat0[v][sl] = p_variables_data[idx0*5 + v];
                                 dat1[v][sl] = p_variables_data[idx1*5 + v];
@@ -1036,15 +1079,19 @@ int main(int argc, char** argv)
                             }
 
                             int ewt_idx = iterations_3[k];
+                            #pragma unroll
                             for (int v=0; v<3; v++) {
                                 dat2[v][sl] = p_edge_weights_data[ewt_idx*3 + v];
                             }
                           }
 
-                          #pragma omp simd simdlen(SIMD_VEC)
+                          #ifdef __clang__
+                              #pragma clang loop vectorize_width(SIMD_VEC)
+                              #pragma nounroll
+                          #else
+                              #pragma omp simd simdlen(SIMD_VEC)
+                          #endif
                           for (int sl=0; sl<SIMD_VEC; sl++ ){
-                            int k = n+sl;
-                            int ewt_idx = iterations_3[k];
                             indirect_rw_kernel_vec(
                               dat0,
                               dat1,
@@ -1059,6 +1106,7 @@ int main(int argc, char** argv)
                             int idx3 = le2n_3[k*2 + 0];
                             int idx4 = le2n_3[k*2 + 1];
 
+                            #pragma unroll
                             for (int v=0; v<5; v++) {
                                 p_fluxes_data[idx3*5 + v] += dat3[v][sl];
                                 p_fluxes_data[idx4*5 + v] += dat4[v][sl];
@@ -1094,6 +1142,16 @@ int main(int argc, char** argv)
                 thr_wall_t2 = omp_get_wtime();
                 OP_kernels[indirect_rw_op2_id].name = "fluxesRW_and_timestep";
                 OP_kernels[indirect_rw_op2_id].times[thr]  += thr_wall_t2 - thr_wall_t1;
+
+                #ifdef PAPI
+                  if (thr == 0) {
+                    if (num_events > 0) {
+                      my_papi_stop(&indirect_rw_kernel_event_counts[level*num_events], temp_count_stores, event_set, num_events);
+                      for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+                    }
+                  }
+                #endif
+
                 } // Close omp parallel
 
             }
