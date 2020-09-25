@@ -87,8 +87,51 @@ ifdef OP2_COMPILER
     COMPILER=$(OP2_COMPILER)
   endif
 endif
+
+#
+# Select compiler executable:
+#
 ifeq ($(COMPILER),gnu)
   CPP := g++
+else
+ifeq ($(COMPILER),clang)
+  CPP := clang++
+  MPICC += -cc=clang
+  MPICPP += -cxx=clang++
+else
+ifeq ($(COMPILER),intel)
+  CPP = icpc
+else
+ifeq ($(COMPILER),xl)
+  CPP		 = xlc++
+else
+ifeq ($(COMPILER),pgi)
+  CPP       	= pgc++
+else
+ifeq ($(COMPILER),cray)
+  CPP           = CC
+  MPICPP        = CC
+else
+  $(error unrecognised value for COMPILER: $(COMPILER))
+endif
+endif
+endif
+endif
+endif
+endif
+
+ifeq ($(COMPILER),cray)
+  ## Check whether Cray uses Clang frontend:
+  # _v = $(shell CC --help 2>/dev/null | grep Clang | head -n1 | grep -o Clang)
+  _v = $(shell CC --help 2>/dev/null | grep -o Clang | head -n1)
+  ifeq ($(_v),Clang)
+    # Yes, this Cray does just wrap Clang. For setting flags etc, switch COMPILER to Clang:
+    COMPILER = clang
+  endif
+endif
+
+ifeq ($(COMPILER),gnu)
+  # CPP := g++
   CFLAGS	= -fPIC -DUNIX -Wall -Wextra
   ## Disable C math function error checking, as prevents SIMD:
   CFLAGS += -fno-math-errno
@@ -97,7 +140,7 @@ ifeq ($(COMPILER),gnu)
   MPIFLAGS 	= $(CPPFLAGS)
 else
 ifeq ($(COMPILER),clang)
-  CPP := clang++
+  # CPP := clang++
   CFLAGS	= -fPIC -DUNIX -DVECTORIZE
   OPT_REPORT_OPTIONS := 
   OPT_REPORT_OPTIONS += -Rpass-missed=loop-vec ## Report vectorisation failures
@@ -111,11 +154,11 @@ ifeq ($(COMPILER),clang)
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -fopenmp
   MPIFLAGS 	= $(CPPFLAGS)
-  MPICC += -cc=clang
-  MPICPP += -cxx=clang++
+  # MPICC += -cc=clang
+  # MPICPP += -cxx=clang++
 else
 ifeq ($(COMPILER),intel)
-  CPP = icpc
+  # CPP = icpc
   CFLAGS = -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -DVECTORIZE -qopt-report=5
   CFLAGS += -restrict
   # CFLAGS += -parallel ## This flag intoduces a significant slowdown into 'vec' app
@@ -133,7 +176,7 @@ ifeq ($(COMPILER),intel)
   endif
 else
 ifeq ($(COMPILER),xl)
-  CPP		 = xlc++
+  # CPP		 = xlc++
   CFLAGS	 = -qarch=pwr8 -qtune=pwr8 -qhot
   CPPFLAGS 	 = $(CFLAGS)
   OMPFLAGS	 = -qsmp=omp -qthreaded
@@ -141,7 +184,7 @@ ifeq ($(COMPILER),xl)
   MPIFLAGS	 = $(CPPFLAGS)
 else
 ifeq ($(COMPILER),pgi)
-  CPP       	= pgc++
+  # CPP       	= pgc++
   CFLAGS  	=
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -mp
@@ -152,11 +195,11 @@ ifeq ($(COMPILER),pgi)
   ACCFLAGS      = -v -acc -DOPENACC -Minfo=acc
 else
 ifeq ($(COMPILER),cray)
-  CPP           = CC
+  # CPP           = CC
   CFLAGS        = -h fp3 -h ipa5
   CPPFLAGS      = $(CFLAGS)
   OMPFLAGS      = -h omp
-  MPICPP        = CC
+  # MPICPP        = CC
   MPIFLAGS      = $(CPPFLAGS)
 else
   $(error unrecognised value for COMPILER: $(COMPILER))
