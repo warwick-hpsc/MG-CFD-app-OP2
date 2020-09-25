@@ -192,7 +192,6 @@ int main(int argc, char** argv){
 			}
 		}
 	}
-
 	MPI_Group world_group;
 	MPI_Comm_group(MPI_COMM_WORLD, &world_group);
 
@@ -206,7 +205,7 @@ int main(int argc, char** argv){
 		if(units[i].type == 'C'){
 			int ranks[units[i].coupler_ranks[0].size()];
 			std::copy(units[i].coupler_ranks[0].begin(), units[i].coupler_ranks[0].end(), ranks);
-			MPI_Group_incl(world_group, 1, ranks, &new_groups[i]);
+			MPI_Group_incl(world_group, units[i].coupler_ranks[0].size(), ranks, &new_groups[i]);
 			MPI_Comm_create_group(MPI_COMM_WORLD, new_groups[i], 0, &new_comms[i]);
 			for(int j=units[i].coupler_ranks[0][0]; j<units[i].coupler_ranks[0][0]+units[i].coupler_ranks[0].size();j++){//if rank of processes matches a rank for a particular coupler unit, assign the new communicator
 				if(rank == j){
@@ -235,8 +234,6 @@ int main(int argc, char** argv){
 	}else{
 		#include "coupler_config.h"
 		MPI_Comm coupler_comm = MPI_Comm_f2c(comms_shell);
-		
-
 		int cycle_counter = 0;
 
 		bool found = false;
@@ -245,7 +242,7 @@ int main(int argc, char** argv){
 			for(int j=units[unit_count].coupler_ranks[0][0]; j<units[unit_count].coupler_ranks[0][0]+units[unit_count].coupler_ranks[0].size();j++){//if rank of processes matches a rank for a particular coupler unit, assign the new communicator
 				if(units[unit_count].type == 'C' && rank == j){
 					found=true;
-				}else{
+				}else if(!(j < (units[unit_count].coupler_ranks[0][0]+units[unit_count].coupler_ranks[0].size() - 1)) && found == false){//to make sure all ranks of each coupler units are found
 					unit_count++;
 				}
 			}
