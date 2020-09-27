@@ -150,7 +150,7 @@ ifeq ($(COMPILER),clang)
   CFLAGS += $(OPT_REPORT_OPTIONS)
   CFLAGS += -fno-math-errno ## Disable C math function error checking, as prevents vectorisation
   OPTIMISE += -fno-unroll-loops ## Loop unrolling interferes with vectorisation
-  OPTIMISE += -march=native
+  OPTIMISE += -mcpu=native
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -fopenmp
   MPIFLAGS 	= $(CPPFLAGS)
