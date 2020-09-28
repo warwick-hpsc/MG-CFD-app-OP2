@@ -76,7 +76,10 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
             const double* value,
             int* count) {
             #ifdef OPENACC
-        
+
+            #elif defined HIPSYCL
+              // hipSYCL has not implemented isnan() or isinf(), 
+              // they are marked "ToDo" in libkernel/math.hpp
             #else
                 for (int v=0; v<NVAR; v++) {
                     if (cl::sycl::isnan(value[v]) || cl::sycl::isinf(value[v])) {

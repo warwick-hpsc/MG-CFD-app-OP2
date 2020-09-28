@@ -166,10 +166,18 @@ ifeq ($(OP2_COMPILER),hipsycl)
   SYCLCXX	= syclcc-clang
   CCFLAGS       = -O3 
   CPPFLAGS      = $(CCFLAGS)
-  SYCL_FLAGS    = --hipsycl-gpu-arch=sm_60  -Wdeprecated-declarations
+  #SYCL_FLAGS    = --hipsycl-gpu-arch=sm_60  -Wdeprecated-declarations
+  SYCL_FLAGS    += -DHIPSYCL
   NVCCFLAGS = -ccbin=$(NVCC_HOST_COMPILER)
   MPICPP        = $(CC)
   MPIFLAGS      = $(CPPFLAGS)
+  ifdef BOOST_INSTALL_PATH
+    SYCL_INCLUDES += -I$(BOOST_INSTALL_PATH)/include
+    SYCL_LIBS += -L$(BOOST_INSTALL_PATH)/lib
+  endif
+  ifdef HIPSYCL_INSTALL_PATH
+    SYCL_LIBS += -L$(HIPSYCL_INSTALL_PATH)/lib
+  endif
 else
 ifeq ($(OP2_COMPILER),intel-sycl)
   ifdef DEBUG
@@ -221,7 +229,7 @@ else
 ifeq ($(NV_ARCH),Kepler)
   CODE_GEN_CUDA=-gencode arch=compute_35,code=sm_35
 ifeq ($(OP2_COMPILER),hipsycl)
-  SYCL_FLAGS = --hipsycl-gpu-arch=sm_35
+  SYCL_FLAGS += --hipsycl-gpu-arch=sm_35
 endif
 else
 ifeq ($(NV_ARCH),Maxwell)
@@ -230,13 +238,13 @@ else
 ifeq ($(NV_ARCH),Pascal)
   CODE_GEN_CUDA=-gencode arch=compute_60,code=sm_60
 ifeq ($(OP2_COMPILER),hipsycl)
-  SYCL_FLAGS = --hipsycl-gpu-arch=sm_60
+  SYCL_FLAGS += --hipsycl-gpu-arch=sm_60
 endif
 else
 ifeq ($(NV_ARCH),Volta)
   CODE_GEN_CUDA=-gencode arch=compute_70,code=sm_70
 ifeq ($(OP2_COMPILER),hipsycl)
-  SYCL_FLAGS = --hipsycl-gpu-arch=sm_70
+  SYCL_FLAGS += --hipsycl-gpu-arch=sm_70
 endif
 endif
 endif
@@ -385,12 +393,12 @@ $(OBJ_DIR)/mgcfd_sycl_main.o: $(OP2_MAIN_SRC)
 		-c -o $@ $^
 $(OBJ_DIR)/mgcfd_sycl_kernels.o: $(SRC_DIR)/../sycl/_kernels.cpp $(SYCL_KERNELS)
 	mkdir -p $(OBJ_DIR)
-	$(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+	$(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(SYCL_INCLUDES) $(OPTIMISE) $(MGCFD_INCS) \
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
 		-c -o $@ $(SRC_DIR)/../sycl/_kernels.cpp
 $(BIN_DIR)/mgcfd_sycl: $(OP2_SYCL_OBJECTS)
 	mkdir -p $(BIN_DIR)
-	$(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+	$(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(SYCL_LIBS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_sycl $(SYCL_LINK_SEQ) -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
 		-o $@
 
