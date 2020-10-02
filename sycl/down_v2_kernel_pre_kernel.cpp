@@ -28,7 +28,7 @@ void op_par_loop_down_v2_kernel_pre(char const *name, op_set set,
 
 
   if (OP_diags>2) {
-    printf(" kernel routine w/o indirection:  down_v2_kernel_pre");
+    printf(" kernel routine w/o indirection:  down_v2_kernel_pre\n");
   }
 
   op_mpi_halo_exchanges_cuda(set, nargs, args);

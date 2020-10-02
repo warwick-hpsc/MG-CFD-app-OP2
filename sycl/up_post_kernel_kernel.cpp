@@ -28,7 +28,7 @@ void op_par_loop_up_post_kernel(char const *name, op_set set,
 
 
   if (OP_diags>2) {
-    printf(" kernel routine w/o indirection:  up_post_kernel");
+    printf(" kernel routine w/o indirection:  up_post_kernel\n");
   }
 
   op_mpi_halo_exchanges_cuda(set, nargs, args);

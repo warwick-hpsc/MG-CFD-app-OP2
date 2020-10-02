@@ -28,7 +28,7 @@ void op_par_loop_dampen_ewt(char const *name, op_set set,
 
 
   if (OP_diags>2) {
-    printf(" kernel routine w/o indirection:  dampen_ewt");
+    printf(" kernel routine w/o indirection:  dampen_ewt\n");
   }
 
   op_mpi_halo_exchanges_cuda(set, nargs, args);
