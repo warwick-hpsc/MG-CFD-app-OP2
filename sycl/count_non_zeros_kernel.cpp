@@ -28,7 +28,7 @@ void op_par_loop_count_non_zeros(char const *name, op_set set,
 
 
   if (OP_diags>2) {
-    printf(" kernel routine w/o indirection:  count_non_zeros");
+    printf(" kernel routine w/o indirection:  count_non_zeros\n");
   }
 
   op_mpi_halo_exchanges_cuda(set, nargs, args);

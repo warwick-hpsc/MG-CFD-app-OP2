@@ -28,7 +28,7 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
 
 
   if (OP_diags>2) {
-    printf(" kernel routine w/o indirection:  calc_rms_kernel");
+    printf(" kernel routine w/o indirection:  calc_rms_kernel\n");
   }
 
   op_mpi_halo_exchanges_cuda(set, nargs, args);

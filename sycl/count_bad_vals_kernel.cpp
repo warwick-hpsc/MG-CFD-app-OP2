@@ -28,7 +28,7 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
 
 
   if (OP_diags>2) {
-    printf(" kernel routine w/o indirection:  count_bad_vals");
+    printf(" kernel routine w/o indirection:  count_bad_vals\n");
   }
 
   op_mpi_halo_exchanges_cuda(set, nargs, args);

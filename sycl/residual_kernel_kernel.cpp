@@ -29,7 +29,7 @@ void op_par_loop_residual_kernel(char const *name, op_set set,
 
 
   if (OP_diags>2) {
-    printf(" kernel routine w/o indirection:  residual_kernel");
+    printf(" kernel routine w/o indirection:  residual_kernel\n");
   }
 
   op_mpi_halo_exchanges_cuda(set, nargs, args);
