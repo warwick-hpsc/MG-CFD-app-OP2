@@ -28,7 +28,7 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
 
 
   if (OP_diags>2) {
-    printf(" kernel routine w/o indirection:  calc_rms_kernel");
+    printf(" kernel routine w/o indirection:  calc_rms_kernel\n");
   }
 
   op_mpi_halo_exchanges_cuda(set, nargs, args);
@@ -49,7 +49,7 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
     int reduct_size  = 0;
     reduct_bytes += ROUND_UP(maxblocks*1*sizeof(double));
     reduct_size   = MAX(reduct_size,sizeof(double));
-    reallocReductArrays(reduct_bytes);
+    allocReductArrays(reduct_bytes, "double");
     reduct_bytes = 0;
     arg1.data   = OP_reduct_h + reduct_bytes;
     int arg1_offset = reduct_bytes/sizeof(double);
@@ -59,7 +59,7 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
       }
     }
     reduct_bytes += ROUND_UP(maxblocks*1*sizeof(double));
-    mvReductArraysToDevice(reduct_bytes);
+    mvReductArraysToDevice(reduct_bytes, "double");
     cl::sycl::buffer<double,1> *reduct = static_cast<cl::sycl::buffer<double,1> *>((void*)OP_reduct_d);
 
     cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
@@ -108,7 +108,7 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
     std::cout << e.what() << std::endl;exit(-1);
     }
     //transfer global reduction data back to CPU
-    mvReductArraysToHost(reduct_bytes);
+    mvReductArraysToHost(reduct_bytes, "double");
     for ( int b=0; b<maxblocks; b++ ){
       for ( int d=0; d<1; d++ ){
         arg1h[d] = arg1h[d] + ((double *)arg1.data)[d+b*1];
@@ -116,6 +116,7 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
     }
     arg1.data = (char *)arg1h;
     op_mpi_reduce(&arg1,arg1h);
+    freeReductArrays("double");
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   op2_queue->wait();

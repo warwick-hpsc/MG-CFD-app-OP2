@@ -37,7 +37,7 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
 
 
   if (OP_diags>2) {
-    printf(" kernel routine w/o indirection:  time_step_kernel");
+    printf(" kernel routine w/o indirection:  time_step_kernel\n");
   }
 
   op_mpi_halo_exchanges_cuda(set, nargs, args);
@@ -46,7 +46,7 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
     //transfer constants to GPU
     int consts_bytes = 0;
     consts_bytes += ROUND_UP(1*sizeof(int));
-    reallocConstArrays(consts_bytes);
+    allocConstArrays(consts_bytes, "int");
     consts_bytes = 0;
     arg0.data   = OP_consts_h + consts_bytes;
     int arg0_offset = consts_bytes/sizeof(int);
@@ -54,7 +54,7 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
       ((int *)arg0.data)[d] = arg0h[d];
     }
     consts_bytes += ROUND_UP(1*sizeof(int));
-    mvConstArraysToDevice(consts_bytes);
+    mvConstArraysToDevice(consts_bytes, "int");
     cl::sycl::buffer<int,1> *consts = static_cast<cl::sycl::buffer<int,1> *>((void*)OP_consts_d);
 
     //set SYCL execution parameters
@@ -121,6 +121,7 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
     }catch(cl::sycl::exception const &e) {
     std::cout << e.what() << std::endl;exit(-1);
     }
+    freeConstArrays("int");
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   op2_queue->wait();

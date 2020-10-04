@@ -35,7 +35,7 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
 
 
   if (OP_diags>2) {
-    printf(" kernel routine w/o indirection:  compute_step_factor_kernel");
+    printf(" kernel routine w/o indirection:  compute_step_factor_kernel\n");
   }
 
   op_mpi_halo_exchanges_cuda(set, nargs, args);
@@ -44,7 +44,7 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
     //transfer constants to GPU
     int consts_bytes = 0;
     consts_bytes += ROUND_UP(1*sizeof(double));
-    reallocConstArrays(consts_bytes);
+    allocConstArrays(consts_bytes, "double");
     consts_bytes = 0;
     arg2.data   = OP_consts_h + consts_bytes;
     int arg2_offset = consts_bytes/sizeof(double);
@@ -52,7 +52,7 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
       ((double *)arg2.data)[d] = arg2h[d];
     }
     consts_bytes += ROUND_UP(1*sizeof(double));
-    mvConstArraysToDevice(consts_bytes);
+    mvConstArraysToDevice(consts_bytes, "double");
     cl::sycl::buffer<double,1> *consts = static_cast<cl::sycl::buffer<double,1> *>((void*)OP_consts_d);
 
     //set SYCL execution parameters
@@ -116,6 +116,7 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
     }catch(cl::sycl::exception const &e) {
     std::cout << e.what() << std::endl;exit(-1);
     }
+    freeConstArrays("double");
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   op2_queue->wait();

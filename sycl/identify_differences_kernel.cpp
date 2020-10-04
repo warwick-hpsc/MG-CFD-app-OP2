@@ -29,7 +29,7 @@ void op_par_loop_identify_differences(char const *name, op_set set,
 
 
   if (OP_diags>2) {
-    printf(" kernel routine w/o indirection:  identify_differences");
+    printf(" kernel routine w/o indirection:  identify_differences\n");
   }
 
   op_mpi_halo_exchanges_cuda(set, nargs, args);

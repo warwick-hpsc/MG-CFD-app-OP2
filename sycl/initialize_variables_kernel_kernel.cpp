@@ -28,7 +28,7 @@ void op_par_loop_initialize_variables_kernel(char const *name, op_set set,
 
 
   if (OP_diags>2) {
-    printf(" kernel routine w/o indirection:  initialize_variables_kernel");
+    printf(" kernel routine w/o indirection:  initialize_variables_kernel\n");
   }
 
   op_mpi_halo_exchanges_cuda(set, nargs, args);
