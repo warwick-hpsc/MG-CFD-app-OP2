@@ -43,6 +43,10 @@ void op_par_loop_count_non_zeros(char const *name, op_set set,
 
     int nblocks = 200;
 
+    if (op2_queue->get_device().is_cpu()) {
+      nthread = 8;
+      nblocks = op2_queue->get_device().get_info<cl::sycl::info::device::max_compute_units>();
+    }
     //transfer global reduction data to GPU
     int maxblocks = nblocks;
     int reduct_bytes = 0;
@@ -94,7 +98,7 @@ void op_par_loop_count_non_zeros(char const *name, op_set set,
 
           //user-supplied kernel call
           count_non_zeros_gpu(&arg0[n*5],
-                    arg1_l);
+                              arg1_l);
         }
 
         //global reductions

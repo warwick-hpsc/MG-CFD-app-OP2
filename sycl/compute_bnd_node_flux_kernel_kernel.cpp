@@ -245,8 +245,8 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
           
           };
           
-        auto kern = [=](cl::sycl::nd_item<1> item) {
-          int tid = item.get_global_linear_id();
+        auto kern = [=](cl::sycl::item<1> item) {
+          int tid = item.get_id(0);
           if (tid + start < end) {
             int n = col_reord[tid + start];
             //initialise local variables
@@ -255,13 +255,13 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
             //user-supplied kernel call
             compute_bnd_node_flux_kernel_gpu(&arg0[n*1],
-                                 &arg1[n*3],
-                                 &ind_arg0[map2idx*5],
-                                 &ind_arg1[map2idx*5]);
+                                             &arg1[n*3],
+                                             &ind_arg0[map2idx*5],
+                                             &ind_arg1[map2idx*5]);
           }
 
         };
-        cgh.parallel_for<class compute_bnd_node_flux_kernel_kernel>(cl::sycl::nd_range<1>(nthread*nblocks,nthread), kern);
+        cgh.parallel_for<class compute_bnd_node_flux_kernel_kernel>(cl::sycl::range<1>(nthread*nblocks), kern);
       });
       }catch(cl::sycl::exception const &e) {
       std::cout << e.what() << std::endl;exit(-1);

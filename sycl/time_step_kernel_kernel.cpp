@@ -102,26 +102,27 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
         
         };
         
-      auto kern = [=](cl::sycl::nd_item<1> item) {
+      auto kern = [=](cl::sycl::item<1> item) {
 
         //process set elements
-        for ( int n=item.get_global_linear_id(); n<set_size; n+=item.get_global_range()[0] ){
+        int n = item.get_id(0);
+        if (n < set_size) {
 
           //user-supplied kernel call
           time_step_kernel_gpu(&consts_d[arg0_offset],
-                     &arg1[n*1],
-                     &arg2[n*5],
-                     &arg3[n*5],
-                     &arg4[n*5]);
+                               &arg1[n*1],
+                               &arg2[n*5],
+                               &arg3[n*5],
+                               &arg4[n*5]);
         }
 
       };
-      cgh.parallel_for<class time_step_kernel_kernel>(cl::sycl::nd_range<1>(nthread*nblocks,nthread), kern);
+      cgh.parallel_for<class time_step_kernel_kernel>(cl::sycl::range<1>(set_size), kern);
     });
     }catch(cl::sycl::exception const &e) {
     std::cout << e.what() << std::endl;exit(-1);
     }
-    freeConstArrays("int");
+    freeConstArrays("double");
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   op2_queue->wait();
