@@ -449,13 +449,13 @@ $(OBJ_DIR)/mgcfd_sycl_main.o: $(OP2_MAIN_SRC)
 		-c -o $@ $^
 $(OBJ_DIR)/mgcfd_sycl_kernels.o: $(SRC_DIR)/../sycl/_kernels.cpp $(SYCL_KERNELS)
 	mkdir -p $(OBJ_DIR)
-	$(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(SYCL_INCLUDES) $(OPTIMISE) $(MGCFD_INCS) \
+	$(SYCLCXX) $(CXXFLAGS) -DSYCL $(SYCL_FLAGS) $(SYCL_INCLUDES) $(OPTIMISE) $(MGCFD_INCS) \
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
 		-c -o $@ $(SRC_DIR)/../sycl/_kernels.cpp
 $(BIN_DIR)/mgcfd_sycl: $(OP2_SYCL_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(SYCL_LIBS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_sycl $(SYCL_LINK_SEQ) -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
+		-lm $(OP2_LIB) -lop2_sycl $(SYCL_LINK_SEQ) -lop2_hdf5 $(HDF5_LIB) \
 		-o $@
 
 #$(BIN_DIR)/mgcfd_sycl: src_op/euler3d_cpu_double_op.cpp sycl/_kernels.cpp

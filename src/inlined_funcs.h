@@ -11,6 +11,8 @@
 
 #define DEBUGGABLE_ABORT fprintf(stderr, "%s:%d\n", __FILE__, __LINE__); fflush(stderr); fflush(stdout); exit(EXIT_FAILURE);
 
+//#define cl::sycl::cbrt(a) cl::sycl::pow(a,1.0/3.0)
+
 // inline void zero_array(int nelr, double* variables)
 static inline OP_FUN_PREFIX void zero_array(int nelr, double* variables)
 {
@@ -114,7 +116,7 @@ static inline OP_FUN_PREFIX double compute_pressure(double& density, double& den
     }
     static inline OP_FUN_PREFIX double compute_speed_of_sound(double& inverse_density, double& pressure)
     {
-        return std::sqrt((double(GAMMA)*pressure)*inverse_density);
+        return cl::sycl::sqrt((double(GAMMA)*pressure)*inverse_density);
     }
 #else
     static OP_FUN_PREFIX inline void compute_velocity(double& density, double3& momentum, double3& velocity)
@@ -125,7 +127,15 @@ static inline OP_FUN_PREFIX double compute_pressure(double& density, double& den
     }
     static inline OP_FUN_PREFIX double compute_speed_of_sound(double& density, double& pressure)
     {
+#ifdef __CUDACC__
         return sqrt(double(GAMMA)*pressure / density);
+#else
+#ifdef SYCL
+        return cl::sycl::sqrt(double(GAMMA)*pressure / density);
+#else
+        return sqrt(double(GAMMA)*pressure / density);
+#endif
+#endif
     }
 #endif
 
