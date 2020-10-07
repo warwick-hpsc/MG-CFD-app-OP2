@@ -252,8 +252,8 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
           
           };
           
-        auto kern = [=](cl::sycl::nd_item<1> item) {
-          int tid = item.get_global_linear_id();
+        auto kern = [=](cl::sycl::item<1> item) {
+          int tid = item.get_id(0);
           if (tid + start < end) {
             int n = col_reord[tid + start];
             //initialise local variables
@@ -264,14 +264,14 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
 
             //user-supplied kernel call
             compute_flux_edge_kernel_gpu(&ind_arg0[map0idx*5],
-                             &ind_arg0[map1idx*5],
-                             &arg2[n*3],
-                             &ind_arg1[map0idx*5],
-                             &ind_arg1[map1idx*5]);
+                                         &ind_arg0[map1idx*5],
+                                         &arg2[n*3],
+                                         &ind_arg1[map0idx*5],
+                                         &ind_arg1[map1idx*5]);
           }
 
         };
-        cgh.parallel_for<class compute_flux_edge_kernel_kernel>(cl::sycl::nd_range<1>(nthread*nblocks,nthread), kern);
+        cgh.parallel_for<class compute_flux_edge_kernel_kernel>(cl::sycl::range<1>(nthread*nblocks), kern);
       });
       }catch(cl::sycl::exception const &e) {
       std::cout << e.what() << std::endl;exit(-1);

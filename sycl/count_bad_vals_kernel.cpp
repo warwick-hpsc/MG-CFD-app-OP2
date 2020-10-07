@@ -43,6 +43,10 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
 
     int nblocks = 200;
 
+    if (op2_queue->get_device().is_cpu()) {
+      nthread = 8;
+      nblocks = op2_queue->get_device().get_info<cl::sycl::info::device::max_compute_units>();
+    }
     //transfer global reduction data to GPU
     int maxblocks = nblocks;
     int reduct_bytes = 0;
@@ -75,11 +79,8 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
       auto count_bad_vals_gpu = [=]( 
             const double* value,
             int* count) {
-            #ifdef OPENACC
-
-            #elif defined HIPSYCL
-              // hipSYCL has not implemented isnan() or isinf(), 
-              // they are marked "ToDo" in libkernel/math.hpp
+            #if defined(OPENACC) || defined(__HIPSYCL__) || defined(TRISYCL_CL_LANGUAGE_VERSION)
+        
             #else
                 for (int v=0; v<NVAR; v++) {
                     if (cl::sycl::isnan(value[v]) || cl::sycl::isinf(value[v])) {
@@ -101,7 +102,7 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
 
           //user-supplied kernel call
           count_bad_vals_gpu(&arg0[n*5],
-                   arg1_l);
+                             arg1_l);
         }
 
         //global reductions
