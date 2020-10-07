@@ -20,7 +20,7 @@ function _main {
 	files+=" ${src_dir}"
 	files+=" ${src_dir}/Kernels"
 
-	python "${OP2_INSTALL_PATH}"/../translator/c/python/op2.py $files
+	python2.7 "${OP2_INSTALL_PATH}"/../translator/c/python/op2.py $files
 } 
 
 _main
