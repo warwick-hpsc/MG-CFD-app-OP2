@@ -659,7 +659,7 @@ int main(int argc, char** argv)
             seed_loop = 0;
             insp_run (insp[i], seed_loop);
             insp_print (insp[i], LOW);
-
+/*
             coordinates = (double*) malloc(NDIM * (op_nodes[i]->size) * sizeof(double));
             int size = 3 * sizeof(double);
             for (int n = 0; n < op_nodes[i]->size; n++) {
@@ -669,7 +669,7 @@ int main(int argc, char** argv)
             }
             generate_vtk (insp[i], LOW, sl_nodes[i], coordinates, DIM3);
             free(coordinates);
-
+*/
             exec[i] = exec_init (insp[i]);
             #endif
         }
@@ -1186,12 +1186,17 @@ int main(int argc, char** argv)
                         op_arg_dat(p_old_variables[level],-1,OP_ID,5,"double",OP_READ),
                         op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_WRITE));
 
+            op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[level],
+                        op_arg_dat(p_dummy_fluxes[level],-1,OP_ID,5,"double",OP_WRITE));
+            op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[level],
+                        op_arg_dat(p_dummy_variables[level],-1,OP_ID,5,"double",OP_WRITE));
+
             op_par_loop_indirect_rw_kernel_instrumented("indirect_rw_kernel",op_edges[level],
-                        op_arg_dat(p_variables[level],0,p_edge_to_nodes[level],5,"double",OP_READ),
-                        op_arg_dat(p_variables[level],1,p_edge_to_nodes[level],5,"double",OP_READ),
+                        op_arg_dat(p_dummy_variables[level],0,p_edge_to_nodes[level],5,"double",OP_READ),
+                        op_arg_dat(p_dummy_variables[level],1,p_edge_to_nodes[level],5,"double",OP_READ),
                         op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
-                        op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
+                        op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
+                        op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
                         #ifdef VERIFY_OP2_TIMING
                           , &indirect_rw_kernel_compute_times[level], &indirect_rw_kernel_sync_times[level]
                         #endif
@@ -1200,8 +1205,16 @@ int main(int argc, char** argv)
                         , &indirect_rw_kernel_event_counts[level*num_events], event_set, num_events
                         #endif
                         );
-            op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[level],
-                        op_arg_dat(p_fluxes[level],-1,OP_ID,5,"double",OP_WRITE));
+
+            op_par_loop_time_step_kernel("time_step_kernel",op_nodes[level],
+                    op_arg_gbl(&rkCycle,1,"int",OP_READ),
+                    op_arg_dat(p_step_factors[level],-1,OP_ID,1,"double",OP_READ),
+                    op_arg_dat(p_dummy_fluxes[level],-1,OP_ID,5,"double",OP_INC),
+                    op_arg_dat(p_old_variables[level],-1,OP_ID,5,"double",OP_READ),
+                    op_arg_dat(p_dummy_variables[level],-1,OP_ID,5,"double",OP_WRITE));
+
+            // op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[level],
+            //             op_arg_dat(p_fluxes[level],-1,OP_ID,5,"double",OP_WRITE));
 
             #endif
         }
