@@ -116,7 +116,7 @@ static inline OP_FUN_PREFIX double compute_pressure(double& density, double& den
     }
     static inline OP_FUN_PREFIX double compute_speed_of_sound(double& inverse_density, double& pressure)
     {
-        return cl::sycl::sqrt((double(GAMMA)*pressure)*inverse_density);
+        return sqrt((double(GAMMA)*pressure)*inverse_density);
     }
 #else
     static OP_FUN_PREFIX inline void compute_velocity(double& density, double3& momentum, double3& velocity)
@@ -127,15 +127,7 @@ static inline OP_FUN_PREFIX double compute_pressure(double& density, double& den
     }
     static inline OP_FUN_PREFIX double compute_speed_of_sound(double& density, double& pressure)
     {
-#ifdef __CUDACC__
         return sqrt(double(GAMMA)*pressure / density);
-#else
-#ifdef SYCL
-        return cl::sycl::sqrt(double(GAMMA)*pressure / density);
-#else
-        return sqrt(double(GAMMA)*pressure / density);
-#endif
-#endif
     }
 #endif
 
