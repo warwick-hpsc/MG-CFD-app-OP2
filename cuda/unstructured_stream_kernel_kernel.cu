@@ -113,10 +113,10 @@ __global__ void op_cuda_unstructured_stream_kernel(
 
       //user-supplied kernel call
       unstructured_stream_kernel_gpu(ind_arg0+map0idx*5,
-                       ind_arg0+map1idx*5,
-                       arg2+(n+offset_b)*3,
-                       arg3_l,
-                       arg4_l);
+                               ind_arg0+map1idx*5,
+                               arg2+(n+offset_b)*3,
+                               arg3_l,
+                               arg4_l);
       col2 = colors[n+offset_b];
     }
 
@@ -191,7 +191,7 @@ void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   #endif
 
   int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  if (set_size > 0) {
 
     op_plan *Plan = op_plan_get(name,set,part_size,nargs,args,ninds,inds);
 

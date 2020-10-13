@@ -19,7 +19,7 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc_manytime(14, omp_get_max_threads());
+  op_timing_realloc_manytime(15, omp_get_max_threads());
   op_timers_core(&cpu_t1, &wall_t1);
   double non_thread_walltime = 0.0;
 
@@ -62,7 +62,7 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
           &arg1_l[64*omp_get_thread_num()]);
       }
       op_timers_core(&thr_cpu_t2, &thr_wall_t2);
-      OP_kernels[14].times[thr]  += thr_wall_t2 - thr_wall_t1;
+      OP_kernels[15].times[thr]  += thr_wall_t2 - thr_wall_t1;
     }
     // OpenMP block complete, so switch back to process timing:
     op_timers_core(&cpu_t1, &wall_t1);
@@ -80,8 +80,8 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
   non_thread_walltime += wall_t2 - wall_t1;
-  OP_kernels[14].name      = name;
-  OP_kernels[14].count    += 1;
-  OP_kernels[14].times[0] += non_thread_walltime;
-  OP_kernels[14].transfer += (float)set->size * arg0.size;
+  OP_kernels[15].name      = name;
+  OP_kernels[15].count    += 1;
+  OP_kernels[15].times[0] += non_thread_walltime;
+  OP_kernels[15].transfer += (float)set->size * arg0.size;
 }

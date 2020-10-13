@@ -31,10 +31,10 @@ void op_par_loop_identify_differences(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(22);
+  op_timing_realloc(23);
   op_timers_core(&cpu_t1, &wall_t1);
-  OP_kernels[22].name      = name;
-  OP_kernels[22].count    += 1;
+  OP_kernels[23].name      = name;
+  OP_kernels[23].count    += 1;
 
 
   if (OP_diags>2) {
@@ -43,13 +43,13 @@ void op_par_loop_identify_differences(char const *name, op_set set,
 
   int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
 
-  #ifdef OP_PART_SIZE_22
-    int part_size = OP_PART_SIZE_22;
+  #ifdef OP_PART_SIZE_23
+    int part_size = OP_PART_SIZE_23;
   #else
     int part_size = OP_part_size;
   #endif
-  #ifdef OP_BLOCK_SIZE_22
-    int nthread = OP_BLOCK_SIZE_22;
+  #ifdef OP_BLOCK_SIZE_23
+    int nthread = OP_BLOCK_SIZE_23;
   #else
     int nthread = OP_block_size;
   #endif
@@ -84,8 +84,8 @@ void op_par_loop_identify_differences(char const *name, op_set set,
   if (OP_diags>1) deviceSync();
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[22].time     += wall_t2 - wall_t1;
-  OP_kernels[22].transfer += (float)set->size * arg0.size;
-  OP_kernels[22].transfer += (float)set->size * arg1.size;
-  OP_kernels[22].transfer += (float)set->size * arg2.size * 2.0f;
+  OP_kernels[23].time     += wall_t2 - wall_t1;
+  OP_kernels[23].transfer += (float)set->size * arg0.size;
+  OP_kernels[23].transfer += (float)set->size * arg1.size;
+  OP_kernels[23].transfer += (float)set->size * arg2.size * 2.0f;
 }

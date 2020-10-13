@@ -18,7 +18,7 @@ void op_par_loop_count_non_zeros(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(23);
+  op_timing_realloc(24);
   op_timers_core(&cpu_t1, &wall_t1);
 
 
@@ -43,8 +43,8 @@ void op_par_loop_count_non_zeros(char const *name, op_set set,
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[23].name      = name;
-  OP_kernels[23].count    += 1;
-  OP_kernels[23].time     += wall_t2 - wall_t1;
-  OP_kernels[23].transfer += (float)set->size * arg0.size;
+  OP_kernels[24].name      = name;
+  OP_kernels[24].count    += 1;
+  OP_kernels[24].time     += wall_t2 - wall_t1;
+  OP_kernels[24].transfer += (float)set->size * arg0.size;
 }
