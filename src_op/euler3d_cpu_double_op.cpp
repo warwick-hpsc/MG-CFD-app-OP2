@@ -14,6 +14,7 @@
 #include <fstream>
 #include <cmath>
 #include <string>
+#include <omp.h>
 #include <sys/time.h>
 #include <sstream>
 #include <cstdlib>
