@@ -145,6 +145,10 @@ int main(int argc, char** argv)
         for (int i=0; i<(levels*num_events); i++) {
             flux_kernel_event_counts[i] = 0;
         }
+        long_long ustream_kernel_event_counts[levels*num_events];
+        for (int i=0; i<(levels*num_events); i++) {
+            ustream_kernel_event_counts[i] = 0;
+        }
 
         int event_set;
         int* events;
