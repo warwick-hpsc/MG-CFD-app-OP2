@@ -76,7 +76,7 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
   int ncolors = 0;
 
-  if (set->size >0) {
+  if (set_size >0) {
 
 
     //Set up typed device pointers for OpenACC

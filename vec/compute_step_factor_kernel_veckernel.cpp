@@ -130,24 +130,24 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
 
     #ifdef VECTORIZE
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
-      double dat2[SIMD_BLOCK_SIZE];
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
+      double dat2[SIMD_VEC];
+      for ( int i=0; i<SIMD_VEC; i++ ){
         dat2[i] = *((double*)arg2.data);
       }
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         compute_step_factor_kernel(
           &(ptr0)[5 * (n+i)],
           &(ptr1)[1 * (n+i)],
           &dat2[i],
           &(ptr3)[1 * (n+i)]);
       }
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
       }
     }
     //remainder
-    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif

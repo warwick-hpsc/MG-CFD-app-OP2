@@ -67,7 +67,7 @@ inline void identify_differences(
     // accurately would require a trace of all floating-point operation
     // outputs during the runs.
 
-    const double acceptable_relative_difference = 10.0e-9;
+    const double acceptable_relative_difference = 10.0e-8;
 
     for (int v=0; v<NVAR; v++) {
         double acceptable_difference = master_value[v] * acceptable_relative_difference;
@@ -98,7 +98,7 @@ inline void count_non_zeros(
     int* count)
 {   
     for (int v=0; v<NVAR; v++) {
-        if ((*value) > 0.0) {
+        if (value[v] > 0.0) {
             (*count)++;
         }
     }
@@ -143,7 +143,7 @@ void op_par_loop_residual_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(13);
+  op_timing_realloc(12);
   op_timers_core(&cpu_t1, &wall_t1);
 
 
@@ -157,9 +157,9 @@ void op_par_loop_residual_kernel(char const *name, op_set set,
 
     #ifdef VECTORIZE
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
+    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         residual_kernel(
           &(ptr0)[5 * (n+i)],
           &(ptr1)[5 * (n+i)],
@@ -167,7 +167,7 @@ void op_par_loop_residual_kernel(char const *name, op_set set,
       }
     }
     //remainder
-    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif
@@ -183,10 +183,10 @@ void op_par_loop_residual_kernel(char const *name, op_set set,
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[13].name      = name;
-  OP_kernels[13].count    += 1;
-  OP_kernels[13].time     += wall_t2 - wall_t1;
-  OP_kernels[13].transfer += (float)set->size * arg0.size;
-  OP_kernels[13].transfer += (float)set->size * arg1.size;
-  OP_kernels[13].transfer += (float)set->size * arg2.size * 2.0f;
+  OP_kernels[12].name      = name;
+  OP_kernels[12].count    += 1;
+  OP_kernels[12].time     += wall_t2 - wall_t1;
+  OP_kernels[12].transfer += (float)set->size * arg0.size;
+  OP_kernels[12].transfer += (float)set->size * arg1.size;
+  OP_kernels[12].transfer += (float)set->size * arg2.size * 2.0f;
 }

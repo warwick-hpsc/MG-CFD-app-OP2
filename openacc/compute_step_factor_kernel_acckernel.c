@@ -59,11 +59,11 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  compute_step_factor_kernel");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
+  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
 
   double arg2_l = arg2h[0];
 
-  if (set->size >0) {
+  if (set_size >0) {
 
 
     //Set up typed device pointers for OpenACC

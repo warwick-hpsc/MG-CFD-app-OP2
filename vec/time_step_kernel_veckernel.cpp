@@ -134,13 +134,13 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
 
     #ifdef VECTORIZE
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
-      int dat0[SIMD_BLOCK_SIZE];
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
+      int dat0[SIMD_VEC];
+      for ( int i=0; i<SIMD_VEC; i++ ){
         dat0[i] = *((int*)arg0.data);
       }
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         time_step_kernel(
           &dat0[i],
           &(ptr1)[1 * (n+i)],
@@ -148,11 +148,11 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
           &(ptr3)[5 * (n+i)],
           &(ptr4)[5 * (n+i)]);
       }
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
       }
     }
     //remainder
-    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif

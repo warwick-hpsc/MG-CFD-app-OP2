@@ -67,7 +67,7 @@ inline void identify_differences(
     // accurately would require a trace of all floating-point operation
     // outputs during the runs.
 
-    const double acceptable_relative_difference = 10.0e-9;
+    const double acceptable_relative_difference = 10.0e-8;
 
     for (int v=0; v<NVAR; v++) {
         double acceptable_difference = master_value[v] * acceptable_relative_difference;
@@ -98,7 +98,7 @@ inline void count_non_zeros(
     int* count)
 {   
     for (int v=0; v<NVAR; v++) {
-        if ((*value) > 0.0) {
+        if (value[v] > 0.0) {
             (*count)++;
         }
     }
@@ -137,7 +137,7 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(15);
+  op_timing_realloc(14);
   op_timers_core(&cpu_t1, &wall_t1);
 
 
@@ -151,23 +151,23 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
 
     #ifdef VECTORIZE
     #pragma novector
-    for ( int n=0; n<(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n+=SIMD_BLOCK_SIZE ){
-      int dat1[SIMD_BLOCK_SIZE];
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+    for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
+      int dat1[SIMD_VEC];
+      for ( int i=0; i<SIMD_VEC; i++ ){
         dat1[i] = 0.0;
       }
       #pragma omp simd simdlen(SIMD_VEC)
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         count_bad_vals(
           &(ptr0)[5 * (n+i)],
           &dat1[i]);
       }
-      for ( int i=0; i<SIMD_BLOCK_SIZE; i++ ){
+      for ( int i=0; i<SIMD_VEC; i++ ){
         *(int*)arg1.data += dat1[i];
       }
     }
     //remainder
-    for ( int n=(exec_size/SIMD_BLOCK_SIZE)*SIMD_BLOCK_SIZE; n<exec_size; n++ ){
+    for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
     #else
     for ( int n=0; n<exec_size; n++ ){
     #endif
@@ -183,8 +183,8 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[15].name      = name;
-  OP_kernels[15].count    += 1;
-  OP_kernels[15].time     += wall_t2 - wall_t1;
-  OP_kernels[15].transfer += (float)set->size * arg0.size;
+  OP_kernels[14].name      = name;
+  OP_kernels[14].count    += 1;
+  OP_kernels[14].time     += wall_t2 - wall_t1;
+  OP_kernels[14].transfer += (float)set->size * arg0.size;
 }

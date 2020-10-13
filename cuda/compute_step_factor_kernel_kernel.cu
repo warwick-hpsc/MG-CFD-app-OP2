@@ -79,8 +79,8 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  compute_step_factor_kernel");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (set_size > 0) {
 
     //transfer constants to GPU
     int consts_bytes = 0;
@@ -100,7 +100,6 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
       int nthread = OP_BLOCK_SIZE_8;
     #else
       int nthread = OP_block_size;
-    //  int nthread = 128;
     #endif
 
     int nblocks = 200;

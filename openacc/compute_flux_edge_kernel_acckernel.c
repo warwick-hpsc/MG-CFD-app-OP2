@@ -248,7 +248,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
   int ncolors = 0;
 
-  if (set->size >0) {
+  if (set_size >0) {
 
 
     //Set up typed device pointers for OpenACC

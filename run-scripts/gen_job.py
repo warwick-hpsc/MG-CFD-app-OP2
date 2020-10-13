@@ -382,7 +382,7 @@ if __name__=="__main__":
             py_sed(batch_tmp_filepath, "<PARTITIONER>", partitioner)
             py_sed(batch_tmp_filepath, "<PARTITIONER_METHOD>", part_method)
             py_sed(batch_tmp_filepath, "<MG_CYCLES>", mg_cycles)
-            py_sed(batch_tmp_filepath, "<OUTPUT_FLOWS_INTERVAL>", output_flow_interval)
+            py_sed(batch_tmp_filepath, "<OUTPUT_FLOW_INTERVAL>", output_flow_interval)
             py_sed(batch_tmp_filepath, "<VALIDATE_SOLUTION>", str(validate_solution).lower())
 
             ## - Walltime estimation:

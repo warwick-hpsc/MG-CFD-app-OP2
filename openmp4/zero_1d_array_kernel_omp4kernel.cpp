@@ -33,7 +33,7 @@ void op_par_loop_zero_1d_array_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  zero_1d_array_kernel");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
+  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
 
   #ifdef OP_PART_SIZE_2
     int part_size = OP_PART_SIZE_2;
@@ -47,7 +47,7 @@ void op_par_loop_zero_1d_array_kernel(char const *name, op_set set,
   #endif
 
 
-  if (set->size >0) {
+  if (set_size >0) {
 
     //Set up typed device pointers for OpenMP
 

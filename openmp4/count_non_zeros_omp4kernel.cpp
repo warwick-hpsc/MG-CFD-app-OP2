@@ -27,32 +27,32 @@ void op_par_loop_count_non_zeros(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(24);
+  op_timing_realloc(23);
   op_timers_core(&cpu_t1, &wall_t1);
-  OP_kernels[24].name      = name;
-  OP_kernels[24].count    += 1;
+  OP_kernels[23].name      = name;
+  OP_kernels[23].count    += 1;
 
 
   if (OP_diags>2) {
     printf(" kernel routine w/o indirection:  count_non_zeros");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
+  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
 
-  #ifdef OP_PART_SIZE_24
-    int part_size = OP_PART_SIZE_24;
+  #ifdef OP_PART_SIZE_23
+    int part_size = OP_PART_SIZE_23;
   #else
     int part_size = OP_part_size;
   #endif
-  #ifdef OP_BLOCK_SIZE_24
-    int nthread = OP_BLOCK_SIZE_24;
+  #ifdef OP_BLOCK_SIZE_23
+    int nthread = OP_BLOCK_SIZE_23;
   #else
     int nthread = OP_block_size;
   #endif
 
   int arg1_l = arg1h[0];
 
-  if (set->size >0) {
+  if (set_size >0) {
 
     //Set up typed device pointers for OpenMP
 
@@ -76,6 +76,6 @@ void op_par_loop_count_non_zeros(char const *name, op_set set,
   if (OP_diags>1) deviceSync();
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[24].time     += wall_t2 - wall_t1;
-  OP_kernels[24].transfer += (float)set->size * arg0.size;
+  OP_kernels[23].time     += wall_t2 - wall_t1;
+  OP_kernels[23].transfer += (float)set->size * arg0.size;
 }
