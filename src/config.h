@@ -350,7 +350,7 @@ inline void print_help(void)
     fprintf(stderr, "\n");
     fprintf(stderr, "-b, --measure-mem-bound\n");
     fprintf(stderr, "        run synthetic kernel 'unstructured_stream' to measure\n");
-    fprintf(stderr, "        measure memory bound of'compute_flux_edge' kernel\n");
+    fprintf(stderr, "        memory bound of'compute_flux_edge' kernel\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "-v, --validate-result\n");
     fprintf(stderr, "        check final state against pre-calculated solution\n");
