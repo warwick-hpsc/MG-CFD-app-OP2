@@ -3,6 +3,11 @@
 //
 
 //user function
+
+#ifdef PAPI
+#include <papi.h>
+#endif
+
 //user function
 //#pragma acc routine
 inline void unstructured_stream_kernel_openacc( 
@@ -63,6 +68,23 @@ void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg2,
   op_arg arg3,
   op_arg arg4){
+  
+  op_par_loop_unstructured_stream_kernel_instrumented(name, set, 
+    arg0, arg1, arg2, arg3, arg4
+    #ifdef PAPI
+    , NULL, 0, 0
+    #endif
+    );
+};
+
+void op_par_loop_unstructured_stream_kernel_instrumented(
+  char const *name, op_set set,
+  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
+  #ifdef PAPI
+  , long_long* restrict event_counts, int event_set, int num_events
+  #endif
+  )
+{
 
   int nargs = 5;
   op_arg args[5];

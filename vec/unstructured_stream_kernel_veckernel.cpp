@@ -6,6 +6,10 @@
 #ifndef UNSTRUCTURED_STREAM_H
 #define UNSTRUCTURED_STREAM_H
 
+#ifdef PAPI
+#include "papi_funcs.h"
+#endif
+
 // Unstructured stream kernel
 // - performs same data movement as compute_flux_edge() but with minimal arithmetic. 
 //   Measures upper bound on performance achievable by compute_flux_edge()
