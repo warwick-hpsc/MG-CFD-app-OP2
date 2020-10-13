@@ -3,15 +3,37 @@
 //
 
 //user function
-#include ".././src/Kernels/mg.h"
+#include ".././src/Kernels/unstructured_stream.h"
+
+#ifdef PAPI
+#include <papi.h>
+#endif
 
 // host stub function
-void op_par_loop_down_kernel(char const *name, op_set set,
+void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg0,
   op_arg arg1,
   op_arg arg2,
   op_arg arg3,
   op_arg arg4){
+
+  
+  op_par_loop_unstructured_stream_kernel_instrumented(name, set, 
+    arg0, arg1, arg2, arg3, arg4
+    #ifdef PAPI
+    , NULL, 0, 0
+    #endif
+    );
+};
+
+void op_par_loop_unstructured_stream_kernel_instrumented(
+  char const *name, op_set set,
+  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
+  #ifdef PAPI
+  , long_long* restrict event_counts, int event_set, int num_events
+  #endif
+  )
+{
 
   int nargs = 5;
   op_arg args[5];
@@ -24,20 +46,20 @@ void op_par_loop_down_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc_manytime(22, omp_get_max_threads());
+  op_timing_realloc_manytime(12, omp_get_max_threads());
   op_timers_core(&cpu_t1, &wall_t1);
   double non_thread_walltime = 0.0;
 
   int  ninds   = 2;
-  int  inds[5] = {-1,-1,-1,0,1};
+  int  inds[5] = {0,0,-1,1,1};
 
   if (OP_diags>2) {
-    printf(" kernel routine with indirection: down_kernel\n");
+    printf(" kernel routine with indirection: unstructured_stream_kernel\n");
   }
 
   // get plan
-  #ifdef OP_PART_SIZE_22
-    int part_size = OP_PART_SIZE_22;
+  #ifdef OP_PART_SIZE_12
+    int part_size = OP_PART_SIZE_12;
   #else
     int part_size = OP_part_size;
   #endif
@@ -74,20 +96,21 @@ void op_par_loop_down_kernel(char const *name, op_set set,
           int nelem    = Plan->nelems[blockId];
           int offset_b = Plan->offset[blockId];
           for ( int n=offset_b; n<offset_b+nelem; n++ ){
-            int map3idx = arg3.map_data[n * arg3.map->dim + 0];
+            int map0idx = arg0.map_data[n * arg0.map->dim + 0];
+            int map1idx = arg0.map_data[n * arg0.map->dim + 1];
 
 
-            down_kernel(
-              &((double*)arg0.data)[5 * n],
-              &((double*)arg1.data)[5 * n],
+            unstructured_stream_kernel(
+              &((double*)arg0.data)[5 * map0idx],
+              &((double*)arg0.data)[5 * map1idx],
               &((double*)arg2.data)[3 * n],
-              &((double*)arg3.data)[5 * map3idx],
-              &((double*)arg4.data)[3 * map3idx]);
+              &((double*)arg3.data)[5 * map0idx],
+              &((double*)arg3.data)[5 * map1idx]);
           }
         }
 
         op_timers_core(&thr_cpu_t2, &thr_wall_t2);
-        OP_kernels[22].times[thr]  += thr_wall_t2 - thr_wall_t1;
+        OP_kernels[12].times[thr]  += thr_wall_t2 - thr_wall_t1;
       }
 
       // Revert to process-level timing:
@@ -95,8 +118,8 @@ void op_par_loop_down_kernel(char const *name, op_set set,
 
       block_offset += nblocks;
     }
-    OP_kernels[22].transfer  += Plan->transfer;
-    OP_kernels[22].transfer2 += Plan->transfer2;
+    OP_kernels[12].transfer  += Plan->transfer;
+    OP_kernels[12].transfer2 += Plan->transfer2;
   }
 
   if (set_size == 0 || set_size == set->core_size) {
@@ -108,7 +131,7 @@ void op_par_loop_down_kernel(char const *name, op_set set,
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
   non_thread_walltime += wall_t2 - wall_t1;
-  OP_kernels[22].name      = name;
-  OP_kernels[22].count    += 1;
-  OP_kernels[22].times[0] += non_thread_walltime;
+  OP_kernels[12].name      = name;
+  OP_kernels[12].count    += 1;
+  OP_kernels[12].times[0] += non_thread_walltime;
 }

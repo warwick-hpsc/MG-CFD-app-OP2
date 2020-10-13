@@ -20,6 +20,11 @@ function _main {
 	files+=" ${src_dir}"
 	files+=" ${src_dir}/Kernels"
 
+	## Default OP2 translator only inserts timers for individual ranks, ignores threads. 
+	## Thus cannot detect load imbalance within a team of OpenMP threads. 
+	## To add thread timers, set OP_TIME_THREADS environment variable:
+	# OP_TIME_THREADS=1 python "${OP2_INSTALL_PATH}"/../translator/c/python/op2.py $files
+
 	python "${OP2_INSTALL_PATH}"/../translator/c/python/op2.py $files
 } 
 

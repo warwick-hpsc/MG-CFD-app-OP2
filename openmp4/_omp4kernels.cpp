@@ -19,6 +19,13 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
   , long_long* restrict event_counts, int event_set, int num_events
   #endif
 );
+void op_par_loop_unstructured_stream_kernel_instrumented(
+  char const *name, op_set set,
+  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
+  #ifdef PAPI
+  , long_long* restrict event_counts, int event_set, int num_events
+  #endif
+);
 // user kernel files
 #include "initialize_variables_kernel_omp4kernel.cpp"
 #include "zero_5d_array_kernel_omp4kernel.cpp"
@@ -32,6 +39,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 #include "compute_flux_edge_kernel_omp4kernel.cpp"
 #include "compute_bnd_node_flux_kernel_omp4kernel.cpp"
 #include "time_step_kernel_omp4kernel.cpp"
+#include "unstructured_stream_kernel_omp4kernel.cpp"
 #include "residual_kernel_omp4kernel.cpp"
 #include "calc_rms_kernel_omp4kernel.cpp"
 #include "count_bad_vals_omp4kernel.cpp"

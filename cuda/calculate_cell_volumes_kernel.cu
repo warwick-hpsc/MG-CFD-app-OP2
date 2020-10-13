@@ -164,7 +164,7 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
   #endif
 
   int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  if (set_size > 0) {
 
     op_plan *Plan = op_plan_get(name,set,part_size,nargs,args,ninds,inds);
 
