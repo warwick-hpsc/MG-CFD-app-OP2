@@ -674,14 +674,20 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     }
         
     int coupler_rank = units[unit_count].coupler_ranks[0][0]; /* This assumes only 1 coupler unit per 2 MG-CFD sessions */
-
     int *recv_buffer = new int[recv_size];
     int prev_cycle = -1;
 
-    int nodes_sizes[4];
+    int no_of_data_ranks = units[unit_count].coupler_ranks[0].size();//the number of ranks in the 'send' size
+    int no_of_recv_ranks = units[unit_count].coupler_ranks[1].size();
+
+    double nodes_sizes[4];
+    double nodes_size_chunks[4];
+    double extra_chunk[4];
+    bool chunk_add = true;
     double *p_variables_data_l0, *p_variables_data_l1, *p_variables_data_l2, *p_variables_data_l3;
     double *p_variables_recv_l0, *p_variables_recv_l1, *p_variables_recv_l2, *p_variables_recv_l3;
-
+    double add_amount[4];
+    long long int total_amount[4] = {0,0,0,0};
     int null_check;
 
     for (int z = 0; z < 4; z++) {
@@ -697,7 +703,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         for(int z = 0; z < total_coupler_unit_count; z++){
             ranks_per_coupler = units[unit_count].coupler_ranks[z].size();
             for(int z2 = 0; z2 < ranks_per_coupler; z2++){
-                MPI_Send(nodes_sizes, 4, MPI_INT, units[unit_count].coupler_ranks[z][z2], 0, MPI_COMM_WORLD);//this sends the node sizes to each of the coupler ranks of each of the coupler units
+                MPI_Send(nodes_sizes, 4, MPI_DOUBLE, units[unit_count].coupler_ranks[z][z2], 0, MPI_COMM_WORLD);//this sends the node sizes to each of the coupler ranks of each of the coupler units
             }
         }
     }
@@ -735,30 +741,53 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
                 for(int z = 0; z < total_coupler_unit_count; z++){ 
                     ranks_per_coupler = units[unit_count].coupler_ranks[z].size();
+
+                    for(int j = 0; j < 4; j++){
+                        total_amount[j] = 0;
+                        nodes_size_chunks[j] = nodes_sizes[j] / ranks_per_coupler;
+                        extra_chunk[j] = nodes_sizes[j] - nodes_size_chunks[j]*ranks_per_coupler;//since dividing integers is a floor function in C++, there may be a little bit left which we add onto the first transfer
+                    }
+
                     for(int z2 = 0; z2 < ranks_per_coupler; z2++){
                         coupler_rank = units[unit_count].coupler_ranks[z][z2];//this sends the node sizes to each of the coupler ranks of each of the coupler units
+                        for(int k = 0; k < 4; k++){
+                            if(chunk_add){
+                                add_amount[k] = nodes_size_chunks[k] + extra_chunk[k];
+                            }else{
+                                add_amount[k] = nodes_size_chunks[k];
+                                chunk_add = false;
+                            }
+                        }
+                        
                         if(left[z]){
                             //op_printf("I am rank %d, I am sending to coupler with rank %d\n", worldrank, coupler_rank);
-                            MPI_Send(p_variables_data_l0, nodes_sizes[0], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                            MPI_Send(p_variables_data_l1, nodes_sizes[1], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                            MPI_Send(p_variables_data_l2, nodes_sizes[2], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                            MPI_Send(p_variables_data_l3, nodes_sizes[3], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                            MPI_Recv(p_variables_recv_l0, nodes_sizes[0], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                            MPI_Recv(p_variables_recv_l1, nodes_sizes[1], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                            MPI_Recv(p_variables_recv_l2, nodes_sizes[2], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                            MPI_Recv(p_variables_recv_l3, nodes_sizes[3], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            MPI_Send(p_variables_data_l0 + total_amount[0], add_amount[0], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            MPI_Send(p_variables_data_l1 + total_amount[1], add_amount[1], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            MPI_Send(p_variables_data_l2 + total_amount[2], add_amount[2], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            MPI_Send(p_variables_data_l3 + total_amount[3], add_amount[3], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            MPI_Recv(p_variables_recv_l0 + total_amount[0], add_amount[0], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            MPI_Recv(p_variables_recv_l1 + total_amount[1], add_amount[1], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            MPI_Recv(p_variables_recv_l2 + total_amount[2], add_amount[2], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            MPI_Recv(p_variables_recv_l3 + total_amount[3], add_amount[3], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                         }else{
                             //op_printf("I am rank %d, I am waiting for data from coupler with rank %d\n", worldrank, coupler_rank);
-                            MPI_Recv(p_variables_recv_l0, nodes_sizes[0], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                            MPI_Recv(p_variables_recv_l1, nodes_sizes[1], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                            MPI_Recv(p_variables_recv_l2, nodes_sizes[2], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                            MPI_Recv(p_variables_recv_l3, nodes_sizes[3], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                            MPI_Send(p_variables_data_l0, nodes_sizes[0], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                            MPI_Send(p_variables_data_l1, nodes_sizes[1], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                            MPI_Send(p_variables_data_l2, nodes_sizes[2], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                            MPI_Send(p_variables_data_l3, nodes_sizes[3], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            MPI_Recv(p_variables_recv_l0 + total_amount[0], add_amount[0], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            MPI_Recv(p_variables_recv_l1 + total_amount[1], add_amount[1], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            MPI_Recv(p_variables_recv_l2 + total_amount[2], add_amount[2], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            MPI_Recv(p_variables_recv_l3 + total_amount[3], add_amount[3], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            MPI_Send(p_variables_data_l0 + total_amount[0], add_amount[0], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            MPI_Send(p_variables_data_l1 + total_amount[1], add_amount[1], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            MPI_Send(p_variables_data_l2 + total_amount[2], add_amount[2], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            MPI_Send(p_variables_data_l3 + total_amount[3], add_amount[3], MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
                         }
+
+                        for(int k = 0; k < 4; k++){
+                            total_amount[k] += add_amount[k];
+                        }
+
                     }
+
+                    chunk_add = true;
                 }
             }
 

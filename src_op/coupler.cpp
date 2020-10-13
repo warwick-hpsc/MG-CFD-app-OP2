@@ -255,10 +255,10 @@ int main(int argc, char** argv){
 		int *left_rank_storage = new int[left_size];
 		int *right_rank_storage = new int[right_size];
         
-        int left_nodes_sizes[4];
-        int right_nodes_sizes[4];
-        MPI_Recv(left_nodes_sizes, 4, MPI_INT, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Recv(right_nodes_sizes, 4, MPI_INT, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        double left_nodes_sizes[4];
+        double right_nodes_sizes[4];
+        MPI_Recv(left_nodes_sizes, 4, MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(right_nodes_sizes, 4, MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         double *left_p_variables_l0, *left_p_variables_l1, *left_p_variables_l2, *left_p_variables_l3;
         double *right_p_variables_l0, *right_p_variables_l1, *right_p_variables_l2, *right_p_variables_l3;
@@ -273,29 +273,56 @@ int main(int argc, char** argv){
         right_p_variables_l2 = (double *) malloc(right_nodes_sizes[2] * NVAR * sizeof(double));
         right_p_variables_l3 = (double *) malloc(right_nodes_sizes[3] * NVAR * sizeof(double));
 
+		/* Calculate sizes here */
 
+
+		int total_ranks = units[unit_count].coupler_ranks[0].size();
+
+    	double left_nodes_size_chunks[4];
+		double left_extra_chunk[4];
+		double right_nodes_size_chunks[4];
+		double right_extra_chunk[4];
+		double left_add_amount[4];
+		double right_add_amount[4];
+		bool chunk_add = true;
+
+		for(int j = 0; j < 4; j++){
+				left_nodes_size_chunks[j] = left_nodes_sizes[j] / total_ranks;
+				left_extra_chunk[j] = left_nodes_sizes[j] - left_nodes_size_chunks[j]*total_ranks;//since dividing integers is a floor function in C++, there may be a little bit left which we add onto the first transfer
+				right_nodes_size_chunks[j] = right_nodes_sizes[j] / total_ranks;
+				right_extra_chunk[j] = right_nodes_sizes[j] - right_nodes_size_chunks[j]*total_ranks;
+            }
 		while((cycle_counter < 25) && ((cycle_counter % upd_freq) == 0)){/* Change this value to the number of cycles if it is not the default*/
-			printf("My cycle counter is %d\n", cycle_counter);
 
-            MPI_Recv(left_p_variables_l0, left_nodes_sizes[0], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            MPI_Recv(left_p_variables_l1, left_nodes_sizes[1], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            MPI_Recv(left_p_variables_l2, left_nodes_sizes[2], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            MPI_Recv(left_p_variables_l3, left_nodes_sizes[3], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			for(int k = 0; k < 4; k++){
+				if(rank == units[unit_count].coupler_ranks[0][0]){//since the first rank of each coupler unit gets the extra chunk, check to see if the coupler unit process is the first rank
+					left_add_amount[k] = left_nodes_size_chunks[k] + left_extra_chunk[k];
+					right_add_amount[k] = right_nodes_size_chunks[k] + right_extra_chunk[k];
+				}else{
+					left_add_amount[k] = left_nodes_size_chunks[k];
+					right_add_amount[k] = right_nodes_size_chunks[k];
+				}
+			}
 
-            MPI_Send(left_p_variables_l0, left_nodes_sizes[0], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
-            MPI_Send(left_p_variables_l1, left_nodes_sizes[1], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
-            MPI_Send(left_p_variables_l2, left_nodes_sizes[2], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
-            MPI_Send(left_p_variables_l3, left_nodes_sizes[3], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
+            MPI_Recv(left_p_variables_l0, left_add_amount[0], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(left_p_variables_l1, left_add_amount[1], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(left_p_variables_l2, left_add_amount[2], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(left_p_variables_l3, left_add_amount[3], MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-            MPI_Recv(right_p_variables_l0, right_nodes_sizes[0], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            MPI_Recv(right_p_variables_l1, right_nodes_sizes[1], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            MPI_Recv(right_p_variables_l2, right_nodes_sizes[2], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            MPI_Recv(right_p_variables_l3, right_nodes_sizes[3], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Send(left_p_variables_l0, left_add_amount[0], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
+            MPI_Send(left_p_variables_l1, left_add_amount[1], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
+            MPI_Send(left_p_variables_l2, left_add_amount[2], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
+            MPI_Send(left_p_variables_l3, left_add_amount[3], MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
 
-            MPI_Send(right_p_variables_l0, right_nodes_sizes[0], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
-            MPI_Send(right_p_variables_l1, right_nodes_sizes[1], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
-            MPI_Send(right_p_variables_l2, right_nodes_sizes[2], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
-            MPI_Send(right_p_variables_l3, right_nodes_sizes[3], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
+            MPI_Recv(right_p_variables_l0, right_add_amount[0], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(right_p_variables_l1, right_add_amount[1], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(right_p_variables_l2, right_add_amount[2], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(right_p_variables_l3, right_add_amount[3], MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            MPI_Send(right_p_variables_l0, right_add_amount[0], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
+            MPI_Send(right_p_variables_l1, right_add_amount[1], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
+            MPI_Send(right_p_variables_l2, right_add_amount[2], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
+            MPI_Send(right_p_variables_l3, right_add_amount[3], MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
 
 			cycle_counter = cycle_counter + upd_freq;
 
