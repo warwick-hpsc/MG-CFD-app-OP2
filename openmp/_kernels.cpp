@@ -24,6 +24,7 @@
 #include "compute_flux_edge_kernel_kernel.cpp"
 #include "compute_bnd_node_flux_kernel_kernel.cpp"
 #include "time_step_kernel_kernel.cpp"
+#include "unstructured_stream_kernel_kernel.cpp"
 #include "residual_kernel_kernel.cpp"
 #include "calc_rms_kernel_kernel.cpp"
 #include "count_bad_vals_kernel.cpp"

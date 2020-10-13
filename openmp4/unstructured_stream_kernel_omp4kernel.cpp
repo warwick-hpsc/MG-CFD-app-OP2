@@ -5,15 +5,15 @@
 //user function
 //user function
 
-void up_kernel_omp4_kernel(
+void unstructured_stream_kernel_omp4_kernel(
+  int *map0,
+  int map0size,
+  double *data2,
+  int dat2size,
   double *data0,
   int dat0size,
-  int *map1,
-  int map1size,
-  double *data1,
-  int dat1size,
-  int *data2,
-  int dat2size,
+  double *data3,
+  int dat3size,
   int *col_reord,
   int set_size1,
   int start,
@@ -22,42 +22,46 @@ void up_kernel_omp4_kernel(
   int nthread);
 
 // host stub function
-void op_par_loop_up_kernel(char const *name, op_set set,
+void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg0,
   op_arg arg1,
-  op_arg arg2){
+  op_arg arg2,
+  op_arg arg3,
+  op_arg arg4){
 
-  int nargs = 3;
-  op_arg args[3];
+  int nargs = 5;
+  op_arg args[5];
 
   args[0] = arg0;
   args[1] = arg1;
   args[2] = arg2;
+  args[3] = arg3;
+  args[4] = arg4;
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(17);
+  op_timing_realloc(12);
   op_timers_core(&cpu_t1, &wall_t1);
-  OP_kernels[17].name      = name;
-  OP_kernels[17].count    += 1;
+  OP_kernels[12].name      = name;
+  OP_kernels[12].count    += 1;
 
   int  ninds   = 2;
-  int  inds[3] = {-1,0,1};
+  int  inds[5] = {0,0,-1,1,1};
 
   if (OP_diags>2) {
-    printf(" kernel routine with indirection: up_kernel\n");
+    printf(" kernel routine with indirection: unstructured_stream_kernel\n");
   }
 
   // get plan
   int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
 
-  #ifdef OP_PART_SIZE_17
-    int part_size = OP_PART_SIZE_17;
+  #ifdef OP_PART_SIZE_12
+    int part_size = OP_PART_SIZE_12;
   #else
     int part_size = OP_part_size;
   #endif
-  #ifdef OP_BLOCK_SIZE_17
-    int nthread = OP_BLOCK_SIZE_17;
+  #ifdef OP_BLOCK_SIZE_12
+    int nthread = OP_BLOCK_SIZE_12;
   #else
     int nthread = OP_block_size;
   #endif
@@ -69,15 +73,15 @@ void op_par_loop_up_kernel(char const *name, op_set set,
   if (set->size >0) {
 
     //Set up typed device pointers for OpenMP
-    int *map1 = arg1.map_data_d;
-     int map1size = arg1.map->dim * set_size1;
+    int *map0 = arg0.map_data_d;
+     int map0size = arg0.map->dim * set_size1;
 
-    double* data0 = (double*)arg0.data_d;
-    int dat0size = getSetSizeFromOpArg(&arg0) * arg0.dat->dim;
-    double *data1 = (double *)arg1.data_d;
-    int dat1size = getSetSizeFromOpArg(&arg1) * arg1.dat->dim;
-    int *data2 = (int *)arg2.data_d;
+    double* data2 = (double*)arg2.data_d;
     int dat2size = getSetSizeFromOpArg(&arg2) * arg2.dat->dim;
+    double *data0 = (double *)arg0.data_d;
+    int dat0size = getSetSizeFromOpArg(&arg0) * arg0.dat->dim;
+    double *data3 = (double *)arg3.data_d;
+    int dat3size = getSetSizeFromOpArg(&arg3) * arg3.dat->dim;
 
     op_plan *Plan = op_plan_get_stage(name,set,part_size,nargs,args,ninds,inds,OP_COLOR2);
     ncolors = Plan->ncolors;
@@ -91,15 +95,15 @@ void op_par_loop_up_kernel(char const *name, op_set set,
       int start = Plan->col_offsets[0][col];
       int end = Plan->col_offsets[0][col+1];
 
-      up_kernel_omp4_kernel(
-        data0,
-        dat0size,
-        map1,
-        map1size,
-        data1,
-        dat1size,
+      unstructured_stream_kernel_omp4_kernel(
+        map0,
+        map0size,
         data2,
         dat2size,
+        data0,
+        dat0size,
+        data3,
+        dat3size,
         col_reord,
         set_size1,
         start,
@@ -108,8 +112,8 @@ void op_par_loop_up_kernel(char const *name, op_set set,
         nthread);
 
     }
-    OP_kernels[17].transfer  += Plan->transfer;
-    OP_kernels[17].transfer2 += Plan->transfer2;
+    OP_kernels[12].transfer  += Plan->transfer;
+    OP_kernels[12].transfer2 += Plan->transfer2;
   }
 
   if (set_size == 0 || set_size == set->core_size || ncolors == 1) {
@@ -121,5 +125,5 @@ void op_par_loop_up_kernel(char const *name, op_set set,
   if (OP_diags>1) deviceSync();
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[17].time     += wall_t2 - wall_t1;
+  OP_kernels[12].time     += wall_t2 - wall_t1;
 }

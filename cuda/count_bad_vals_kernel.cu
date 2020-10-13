@@ -61,10 +61,10 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(14);
+  op_timing_realloc(15);
   op_timers_core(&cpu_t1, &wall_t1);
-  OP_kernels[14].name      = name;
-  OP_kernels[14].count    += 1;
+  OP_kernels[15].name      = name;
+  OP_kernels[15].count    += 1;
 
 
   if (OP_diags>2) {
@@ -75,8 +75,8 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
   if (set->size > 0) {
 
     //set CUDA execution parameters
-    #ifdef OP_BLOCK_SIZE_14
-      int nthread = OP_BLOCK_SIZE_14;
+    #ifdef OP_BLOCK_SIZE_15
+      int nthread = OP_BLOCK_SIZE_15;
     #else
       int nthread = OP_block_size;
     #endif
@@ -120,6 +120,6 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
   cutilSafeCall(cudaDeviceSynchronize());
   //update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[14].time     += wall_t2 - wall_t1;
-  OP_kernels[14].transfer += (float)set->size * arg0.size;
+  OP_kernels[15].time     += wall_t2 - wall_t1;
+  OP_kernels[15].transfer += (float)set->size * arg0.size;
 }

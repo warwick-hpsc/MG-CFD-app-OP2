@@ -20,6 +20,7 @@
 #include "compute_flux_edge_kernel_seqkernel.cpp"
 #include "compute_bnd_node_flux_kernel_seqkernel.cpp"
 #include "time_step_kernel_seqkernel.cpp"
+#include "unstructured_stream_kernel_seqkernel.cpp"
 #include "residual_kernel_seqkernel.cpp"
 #include "calc_rms_kernel_seqkernel.cpp"
 #include "count_bad_vals_seqkernel.cpp"

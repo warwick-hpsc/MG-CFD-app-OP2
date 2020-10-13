@@ -100,6 +100,13 @@ void op_par_loop_time_step_kernel(char const *, op_set,
   op_arg,
   op_arg );
 
+void op_par_loop_unstructured_stream_kernel(char const *, op_set,
+  op_arg,
+  op_arg,
+  op_arg,
+  op_arg,
+  op_arg );
+
 void op_par_loop_residual_kernel(char const *, op_set,
   op_arg,
   op_arg,
@@ -200,6 +207,7 @@ config conf;
 #include "time_stepping_kernels.h"
 #include "compute_node_area_kernel.h"
 #include "validation.h"
+#include "unstructured_stream.h"
 
 int main(int argc, char** argv)
 {
@@ -285,6 +293,10 @@ int main(int argc, char** argv)
         for (int i=0; i<(levels*num_events); i++) {
             flux_kernel_event_counts[i] = 0;
         }
+        long_long ustream_kernel_event_counts[levels*num_events];
+        for (int i=0; i<(levels*num_events); i++) {
+            ustream_kernel_event_counts[i] = 0;
+        }
 
         int event_set;
         int* events;
@@ -361,6 +373,7 @@ int main(int argc, char** argv)
            p_volumes[levels],
            p_step_factors[levels],
            p_fluxes[levels];
+    op_dat p_dummy_fluxes[levels]; // strictly for unstructured_stream
     op_dat p_up_scratch[levels];
 
     // Setup OP2
@@ -519,6 +532,10 @@ int main(int argc, char** argv)
 
             sprintf(op_name, "p_fluxes_L%d", i);
             p_fluxes[i] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
+            if (conf.measure_mem_bound) {
+                sprintf(op_name, "p_dummy_fluxes_L%d", i);
+                p_dummy_fluxes[i] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
+            }
 
             if (i > 0) {
                 sprintf(op_name, "p_up_scratch_L%d", i);
@@ -535,6 +552,10 @@ int main(int argc, char** argv)
                     op_arg_dat(p_variables[i],-1,OP_ID,5,"double",OP_WRITE));
         op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[i],
                     op_arg_dat(p_fluxes[i],-1,OP_ID,5,"double",OP_WRITE));
+        if (conf.measure_mem_bound) {
+            op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[i],
+                        op_arg_dat(p_dummy_fluxes[i],-1,OP_ID,5,"double",OP_WRITE));
+        }
 
         if (!conf.legacy_mode) {
             op_par_loop_zero_1d_array_kernel("zero_1d_array_kernel",op_nodes[i],
@@ -626,6 +647,15 @@ int main(int argc, char** argv)
                         op_arg_dat(p_fluxes[level],-1,OP_ID,5,"double",OP_INC),
                         op_arg_dat(p_old_variables[level],-1,OP_ID,5,"double",OP_READ),
                         op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_WRITE));
+
+            if (conf.measure_mem_bound) {
+                op_par_loop_unstructured_stream_kernel("unstructured_stream_kernel",op_edges[level],
+                            op_arg_dat(p_variables[level],0,p_edge_to_nodes[level],5,"double",OP_READ),
+                            op_arg_dat(p_variables[level],1,p_edge_to_nodes[level],5,"double",OP_READ),
+                            op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
+                            op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
+                            op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));
+            }
         }
 
         op_par_loop_residual_kernel("residual_kernel",op_nodes[level],

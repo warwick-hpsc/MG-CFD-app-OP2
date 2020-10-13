@@ -52,6 +52,7 @@ void op_decl_const_char(int dim, char const *type,
 #include "compute_flux_edge_kernel_omp4kernel_func.cpp"
 #include "compute_bnd_node_flux_kernel_omp4kernel_func.cpp"
 #include "time_step_kernel_omp4kernel_func.cpp"
+#include "unstructured_stream_kernel_omp4kernel_func.cpp"
 #include "residual_kernel_omp4kernel_func.cpp"
 #include "calc_rms_kernel_omp4kernel_func.cpp"
 #include "count_bad_vals_omp4kernel_func.cpp"
