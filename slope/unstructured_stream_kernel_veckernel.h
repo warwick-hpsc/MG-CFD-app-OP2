@@ -1,12 +1,12 @@
 /*
-/ File contains copy of just indirect_rw_kernel_vec() from 'vec' folder.
+/ File contains copy of just unstructured_stream_kernel_vec() from 'vec' folder.
 */
 
 //user function -- modified for vectorisation
 #if defined __clang__ || defined __GNUC__
 __attribute__((always_inline))
 #endif
-inline void indirect_rw_kernel_vec(
+inline void unstructured_stream_kernel_vec(
     const double variables_a[][SIMD_VEC], 
     const double variables_b[][SIMD_VEC], 
     const double edge_weight[][SIMD_VEC],

@@ -5,7 +5,7 @@
 //user function
 //user function
 //#pragma acc routine
-inline void indirect_rw_kernel_openacc( 
+inline void unstructured_stream_kernel_openacc( 
     const double *variables_a,
     const double *variables_b,
     const double *edge_weight,
@@ -57,7 +57,7 @@ inline void indirect_rw_kernel_openacc(
 }
 
 // host stub function
-void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
+void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg0,
   op_arg arg1,
   op_arg arg2,
@@ -84,7 +84,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
   int  inds[5] = {0,0,-1,1,1};
 
   if (OP_diags>2) {
-    printf(" kernel routine with indirection: indirect_rw_kernel\n");
+    printf(" kernel routine with indirection: unstructured_stream_kernel\n");
   }
 
   // get plan
@@ -129,7 +129,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
         int map1idx = map0[n + set_size1 * 1];
 
 
-        indirect_rw_kernel_openacc(
+        unstructured_stream_kernel_openacc(
           &data0[5 * map0idx],
           &data0[5 * map1idx],
           &data2[3 * n],

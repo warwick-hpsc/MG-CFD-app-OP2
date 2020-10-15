@@ -60,7 +60,7 @@
 #endif
 // Note: two includes below pulled from slope/ subfolder:
 #include "compute_flux_edge_kernel_veckernel.h"
-#include "indirect_rw_kernel_veckernel.h"
+#include "unstructured_stream_kernel_veckernel.h"
 #else
 #define ALIGNED_double
 #define ALIGNED_float
@@ -152,14 +152,14 @@ void op_par_loop_time_step_kernel(char const *, op_set,
   op_arg,
   op_arg );
 
-void op_par_loop_indirect_rw_kernel(char const *, op_set,
+void op_par_loop_unstructured_stream_kernel(char const *, op_set,
   op_arg,
   op_arg,
   op_arg,
   op_arg,
   op_arg );
 
-void op_par_loop_indirect_rw_kernel_instrumented(char const *, op_set,
+void op_par_loop_unstructured_stream_kernel_instrumented(char const *, op_set,
   op_arg,
   op_arg,
   op_arg,
@@ -275,7 +275,7 @@ config conf;
 #include "time_stepping_kernels.h"
 #include "compute_node_area_kernel.h"
 #include "validation.h"
-#include "indirect_rw.h"
+#include "unstructured_stream.h"
 #include "misc.h"
 
 int main(int argc, char** argv)
@@ -355,9 +355,9 @@ int main(int argc, char** argv)
     for (int i=0; i<levels; i++) {
         flux_kernel_iter_counts[i] = 0;
     }
-    long indirect_rw_kernel_iter_counts[levels];
+    long unstructured_stream_kernel_iter_counts[levels];
     for (int i=0; i<levels; i++) {
-        indirect_rw_kernel_iter_counts[i] = 0;
+        unstructured_stream_kernel_iter_counts[i] = 0;
     }
     #ifdef PAPI
         int num_events = 0;
@@ -366,9 +366,9 @@ int main(int argc, char** argv)
         for (int i=0; i<(levels*num_events); i++) {
             flux_kernel_event_counts[i] = 0;
         }
-        long_long indirect_rw_kernel_event_counts[levels*num_events];
+        long_long ustream_kernel_event_counts[levels*num_events];
         for (int i=0; i<(levels*num_events); i++) {
-            indirect_rw_kernel_event_counts[i] = 0;
+            ustream_kernel_event_counts[i] = 0;
         }
 
         int event_set;
@@ -427,7 +427,7 @@ int main(int argc, char** argv)
     desc_list compute_flux_desc[levels];
     desc_list compute_bflux_desc[levels];
     desc_list time_step_desc[levels];
-    desc_list indirect_rw_desc[levels];
+    desc_list unstructured_stream_desc[levels];
     desc_list zero_5d_array_desc[levels];
 
     map_list mesh_maps[levels];
@@ -475,6 +475,7 @@ int main(int argc, char** argv)
            p_fluxes[levels];
     op_dat p_dummy_variables[levels],
            p_dummy_fluxes[levels];
+    // op_dat p_dummy_fluxes[levels]; // strictly for unstructured_stream
     op_dat p_up_scratch[levels];
 
     // Setup OP2
@@ -626,10 +627,10 @@ int main(int argc, char** argv)
                                     desc(DIRECT, WRITE)});
             time_step_desc[i] = time_desc;
 
-            desc_list indirect_rw_descriptor ({desc(sl_edge_to_nodes[i], READ),
+            desc_list unstructured_stream_descriptor ({desc(sl_edge_to_nodes[i], READ),
                                     desc(DIRECT, READ),
                                     desc(sl_edge_to_nodes[i], INC)});
-            indirect_rw_desc[i] = indirect_rw_descriptor;
+            unstructured_stream_desc[i] = unstructured_stream_descriptor;
 
             desc_list zero_5d_desc ({desc(DIRECT, WRITE)});
             zero_5d_array_desc[i] = zero_5d_desc;
@@ -650,8 +651,8 @@ int main(int argc, char** argv)
             sprintf(sl_name, "time_step_L%d", i);
             insp_add_parloop (insp[i], sl_name, sl_nodes[i],  &time_step_desc[i]);
 
-            sprintf(sl_name, "indirect_rw_L%d", i);
-            insp_add_parloop(insp[i], sl_name, sl_edges[i], &indirect_rw_desc[i]);
+            sprintf(sl_name, "unstructured_stream_L%d", i);
+            insp_add_parloop(insp[i], sl_name, sl_edges[i], &unstructured_stream_desc[i]);
 
             sprintf(sl_name, "zero_5d_L%d", i);
             insp_add_parloop(insp[i], sl_name, sl_nodes[i], &zero_5d_array_desc[i]);
@@ -725,11 +726,12 @@ int main(int argc, char** argv)
 
             sprintf(op_name, "p_fluxes_L%d", i);
             p_fluxes[i] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
-
-            sprintf(op_name, "p_dummy_variables_L%d", i);
-            p_dummy_variables[i] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
-            sprintf(op_name, "p_dummy_fluxes_L%d", i);
-            p_dummy_fluxes[i] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
+            if (conf.measure_mem_bound) {
+                sprintf(op_name, "p_dummy_variables_L%d", i);
+                p_dummy_variables[i] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
+                sprintf(op_name, "p_dummy_fluxes_L%d", i);
+                p_dummy_fluxes[i] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
+            }
 
             if (i > 0) {
                 sprintf(op_name, "p_up_scratch_L%d", i);
@@ -746,6 +748,12 @@ int main(int argc, char** argv)
                     op_arg_dat(p_variables[i],-1,OP_ID,5,"double",OP_WRITE));
         op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[i],
                     op_arg_dat(p_fluxes[i],-1,OP_ID,5,"double",OP_WRITE));
+        if (conf.measure_mem_bound) {
+            op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[i],
+                        op_arg_dat(p_dummy_variables[i],-1,OP_ID,5,"double",OP_WRITE));
+            op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[i],
+                        op_arg_dat(p_dummy_fluxes[i],-1,OP_ID,5,"double",OP_WRITE));
+        }
 
         if (!conf.legacy_mode) {
             op_par_loop_zero_1d_array_kernel("zero_1d_array_kernel",op_nodes[i],
@@ -812,9 +820,9 @@ int main(int argc, char** argv)
                     op_arg_dat(p_step_factors[level],-1,OP_ID,1,"double",OP_WRITE));
         #ifdef SLOPE
         const int compute_flux_op2_id = 9;
-        const int indirect_rw_op2_id = 12;
+        const int unstructured_stream_op2_id = 12;
         op_timing_realloc_manytime(compute_flux_op2_id, omp_get_max_threads());
-        op_timing_realloc_manytime(indirect_rw_op2_id, omp_get_max_threads());
+        op_timing_realloc_manytime(unstructured_stream_op2_id, omp_get_max_threads());
         int ncolors = exec_num_colors (exec[level]);
         #ifdef PAPI
           // Init PAPI
@@ -838,7 +846,7 @@ int main(int argc, char** argv)
             #ifdef SLOPE
             //for each colour
             OP_kernels[compute_flux_op2_id].count++;
-            OP_kernels[indirect_rw_op2_id].count++;
+            OP_kernels[unstructured_stream_op2_id].count++;
             for (int color = 0; color < ncolors; color++) {
             // for all tiles of this color
                 const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
@@ -997,12 +1005,11 @@ int main(int argc, char** argv)
                 } // Close omp parallel
             }
 
-            // Now repeat tiling but with indirect_rw() kernel in place of compute_flux(), with care taken 
-            // to not change variables[]
-            op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[level],
-                        op_arg_dat(p_dummy_fluxes[level],-1,OP_ID,5,"double",OP_WRITE));
-            op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[level],
-                        op_arg_dat(p_dummy_variables[level],-1,OP_ID,5,"double",OP_WRITE));
+            if (conf.measure_mem_bound)
+            {
+            // Execute tiled unstructured_stream() + time_step(). These kernels are inherently 
+            // data-bound, their performance will establish performance-bound of above 
+            // tiled compute_flux_edge() + time_step()
             //for each colour
             for (int color = 0; color < ncolors; color++) {
             // for all tiles of this color
@@ -1036,7 +1043,7 @@ int main(int argc, char** argv)
                     tile_t* tile = exec_tile_at (exec[level], color, j);
                     int loop_size;
 
-                    // loop indirect_rw
+                    // loop unstructured_stream
                     iterations_list& le2n_3 = tile_get_local_map (tile, 3, sl_maps_edge_to_nodes[level]);
                     iterations_list& iterations_3 = tile_get_iterations (tile, 3);
                     loop_size = tile_loop_size (tile, 3);
@@ -1045,7 +1052,7 @@ int main(int argc, char** argv)
                     double* p_fluxes_data    = (double*)(p_dummy_fluxes[level]->data);
                     #ifndef VECTORIZE
                       for (int k = 0; k < loop_size; k++) {
-                          indirect_rw_kernel(
+                          unstructured_stream_kernel(
                                 &p_variables_data[le2n_3[k*2 + 0] * 5],
                                 &p_variables_data[le2n_3[k*2 + 1] * 5],
                                 &p_edge_weights_data[iterations_3[k] * 3],
@@ -1092,7 +1099,7 @@ int main(int argc, char** argv)
                               #pragma omp simd simdlen(SIMD_VEC)
                           #endif
                           for (int sl=0; sl<SIMD_VEC; sl++ ){
-                            indirect_rw_kernel_vec(
+                            unstructured_stream_kernel_vec(
                               dat0,
                               dat1,
                               dat2,
@@ -1117,7 +1124,7 @@ int main(int argc, char** argv)
                       // remainder:
                       for (int n = simd_end ; n < loop_size; n++) {
                           int k = n;
-                          indirect_rw_kernel(
+                          unstructured_stream_kernel(
                               &p_variables_data[le2n_3[k*2 + 0] * 5],
                               &p_variables_data[le2n_3[k*2 + 1] * 5],
                               &p_edge_weights_data[iterations_3[k] * 3],
@@ -1140,13 +1147,13 @@ int main(int argc, char** argv)
                     }
                 }
                 thr_wall_t2 = omp_get_wtime();
-                OP_kernels[indirect_rw_op2_id].name = "fluxesRW_and_timestep";
-                OP_kernels[indirect_rw_op2_id].times[thr]  += thr_wall_t2 - thr_wall_t1;
+                OP_kernels[unstructured_stream_op2_id].name = "fluxesRW_and_timestep";
+                OP_kernels[unstructured_stream_op2_id].times[thr]  += thr_wall_t2 - thr_wall_t1;
 
                 #ifdef PAPI
                   if (thr == 0) {
                     if (num_events > 0) {
-                      my_papi_stop(&indirect_rw_kernel_event_counts[level*num_events], temp_count_stores, event_set, num_events);
+                      my_papi_stop(&unstructured_stream_kernel_event_counts[level*num_events], temp_count_stores, event_set, num_events);
                       for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
                     }
                   }
@@ -1154,6 +1161,7 @@ int main(int argc, char** argv)
 
                 } // Close omp parallel
 
+            }
             }
 	
             #else
@@ -1186,35 +1194,31 @@ int main(int argc, char** argv)
                         op_arg_dat(p_old_variables[level],-1,OP_ID,5,"double",OP_READ),
                         op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_WRITE));
 
-            op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[level],
-                        op_arg_dat(p_dummy_fluxes[level],-1,OP_ID,5,"double",OP_WRITE));
-            op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[level],
-                        op_arg_dat(p_dummy_variables[level],-1,OP_ID,5,"double",OP_WRITE));
+            if (conf.measure_mem_bound) {
+                op_par_loop_unstructured_stream_kernel_instrumented("unstructured_stream_kernel",op_edges[level],
+                            op_arg_dat(p_variables[level],0,p_edge_to_nodes[level],5,"double",OP_READ),
+                            op_arg_dat(p_variables[level],1,p_edge_to_nodes[level],5,"double",OP_READ),
+                            op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
+                            op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
+                            op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
+                            #ifdef VERIFY_OP2_TIMING
+                              , &unstructured_stream_kernel_compute_times[level], &unstructured_stream_kernel_sync_times[level]
+                            #endif
+                            , &unstructured_stream_kernel_iter_counts[level]
+                            #ifdef PAPI
+                            , &ustream_kernel_event_counts[level*num_events], event_set, num_events
+                            #endif
+                            );
 
-            op_par_loop_indirect_rw_kernel_instrumented("indirect_rw_kernel",op_edges[level],
-                        op_arg_dat(p_dummy_variables[level],0,p_edge_to_nodes[level],5,"double",OP_READ),
-                        op_arg_dat(p_dummy_variables[level],1,p_edge_to_nodes[level],5,"double",OP_READ),
-                        op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
-                        op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                        op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
-                        #ifdef VERIFY_OP2_TIMING
-                          , &indirect_rw_kernel_compute_times[level], &indirect_rw_kernel_sync_times[level]
-                        #endif
-                        , &indirect_rw_kernel_iter_counts[level]
-                        #ifdef PAPI
-                        , &indirect_rw_kernel_event_counts[level*num_events], event_set, num_events
-                        #endif
-                        );
-
-            op_par_loop_time_step_kernel("time_step_kernel",op_nodes[level],
-                    op_arg_gbl(&rkCycle,1,"int",OP_READ),
-                    op_arg_dat(p_step_factors[level],-1,OP_ID,1,"double",OP_READ),
-                    op_arg_dat(p_dummy_fluxes[level],-1,OP_ID,5,"double",OP_INC),
-                    op_arg_dat(p_old_variables[level],-1,OP_ID,5,"double",OP_READ),
-                    op_arg_dat(p_dummy_variables[level],-1,OP_ID,5,"double",OP_WRITE));
-
-            // op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[level],
-            //             op_arg_dat(p_fluxes[level],-1,OP_ID,5,"double",OP_WRITE));
+                // Repeating time_step() is not necessary for measuring non-SLOPE memory-bound, only necessary 
+                // to equalise call count (because it IS necessary measuring for SLOPE memory-bound):
+                op_par_loop_time_step_kernel("time_step_kernel",op_nodes[level],
+                            op_arg_gbl(&rkCycle,1,"int",OP_READ),
+                            op_arg_dat(p_step_factors[level],-1,OP_ID,1,"double",OP_READ),
+                            op_arg_dat(p_dummy_fluxes[level],-1,OP_ID,5,"double",OP_INC),
+                            op_arg_dat(p_old_variables[level],-1,OP_ID,5,"double",OP_READ),
+                            op_arg_dat(p_dummy_variables[level],-1,OP_ID,5,"double",OP_WRITE));
+            }
 
             #endif
         }
@@ -1459,7 +1463,7 @@ int main(int argc, char** argv)
             num_events, 
             events, 
             flux_kernel_event_counts, 
-            indirect_rw_kernel_event_counts,
+            unstructured_stream_kernel_event_counts,
             conf.output_file_prefix);
     #endif
 

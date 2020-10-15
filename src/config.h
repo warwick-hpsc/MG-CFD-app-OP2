@@ -82,6 +82,8 @@ typedef struct {
 
     bool validate_result;
 
+    bool measure_mem_bound;
+
     bool output_volumes;
     bool output_step_factors;
     bool output_edge_mx;
@@ -116,12 +118,13 @@ static struct option long_opts[] =
     { "tile-size",         required_argument, NULL, 't' },
     #endif
     { "validate",           no_argument,       NULL, 'v' },
+    { "measure-mem-bound",  no_argument,       NULL, 'b' },
     { "output-variables",   no_argument,       (int*)&conf.output_variables,    1 },
     { "output-fluxes",      no_argument,       (int*)&conf.output_fluxes,       1 },
     { "output-step-factors",no_argument,       (int*)&conf.output_step_factors, 1 }
     
 };
-#define GETOPTS "hc:li:d:p:o:g:m:r:t:v"
+#define GETOPTS "hc:li:d:p:o:g:m:r:t:vb"
 
 inline void set_config_defaults() {
     conf.config_filepath = (char*)malloc(sizeof(char));
@@ -141,6 +144,8 @@ inline void set_config_defaults() {
     conf.legacy_mode = false;
 
     conf.validate_result = false;
+
+    conf.measure_mem_bound = false;
 
     conf.num_cycles = 25;
 
@@ -181,6 +186,12 @@ inline void set_config_param(const char* const key, const char* const value) {
     else if (strcmp(key,"validate_result")==0) {
         if (strcmp(value, "Y")==0) {
             conf.validate_result = true;
+        }
+    }
+
+    else if (strcmp(key,"measure_mem_bound")==0) {
+        if (strcmp(value, "Y")==0) {
+            conf.measure_mem_bound = true;
         }
     }
 
@@ -346,6 +357,10 @@ inline void print_help(void)
     fprintf(stderr, "          kway\n");
     fprintf(stderr, "          geomkway\n");
     fprintf(stderr, "\n");
+    fprintf(stderr, "-b, --measure-mem-bound\n");
+    fprintf(stderr, "        run synthetic kernel 'unstructured_stream' to measure\n");
+    fprintf(stderr, "        memory bound of'compute_flux_edge' kernel\n");
+    fprintf(stderr, "\n");
     fprintf(stderr, "-v, --validate-result\n");
     fprintf(stderr, "        check final state against pre-calculated solution\n");
     fprintf(stderr, "\n");
@@ -393,6 +408,9 @@ inline bool parse_arguments(int argc, char** argv) {
                 break;
             case 'l':
                 conf.legacy_mode = true;
+                break;
+            case 'b':
+                conf.measure_mem_bound = true;
                 break;
             case 'v':
                 conf.validate_result = true;

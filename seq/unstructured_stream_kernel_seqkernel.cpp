@@ -4,14 +4,14 @@
 
 //user function
 #include ".././src/Kernels/flux.h"
-#include ".././src/Kernels/indirect_rw.h"
+#include ".././src/Kernels/unstructured_stream.h"
 
 #ifdef PAPI
 #include "papi_funcs.h"
 #endif
 
 // host stub function
-void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
+void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg0,
   op_arg arg1,
   op_arg arg2,
@@ -19,7 +19,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
   op_arg arg4){
 
   
-  op_par_loop_indirect_rw_kernel_instrumented(name, set, 
+  op_par_loop_unstructured_stream_kernel_instrumented(name, set, 
     arg0, arg1, arg2, arg3, arg4
     #ifdef VERIFY_OP2_TIMING
       , NULL, NULL
@@ -32,7 +32,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
 };
 
 // host stub function
-void op_par_loop_indirect_rw_kernel_instrumented(
+void op_par_loop_unstructured_stream_kernel_instrumented(
   char const *name, op_set set,
   op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
   #ifdef VERIFY_OP2_TIMING
@@ -60,7 +60,7 @@ void op_par_loop_indirect_rw_kernel_instrumented(
   op_timers_core(&cpu_t1, &wall_t1);
 
   if (OP_diags>2) {
-    printf(" kernel routine with indirection: indirect_rw_kernel\n");
+    printf(" kernel routine with indirection: unstructured_stream_kernel\n");
   }
 
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
@@ -98,7 +98,7 @@ void op_par_loop_indirect_rw_kernel_instrumented(
       int map1idx = arg0.map_data[n * arg0.map->dim + 1];
 
 
-      indirect_rw_kernel(
+      unstructured_stream_kernel(
         &((double*)arg0.data)[5 * map0idx],
         &((double*)arg0.data)[5 * map1idx],
         &((double*)arg2.data)[3 * n],
