@@ -6,6 +6,15 @@
 # directory.
 #
 
+ifdef SLOPE_INSTALL_PATH
+  SLOPE_INC = -I$(SLOPE_INSTALL_PATH)/sparsetiling/include
+  SLOPE_LIB = -L$(SLOPE_INSTALL_PATH)/lib
+endif
+
+ifdef METIS_INSTALL_PATH
+  METIS_INC = -I$(METIS_INSTALL_PATH)/include
+  METIS_LIB = -L$(METIS_INSTALL_PATH)/lib
+endif
 
 ifdef OP2_INSTALL_PATH
   OP2_INC = -I$(OP2_INSTALL_PATH)/c/include
@@ -257,7 +266,7 @@ endif
 ## its compute and sync times.
 # MGCFD_INCS += -DDUMP_EXT_PERF_DATA
 
-all: seq openmp mpi mpi_vec mpi_openmp
+all: slope seq openmp mpi mpi_vec mpi_openmp
 # all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda
 # all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda openacc openmp4
 
@@ -265,6 +274,7 @@ parallel: N = $(shell nproc)
 parallel:; @$(MAKE) -j$(N) -l$(N) all
 
 ## User-friendly wrappers around actual targets:
+slope: $(BIN_DIR)/mgcfd_slope
 seq: $(BIN_DIR)/mgcfd_seq
 openmp: $(BIN_DIR)/mgcfd_openmp
 mpi: $(BIN_DIR)/mgcfd_mpi
@@ -278,6 +288,9 @@ openacc: $(BIN_DIR)/mgcfd_openacc
 
 
 OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
+
+OP2_SLOPE_OBJECTS := $(OBJ_DIR)/mgcfd_slope_main.o \
+                   $(OBJ_DIR)/mgcfd_slope_kernels.o
 
 OP2_SEQ_OBJECTS := $(OBJ_DIR)/mgcfd_seq_main.o \
                    $(OBJ_DIR)/mgcfd_seq_kernels.o
@@ -332,6 +345,7 @@ KERNELS := calc_rms_kernel \
 	up_pre_kernel \
 	zero_1d_array_kernel \
 	zero_5d_array_kernel
+SLOPE_KERNELS := $(patsubst %, $(SRC_DIR)/../openmp/%_kernel.cpp, $(KERNELS))
 SEQ_KERNELS := $(patsubst %, $(SRC_DIR)/../seq/%_seqkernel.cpp, $(KERNELS))
 OMP_KERNELS := $(patsubst %, $(SRC_DIR)/../openmp/%_kernel.cpp, $(KERNELS))
 CUDA_KERNELS := $(patsubst %, $(SRC_DIR)/../cuda/%_kernel.cu, $(KERNELS))
@@ -340,7 +354,22 @@ ACC_KERNELS := $(patsubst %, $(SRC_DIR)/../openacc/%_acckernel.c, $(KERNELS))
 OMP4_KERNELS := $(patsubst %, $(SRC_DIR)/../openmp4/%_omp4kernel.cpp, $(KERNELS))
 OMP4_KERNEL_FUNCS := $(patsubst %, $(SRC_DIR)/../openmp4/%_omp4kernel_func.cpp, $(KERNELS))
 
-
+## SLOPE
+$(OBJ_DIR)/mgcfd_slope_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
+		-c -o $@ $^
+$(OBJ_DIR)/mgcfd_slope_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(SLOPE_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
+		-c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
+$(BIN_DIR)/mgcfd_slope: $(OP2_SLOPE_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) -DSLOPE \
+		-lm $(OP2_LIB) -lop2_openmp -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lslope $(METIS_LIB) -lmetis \
+		-o $@
 
 ## SEQUENTIAL
 $(OBJ_DIR)/mgcfd_seq_main.o: $(OP2_MAIN_SRC)
