@@ -103,20 +103,20 @@ Datasets
 
 A [release](https://github.com/warwick-hpsc/MG-CFD-app-OP2/releases) is provided that includes the [Onera M6 wing](https://www.grc.nasa.gov/WWW/wind/valid/m6wing/m6wing.html). It consists of 300K nodes (930K edges), and three additional multigrid meshes with respective node counts of 165K, 111K, and 81K. 
 
-Additional larger meshes are available at request:
-* Rotor 37 1M nodes (multigrid)
-* Rotor 37 8M nodes (multigrid)
-* Rotor 37 25M nodes (multigrid)
-* Rotor 37 150M nodes (single level)
+Additional larger meshes are available at [our research groups's homepage](https://warwick.ac.uk/fac/sci/dcs/research/systems/hpsc/software):
+* Rotor 37 1M cells (multigrid)
+* Rotor 37 8M cells (multigrid)
+* Rotor 37 25M cells (multigrid)
+* Rotor 37 150M cells (single level)
 
-Updates since release
+Major updates since release
 ==========================================
 12/Jun/2019: added MPI + SIMD variant
 
 Authorship
 ==========================================
 
-Andrew Owenson: a.m.b.owenson@warwick.ac.uk
+Andrew Owenson: a.owenson@warwick.ac.uk
 
 For more information on the design of MG-CFD, please refer to our publication: https://onlinelibrary.wiley.com/doi/10.1002/cpe.5443
 
