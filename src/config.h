@@ -97,6 +97,9 @@ typedef struct {
     bool output_final_anything;
 
     int output_flow_interval;
+    #ifdef SLOPE
+    int tile_size;
+    #endif
 } config;
 
 extern config conf;
@@ -119,8 +122,11 @@ static struct option long_opts[] =
     { "output-fluxes",        no_argument,       (int*)&conf.output_fluxes,       1 },
     { "output-step-factors",  no_argument,       (int*)&conf.output_step_factors, 1 },
     { "output-flow-interval", required_argument, NULL, 'I' },
+    #ifdef SLOPE
+    { "tile-size",            required_argument, NULL, 't' },
+    #endif
 };
-#define GETOPTS "hc:li:d:p:o:g:m:r:vbI:"
+#define GETOPTS "hc:li:d:p:o:g:m:r:vbI:t:"
 
 inline void set_config_defaults() {
     conf.config_filepath = (char*)malloc(sizeof(char));
@@ -156,6 +162,10 @@ inline void set_config_defaults() {
     conf.output_final_anything = false;
 
     conf.output_flow_interval = 0;
+
+    #ifdef SLOPE
+    conf.tile_size = 5000;
+    #endif
 }
 
 inline void set_config_param(const char* const key, const char* const value) {
@@ -219,6 +229,11 @@ inline void set_config_param(const char* const key, const char* const value) {
         else if (strcmp(value, "geomkway")==0) {
             conf.partitioner_method = PartitionerMethods::GeomKWay;
         }
+        #ifdef SLOPE
+        else if (strcmp(key, "tile_size")==0) {
+            conf.tile_size = atoi(value);
+        }
+        #endif
         else {
             printf("WARNING: Unknown value '%s' encountered for key '%s' during parsing of config file.\n", value, key);
         }
@@ -359,6 +374,11 @@ inline void print_help(void)
     fprintf(stderr, "        number of multigrid cycles between writes of flow.\n");
     fprintf(stderr, "        Set to positive INT to activate writing.\n");
     fprintf(stderr, "\n");
+     #ifdef SLOPE
+    fprintf(stderr, "-t, --tile-size=INT\n");
+    fprintf(stderr, "        tile size for slope lib\n");
+    fprintf(stderr, "\n");
+    #endif
     fprintf(stderr, "DEBUGGING ARGUMENTS\n");
     fprintf(stderr, "--output-variables\n");
     fprintf(stderr, "        write Euler equation variable values to HDF5 file\n");
@@ -413,6 +433,11 @@ inline bool parse_arguments(int argc, char** argv) {
             case 'I':
                 set_config_param("output_flow_interval", strdup(optarg));
                 break;
+            #ifdef SLOPE
+            case 't':
+                conf.tile_size = atoi(optarg);
+                break;
+            #endif
             case '\0':
                 break;
             default:
