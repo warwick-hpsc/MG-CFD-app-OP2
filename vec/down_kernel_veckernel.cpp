@@ -340,7 +340,8 @@ void op_par_loop_down_kernel(char const *name, op_set set,
       if (n==set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      int map3idx = arg3.map_data[n * arg3.map->dim + 0];
+      int map3idx;
+      map3idx = arg3.map_data[n * arg3.map->dim + 0];
 
       down_kernel(
         &(ptr0)[5 * n],

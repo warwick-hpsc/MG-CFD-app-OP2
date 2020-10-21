@@ -293,7 +293,8 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
       if (n==set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      int map0idx = arg0.map_data[n * arg0.map->dim + 0];
+      int map0idx;
+      map0idx = arg0.map_data[n * arg0.map->dim + 0];
 
       up_pre_kernel(
         &(ptr0)[5 * map0idx],

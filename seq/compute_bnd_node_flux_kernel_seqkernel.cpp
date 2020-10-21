@@ -37,7 +37,8 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
       if (n==set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      int map2idx = arg2.map_data[n * arg2.map->dim + 0];
+      int map2idx;
+      map2idx = arg2.map_data[n * arg2.map->dim + 0];
 
 
       compute_bnd_node_flux_kernel(
