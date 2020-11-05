@@ -104,7 +104,7 @@ int main(int argc, char** argv)
         new_argv[i] = (char*)malloc(strlen(argv[i])*sizeof(char));
         strcpy(new_argv[i], argv[i]);
       }
-      new_argv[argc] = (char*)malloc(strlen("OP_MAPS_BASE_INDEX=0")*sizeof(char));
+      new_argv[argc] = (char*)malloc((strlen("OP_MAPS_BASE_INDEX=0")+1)*sizeof(char));
       sprintf(new_argv[argc], "OP_MAPS_BASE_INDEX=%d", base_array_index);
       argc++;
 
