@@ -49,10 +49,14 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
       if (n==set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      int map0idx = arg0.map_data[n * arg0.map->dim + 0];
-      int map1idx = arg0.map_data[n * arg0.map->dim + 1];
-      int map2idx = arg2.map_data[n * arg2.map->dim + 0];
-      int map3idx = arg2.map_data[n * arg2.map->dim + 1];
+      int map0idx;
+      int map1idx;
+      int map2idx;
+      int map3idx;
+      map0idx = arg0.map_data[n * arg0.map->dim + 0];
+      map1idx = arg0.map_data[n * arg0.map->dim + 1];
+      map2idx = arg2.map_data[n * arg2.map->dim + 0];
+      map3idx = arg2.map_data[n * arg2.map->dim + 1];
 
 
       down_v2_kernel(

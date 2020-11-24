@@ -370,7 +370,7 @@ int main(int argc, char** argv)
             op_partition("INERTIAL", "", op_nodes[0], OP_ID, p_node_coords[0]);
         }
         op_printf("PARTITIONING COMPLETE\n");
-        op_renumber(p_edge_to_nodes[0]);
+        if (conf.renumber) op_renumber(p_edge_to_nodes[0]);
 
         for (int i=0; i<levels; i++) {
             sprintf(op_name, "p_variables_L%d", i);

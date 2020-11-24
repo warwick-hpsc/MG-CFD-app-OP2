@@ -29,8 +29,10 @@ void compute_flux_edge_kernel_omp4_kernel(
   #pragma omp distribute parallel for schedule(static,1)
   for ( int e=start; e<end; e++ ){
     int n_op = col_reord[e];
-    int map0idx = map0[n_op + set_size1 * 0];
-    int map1idx = map0[n_op + set_size1 * 1];
+    int map0idx;
+    int map1idx;
+    map0idx = map0[n_op + set_size1 * 0];
+    map1idx = map0[n_op + set_size1 * 1];
 
     //variable mapping
     const double *variables_a = &data0[5 * map0idx];
@@ -41,7 +43,7 @@ void compute_flux_edge_kernel_omp4_kernel(
 
     //inline function
     
-    double ewt = sqrt(edge_weight[0]*edge_weight[0] +
+    double ewt = std::sqrt(edge_weight[0]*edge_weight[0] +
                            edge_weight[1]*edge_weight[1] +
                            edge_weight[2]*edge_weight[2]);
 
@@ -70,7 +72,7 @@ void compute_flux_edge_kernel_omp4_kernel(
     #endif
 
     double speed_sqd_b = compute_speed_sqd(velocity_b);
-    double speed_b = sqrt(speed_sqd_b);
+    double speed_b = std::sqrt(speed_sqd_b);
 
     pressure_b = compute_pressure(p_b, pe_b, speed_sqd_b);
 
@@ -114,7 +116,7 @@ void compute_flux_edge_kernel_omp4_kernel(
     #endif
 
     double speed_sqd_a = compute_speed_sqd(velocity_a);
-    double speed_a = sqrt(speed_sqd_a);
+    double speed_a = std::sqrt(speed_sqd_a);
     pressure_a = compute_pressure(p_a, pe_a, speed_sqd_a);
 
     #ifdef IDIVIDE
@@ -131,11 +133,11 @@ void compute_flux_edge_kernel_omp4_kernel(
                               flux_contribution_i_density_energy_a);
 
     factor_a = -ewt*smoothing_coefficient_ompkernel*0.5
-               *(speed_a + sqrt(speed_sqd_b)
+               *(speed_a + std::sqrt(speed_sqd_b)
                + speed_of_sound_a + speed_of_sound_b);
 
     factor_b = -ewt*smoothing_coefficient_ompkernel*0.5
-               *(speed_b + sqrt(speed_sqd_a)
+               *(speed_b + std::sqrt(speed_sqd_a)
                + speed_of_sound_b + speed_of_sound_a);
 
     double factor_x = -0.5*edge_weight[0], factor_y = -0.5*edge_weight[1], factor_z = -0.5*edge_weight[2];

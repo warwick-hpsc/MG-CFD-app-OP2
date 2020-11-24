@@ -30,7 +30,8 @@ void down_kernel_omp4_kernel(
   #pragma omp distribute parallel for schedule(static,1)
   for ( int e=start; e<end; e++ ){
     int n_op = col_reord[e];
-    int map3idx = map3[n_op + set_size1 * 0];
+    int map3idx;
+    map3idx = map3[n_op + set_size1 * 0];
 
     //variable mapping
     double* variable = &data0[5*n_op];

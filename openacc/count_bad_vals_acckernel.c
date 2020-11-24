@@ -10,7 +10,7 @@
 inline void count_bad_vals_openacc( 
     const double* value,
     int* count) {
-    #ifdef OPENACC
+    #if defined(OPENACC) || defined(__HIPSYCL__) || defined(TRISYCL_CL_LANGUAGE_VERSION)
 
     #else
         for (int v=0; v<NVAR; v++) {
