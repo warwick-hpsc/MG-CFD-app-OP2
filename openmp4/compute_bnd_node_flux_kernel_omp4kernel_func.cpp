@@ -31,8 +31,7 @@ void compute_bnd_node_flux_kernel_omp4_kernel(
   #pragma omp distribute parallel for schedule(static,1)
   for ( int e=start; e<end; e++ ){
     int n_op = col_reord[e];
-    int map2idx;
-    map2idx = map2[n_op + set_size1 * 0];
+    int map2idx = map2[n_op + set_size1 * 0];
 
     //variable mapping
     const int *g = &data0[1*n_op];
@@ -85,7 +84,7 @@ void compute_bnd_node_flux_kernel_omp4_kernel(
             #endif
         
             double speed_sqd_b = compute_speed_sqd(velocity_b);
-            double speed_b = sqrt(speed_sqd_b);
+            double speed_b = std::sqrt(speed_sqd_b);
             pressure_b = compute_pressure(p_b, pe_b, speed_sqd_b);
         
             #ifdef IDIVIDE
@@ -143,7 +142,7 @@ void compute_bnd_node_flux_kernel_omp4_kernel(
             #endif
         
             double speed_sqd_b = compute_speed_sqd(velocity_b);
-            double speed_b = sqrt(speed_sqd_b);
+            double speed_b = std::sqrt(speed_sqd_b);
             pressure_b = compute_pressure(p_b, pe_b, speed_sqd_b);
         
             #ifdef IDIVIDE

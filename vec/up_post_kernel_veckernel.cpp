@@ -75,21 +75,16 @@ inline void down_kernel(
     const double* residual_above, 
     const double* coord_above)
 {
-  double dx = fabs(coord[0] - coord_above[0]);
-  double dy = fabs(coord[1] - coord_above[1]);
-  double dz = fabs(coord[2] - coord_above[2]);
-  double dm = sqrt(dx * dx + dy * dy + dz * dz);
+    double dx = fabs(coord[0] - coord_above[0]);
+    double dy = fabs(coord[1] - coord_above[1]);
+    double dz = fabs(coord[2] - coord_above[2]);
+    double dm = sqrt(dx*dx + dy*dy + dz*dz);
 
-  variable[VAR_DENSITY] -=
-      dm * (residual_above[VAR_DENSITY] - residual[VAR_DENSITY]);
-  variable[VAR_MOMENTUM + 0] -=
-      dx * (residual_above[VAR_MOMENTUM + 0] - residual[VAR_MOMENTUM + 0]);
-  variable[VAR_MOMENTUM + 1] -=
-      dy * (residual_above[VAR_MOMENTUM + 1] - residual[VAR_MOMENTUM + 1]);
-  variable[VAR_MOMENTUM + 2] -=
-      dz * (residual_above[VAR_MOMENTUM + 2] - residual[VAR_MOMENTUM + 2]);
-  variable[VAR_DENSITY_ENERGY] -=
-      dm * (residual_above[VAR_DENSITY_ENERGY] - residual[VAR_DENSITY_ENERGY]);
+    variable[VAR_DENSITY]        -= dm* (residual_above[VAR_DENSITY]        - residual[VAR_DENSITY]);
+    variable[VAR_MOMENTUM+0]     -= dx* (residual_above[VAR_MOMENTUM+0]     - residual[VAR_MOMENTUM+0]);
+    variable[VAR_MOMENTUM+1]     -= dy* (residual_above[VAR_MOMENTUM+1]     - residual[VAR_MOMENTUM+1]);
+    variable[VAR_MOMENTUM+2]     -= dz* (residual_above[VAR_MOMENTUM+2]     - residual[VAR_MOMENTUM+2]);
+    variable[VAR_DENSITY_ENERGY] -= dm* (residual_above[VAR_DENSITY_ENERGY] - residual[VAR_DENSITY_ENERGY]);
 }
 
 inline void down_v2_kernel_pre(

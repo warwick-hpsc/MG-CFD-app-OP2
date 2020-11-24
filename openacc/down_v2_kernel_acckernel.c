@@ -177,14 +177,10 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
       #pragma acc parallel loop independent deviceptr(col_reord,map0,map2,data0,data2,data4,data6,data8)
       for ( int e=start; e<end; e++ ){
         int n = col_reord[e];
-        int map0idx;
-        int map1idx;
-        int map2idx;
-        int map3idx;
-        map0idx = map0[n + set_size1 * 0];
-        map1idx = map0[n + set_size1 * 1];
-        map2idx = map2[n + set_size1 * 0];
-        map3idx = map2[n + set_size1 * 1];
+        int map0idx = map0[n + set_size1 * 0];
+        int map1idx = map0[n + set_size1 * 1];
+        int map2idx = map2[n + set_size1 * 0];
+        int map3idx = map2[n + set_size1 * 1];
 
 
         down_v2_kernel_openacc(

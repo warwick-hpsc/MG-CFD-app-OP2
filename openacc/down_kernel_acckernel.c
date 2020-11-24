@@ -14,21 +14,16 @@ inline void down_kernel_openacc(
     const double* coord,
     const double* residual_above,
     const double* coord_above) {
-  double dx = fabs(coord[0] - coord_above[0]);
-  double dy = fabs(coord[1] - coord_above[1]);
-  double dz = fabs(coord[2] - coord_above[2]);
-  double dm = sqrt(dx * dx + dy * dy + dz * dz);
+    double dx = fabs(coord[0] - coord_above[0]);
+    double dy = fabs(coord[1] - coord_above[1]);
+    double dz = fabs(coord[2] - coord_above[2]);
+    double dm = sqrt(dx*dx + dy*dy + dz*dz);
 
-  variable[VAR_DENSITY] -=
-      dm * (residual_above[VAR_DENSITY] - residual[VAR_DENSITY]);
-  variable[VAR_MOMENTUM + 0] -=
-      dx * (residual_above[VAR_MOMENTUM + 0] - residual[VAR_MOMENTUM + 0]);
-  variable[VAR_MOMENTUM + 1] -=
-      dy * (residual_above[VAR_MOMENTUM + 1] - residual[VAR_MOMENTUM + 1]);
-  variable[VAR_MOMENTUM + 2] -=
-      dz * (residual_above[VAR_MOMENTUM + 2] - residual[VAR_MOMENTUM + 2]);
-  variable[VAR_DENSITY_ENERGY] -=
-      dm * (residual_above[VAR_DENSITY_ENERGY] - residual[VAR_DENSITY_ENERGY]);
+    variable[VAR_DENSITY]        -= dm* (residual_above[VAR_DENSITY]        - residual[VAR_DENSITY]);
+    variable[VAR_MOMENTUM+0]     -= dx* (residual_above[VAR_MOMENTUM+0]     - residual[VAR_MOMENTUM+0]);
+    variable[VAR_MOMENTUM+1]     -= dy* (residual_above[VAR_MOMENTUM+1]     - residual[VAR_MOMENTUM+1]);
+    variable[VAR_MOMENTUM+2]     -= dz* (residual_above[VAR_MOMENTUM+2]     - residual[VAR_MOMENTUM+2]);
+    variable[VAR_DENSITY_ENERGY] -= dm* (residual_above[VAR_DENSITY_ENERGY] - residual[VAR_DENSITY_ENERGY]);
 }
 
 // host stub function
@@ -102,8 +97,7 @@ void op_par_loop_down_kernel(char const *name, op_set set,
       #pragma acc parallel loop independent deviceptr(col_reord,map3,data0,data1,data2,data3,data4)
       for ( int e=start; e<end; e++ ){
         int n = col_reord[e];
-        int map3idx;
-        map3idx = map3[n + set_size1 * 0];
+        int map3idx = map3[n + set_size1 * 0];
 
 
         down_kernel_openacc(

@@ -75,21 +75,16 @@ inline void down_kernel(
     const double* residual_above, 
     const double* coord_above)
 {
-  double dx = fabs(coord[0] - coord_above[0]);
-  double dy = fabs(coord[1] - coord_above[1]);
-  double dz = fabs(coord[2] - coord_above[2]);
-  double dm = sqrt(dx * dx + dy * dy + dz * dz);
+    double dx = fabs(coord[0] - coord_above[0]);
+    double dy = fabs(coord[1] - coord_above[1]);
+    double dz = fabs(coord[2] - coord_above[2]);
+    double dm = sqrt(dx*dx + dy*dy + dz*dz);
 
-  variable[VAR_DENSITY] -=
-      dm * (residual_above[VAR_DENSITY] - residual[VAR_DENSITY]);
-  variable[VAR_MOMENTUM + 0] -=
-      dx * (residual_above[VAR_MOMENTUM + 0] - residual[VAR_MOMENTUM + 0]);
-  variable[VAR_MOMENTUM + 1] -=
-      dy * (residual_above[VAR_MOMENTUM + 1] - residual[VAR_MOMENTUM + 1]);
-  variable[VAR_MOMENTUM + 2] -=
-      dz * (residual_above[VAR_MOMENTUM + 2] - residual[VAR_MOMENTUM + 2]);
-  variable[VAR_DENSITY_ENERGY] -=
-      dm * (residual_above[VAR_DENSITY_ENERGY] - residual[VAR_DENSITY_ENERGY]);
+    variable[VAR_DENSITY]        -= dm* (residual_above[VAR_DENSITY]        - residual[VAR_DENSITY]);
+    variable[VAR_MOMENTUM+0]     -= dx* (residual_above[VAR_MOMENTUM+0]     - residual[VAR_MOMENTUM+0]);
+    variable[VAR_MOMENTUM+1]     -= dy* (residual_above[VAR_MOMENTUM+1]     - residual[VAR_MOMENTUM+1]);
+    variable[VAR_MOMENTUM+2]     -= dz* (residual_above[VAR_MOMENTUM+2]     - residual[VAR_MOMENTUM+2]);
+    variable[VAR_DENSITY_ENERGY] -= dm* (residual_above[VAR_DENSITY_ENERGY] - residual[VAR_DENSITY_ENERGY]);
 }
 
 inline void down_v2_kernel_pre(
@@ -215,21 +210,16 @@ inline void down_v2_kernel_post(
 __attribute__((always_inline))
 #endif
 inline void down_kernel_vec( double variable[][SIMD_VEC], const double residual[][SIMD_VEC], const double coord[][SIMD_VEC], const double residual_above[][SIMD_VEC], const double coord_above[][SIMD_VEC], int idx ) {
-  double dx = fabs(coord[0][idx] - coord_above[0][idx]);
-  double dy = fabs(coord[1][idx] - coord_above[1][idx]);
-  double dz = fabs(coord[2][idx] - coord_above[2][idx]);
-  double dm = sqrt(dx * dx + dy * dy + dz * dz);
+    double dx = fabs(coord[0][idx] - coord_above[0][idx]);
+    double dy = fabs(coord[1][idx] - coord_above[1][idx]);
+    double dz = fabs(coord[2][idx] - coord_above[2][idx]);
+    double dm = sqrt(dx*dx + dy*dy + dz*dz);
 
-  variable[VAR_DENSITY][idx] -=
-      dm * (residual_above[VAR_DENSITY][idx] - residual[VAR_DENSITY][idx]);
-  variable[VAR_MOMENTUM + 0][idx] -=
-      dx * (residual_above[VAR_MOMENTUM + 0][idx] - residual[VAR_MOMENTUM + 0][idx]);
-  variable[VAR_MOMENTUM + 1][idx] -=
-      dy * (residual_above[VAR_MOMENTUM + 1][idx] - residual[VAR_MOMENTUM + 1][idx]);
-  variable[VAR_MOMENTUM + 2][idx] -=
-      dz * (residual_above[VAR_MOMENTUM + 2][idx] - residual[VAR_MOMENTUM + 2][idx]);
-  variable[VAR_DENSITY_ENERGY][idx] -=
-      dm * (residual_above[VAR_DENSITY_ENERGY][idx] - residual[VAR_DENSITY_ENERGY][idx]);
+    variable[VAR_DENSITY][idx]        -= dm* (residual_above[VAR_DENSITY][idx]        - residual[VAR_DENSITY][idx]);
+    variable[VAR_MOMENTUM+0][idx]     -= dx* (residual_above[VAR_MOMENTUM+0][idx]     - residual[VAR_MOMENTUM+0][idx]);
+    variable[VAR_MOMENTUM+1][idx]     -= dy* (residual_above[VAR_MOMENTUM+1][idx]     - residual[VAR_MOMENTUM+1][idx]);
+    variable[VAR_MOMENTUM+2][idx]     -= dz* (residual_above[VAR_MOMENTUM+2][idx]     - residual[VAR_MOMENTUM+2][idx]);
+    variable[VAR_DENSITY_ENERGY][idx] -= dm* (residual_above[VAR_DENSITY_ENERGY][idx] - residual[VAR_DENSITY_ENERGY][idx]);
 
 }
 #endif
@@ -350,8 +340,7 @@ void op_par_loop_down_kernel(char const *name, op_set set,
       if (n==set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      int map3idx;
-      map3idx = arg3.map_data[n * arg3.map->dim + 0];
+      int map3idx = arg3.map_data[n * arg3.map->dim + 0];
 
       down_kernel(
         &(ptr0)[5 * n],

@@ -23,7 +23,7 @@ void count_bad_vals_omp4_kernel(
 
     //inline function
     
-      #if defined(OPENACC) || defined(__HIPSYCL__) || defined(TRISYCL_CL_LANGUAGE_VERSION)
+      #ifdef OPENACC
 
       #else
           for (int v=0; v<NVAR; v++) {
