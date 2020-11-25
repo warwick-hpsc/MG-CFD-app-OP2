@@ -11,8 +11,6 @@
 
 #define DEBUGGABLE_ABORT fprintf(stderr, "%s:%d\n", __FILE__, __LINE__); fflush(stderr); fflush(stdout); exit(EXIT_FAILURE);
 
-//#define cl::sycl::cbrt(a) cl::sycl::pow(a,1.0/3.0)
-
 // inline void zero_array(int nelr, double* variables)
 static inline OP_FUN_PREFIX void zero_array(int nelr, double* variables)
 {

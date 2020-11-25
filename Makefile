@@ -463,15 +463,6 @@ $(BIN_DIR)/mgcfd_sycl: $(OP2_SYCL_OBJECTS)
 		-lm $(OP2_LIB) -lop2_sycl $(SYCL_LINK_SEQ) -lop2_hdf5 $(HDF5_LIB) \
 		-o $@
 
-#$(BIN_DIR)/mgcfd_sycl: src_op/euler3d_cpu_double_op.cpp sycl/_kernels.cpp
-#	     $(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(OP2_INC) $(MGCFD_INCS) \
-             $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include  \
-             -Isycl -I. src_op/euler3d_cpu_double_op.cpp sycl/_kernels.cpp -lm \
-	     $(OP2_LIB) -lop2_sycl $(SYCL_LINK_SEQ) $(SYCL_LIB) \
-	     $(HDF5_LIB) -lop2_hdf5 \
-	     -o mgcfd_sycl
-
-
 
 ## OPENMP
 $(OBJ_DIR)/mgcfd_openmp_main.o: $(OP2_MAIN_SRC)
