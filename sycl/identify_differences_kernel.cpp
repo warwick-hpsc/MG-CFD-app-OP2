@@ -72,7 +72,7 @@ void op_par_loop_identify_differences(char const *name, op_set set,
         
         
         
-            const double acceptable_relative_difference = 10.0e-9;
+            const double acceptable_relative_difference = 10.0e-8;
         
             for (int v=0; v<NVAR; v++) {
                 double acceptable_difference = master_value[v] * acceptable_relative_difference;
@@ -98,7 +98,7 @@ void op_par_loop_identify_differences(char const *name, op_set set,
         
         };
         
-      auto kern = [=](cl::sycl::item<1> item) {
+      auto kern = [=](cl::sycl::item<1> item) [[intel::reqd_sub_group_size(SIMD_VEC)]] {
 
         //process set elements
         int n = item.get_id(0);

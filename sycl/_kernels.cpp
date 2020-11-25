@@ -6,6 +6,9 @@
 #ifndef MAX_CONST_SIZE
 #define MAX_CONST_SIZE 128
 #endif
+#ifndef SIMD_VEC
+#define SIMD_VEC 4
+#endif
 
 //header
 #include "op_lib_cpp.h"

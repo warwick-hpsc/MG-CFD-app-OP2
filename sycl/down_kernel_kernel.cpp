@@ -50,7 +50,7 @@ void op_par_loop_down_kernel(char const *name, op_set set,
   op_mpi_halo_exchanges_cuda(set, nargs, args);
   if (set->size > 0) {
 
-    op_plan *Plan = op_plan_get_stage(name,set,part_size,nargs,args,ninds,inds,OP_COLOR2);
+    op_plan *Plan = op_plan_get_stage(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_ALL);
 
     cl::sycl::buffer<double,1> *arg3_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg3.data_d);
     cl::sycl::buffer<double,1> *arg4_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg4.data_d);
@@ -58,81 +58,102 @@ void op_par_loop_down_kernel(char const *name, op_set set,
     cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
     cl::sycl::buffer<double,1> *arg1_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg1.data_d);
     cl::sycl::buffer<double,1> *arg2_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg2.data_d);
-    cl::sycl::buffer<int,1> *col_reord_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->col_reord);
+    cl::sycl::buffer<int,1> *blkmap_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->blkmap);
+    cl::sycl::buffer<int,1> *offset_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->offset);
+    cl::sycl::buffer<int,1> *nelems_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nelems);
+    cl::sycl::buffer<int,1> *ncolors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nthrcol);
+    cl::sycl::buffer<int,1> *colors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->thrcol);
     int set_size = set->size+set->exec_size;
     //execute plan
+
+    int block_offset = 0;
     for ( int col=0; col<Plan->ncolors; col++ ){
       if (col==Plan->ncolors_core) {
         op_mpi_wait_all_cuda(nargs, args);
       }
-      #ifdef OP_BLOCK_SIZE_22
-      int nthread = OP_BLOCK_SIZE_22;
-      #else
-      int nthread = OP_block_size;
-      #endif
+      int nthread = SIMD_VEC;
 
-      int start = Plan->col_offsets[0][col];
-      int end = Plan->col_offsets[0][col+1];
-      int nblocks = (end - start - 1)/nthread + 1;
-      try {
-      op2_queue->submit([&](cl::sycl::handler& cgh) {
-        auto ind_arg0 = (*arg3_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-        auto ind_arg1 = (*arg4_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-        auto opDat3Map =  (*map3_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-        auto col_reord = (*col_reord_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+      int nblocks = op2_queue->get_device().get_info<cl::sycl::info::device::max_compute_units>();
+      int nblocks2 = Plan->ncolblk[col];
+      if (Plan->ncolblk[col] > 0) {
+        try {
+        op2_queue->submit([&](cl::sycl::handler& cgh) {
+          auto ind_arg0 = (*arg3_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
+          auto ind_arg1 = (*arg4_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
+          auto opDat3Map =  (*map3_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+          auto blkmap    = (*blkmap_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+          auto offset    = (*offset_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+          auto nelems    = (*nelems_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+          auto ncolors   = (*ncolors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
+          auto colors    = (*colors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
 
-        auto arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-        auto arg1 = (*arg1_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-        auto arg2 = (*arg2_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
+          auto arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
+          auto arg1 = (*arg1_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
+          auto arg2 = (*arg2_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
 
-        //user fun as lambda
-        auto down_kernel_gpu = [=]( 
-              double* variable,
-              const double* residual,
-              const double* coord,
-              const double* residual_above,
-              const double* coord_above) {
-            double dx = cl::sycl::fabs(coord[0] - coord_above[0]);
-            double dy = cl::sycl::fabs(coord[1] - coord_above[1]);
-            double dz = cl::sycl::fabs(coord[2] - coord_above[2]);
-            double dm = cl::sycl::sqrt(dx * dx + dy * dy + dz * dz);
-          
-            variable[VAR_DENSITY] -=
-                dm * (residual_above[VAR_DENSITY] - residual[VAR_DENSITY]);
-            variable[VAR_MOMENTUM + 0] -=
-                dx * (residual_above[VAR_MOMENTUM + 0] - residual[VAR_MOMENTUM + 0]);
-            variable[VAR_MOMENTUM + 1] -=
-                dy * (residual_above[VAR_MOMENTUM + 1] - residual[VAR_MOMENTUM + 1]);
-            variable[VAR_MOMENTUM + 2] -=
-                dz * (residual_above[VAR_MOMENTUM + 2] - residual[VAR_MOMENTUM + 2]);
-            variable[VAR_DENSITY_ENERGY] -=
-                dm * (residual_above[VAR_DENSITY_ENERGY] - residual[VAR_DENSITY_ENERGY]);
-          
+
+          //user fun as lambda
+          auto down_kernel_gpu = [=]( 
+                double* variable,
+                const double* residual,
+                const double* coord,
+                const double* residual_above,
+                const double* coord_above) {
+              double dx = cl::sycl::fabs(coord[0] - coord_above[0]);
+              double dy = cl::sycl::fabs(coord[1] - coord_above[1]);
+              double dz = cl::sycl::fabs(coord[2] - coord_above[2]);
+              double dm = cl::sycl::sqrt(dx * dx + dy * dy + dz * dz);
+            
+              variable[VAR_DENSITY] -=
+                  dm * (residual_above[VAR_DENSITY] - residual[VAR_DENSITY]);
+              variable[VAR_MOMENTUM + 0] -=
+                  dx * (residual_above[VAR_MOMENTUM + 0] - residual[VAR_MOMENTUM + 0]);
+              variable[VAR_MOMENTUM + 1] -=
+                  dy * (residual_above[VAR_MOMENTUM + 1] - residual[VAR_MOMENTUM + 1]);
+              variable[VAR_MOMENTUM + 2] -=
+                  dz * (residual_above[VAR_MOMENTUM + 2] - residual[VAR_MOMENTUM + 2]);
+              variable[VAR_DENSITY_ENERGY] -=
+                  dm * (residual_above[VAR_DENSITY_ENERGY] - residual[VAR_DENSITY_ENERGY]);
+            
+            };
+            
+          auto kern = [=](cl::sycl::nd_item<1> item) [[intel::reqd_sub_group_size(SIMD_VEC)]] {
+
+
+            //get sizes and shift pointers and direct-mapped data
+
+            int blocksPerWG = (nblocks2-1)/item.get_group_range(0)+1;
+            for ( int idx=item.get_group_linear_id()*blocksPerWG; idx<(item.get_group_linear_id()+1)*blocksPerWG && idx < nblocks2; idx++ ){
+              int blockId = blkmap[idx + block_offset];
+
+              int nelem    = nelems[blockId];
+              int offset_b = offset[blockId];
+              sycl::ONEAPI::sub_group sg = item.get_sub_group();
+
+
+              for ( int n=item.get_local_id(0); n<nelem; n+=item.get_local_range()[0] ){
+                int map3idx;
+                map3idx = opDat3Map[n + offset_b + set_size * 0];
+
+
+                //user-supplied kernel call
+                down_kernel_gpu(&arg0[(n+offset_b)*5],
+                                &arg1[(n+offset_b)*5],
+                                &arg2[(n+offset_b)*3],
+                                &ind_arg0[map3idx*5],
+                                &ind_arg1[map3idx*3]);
+              }
+
+            }
           };
-          
-        auto kern = [=](cl::sycl::item<1> item) {
-          int tid = item.get_id(0);
-          if (tid + start < end) {
-            int n = col_reord[tid + start];
-            //initialise local variables
-            int map3idx;
-            map3idx = opDat3Map[n + set_size * 0];
+          cgh.parallel_for<class down_kernel_kernel>(cl::sycl::nd_range<1>(nthread*nblocks,nthread), kern);
+        });
+        }catch(cl::sycl::exception const &e) {
+        std::cout << e.what() << std::endl;exit(-1);
+        }
 
-            //user-supplied kernel call
-            down_kernel_gpu(&arg0[n*5],
-                            &arg1[n*5],
-                            &arg2[n*3],
-                            &ind_arg0[map3idx*5],
-                            &ind_arg1[map3idx*3]);
-          }
-
-        };
-        cgh.parallel_for<class down_kernel_kernel>(cl::sycl::range<1>(nthread*nblocks), kern);
-      });
-      }catch(cl::sycl::exception const &e) {
-      std::cout << e.what() << std::endl;exit(-1);
       }
-
+      block_offset += Plan->ncolblk[col];
     }
     OP_kernels[22].transfer  += Plan->transfer;
     OP_kernels[22].transfer2 += Plan->transfer2;

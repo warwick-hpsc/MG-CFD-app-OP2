@@ -65,7 +65,7 @@ void op_par_loop_residual_kernel(char const *name, op_set set,
         
         };
         
-      auto kern = [=](cl::sycl::item<1> item) {
+      auto kern = [=](cl::sycl::item<1> item) [[intel::reqd_sub_group_size(SIMD_VEC)]] {
 
         //process set elements
         int n = item.get_id(0);

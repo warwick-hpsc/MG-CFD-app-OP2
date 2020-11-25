@@ -112,7 +112,11 @@ ifeq ($(COMPILER),cray)
   CPP           = CC
   MPICPP        = CC
 else
+ifeq ($(OP2_COMPILER),intel-sycl)
+  CPP = dpcpp
+else
   $(error unrecognised value for COMPILER: $(COMPILER))
+endif
 endif
 endif
 endif
@@ -242,7 +246,7 @@ ifeq ($(OP2_COMPILER),intel-sycl)
     CCFLAGS  = -O3
   endif
   CXX       = g++
-  SYCLCXX   = clang++ 
+  SYCLCXX   = dpcpp 
   CXXFLAGS  = $(CCFLAGS) 
   MPICXX    = $(MPI_INSTALL_PATH)/bin/mpicxx 
   MPIFLAGS  = $(CXXFLAGS)

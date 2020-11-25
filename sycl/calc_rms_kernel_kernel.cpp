@@ -44,7 +44,7 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
     int nblocks = 200;
 
     if (op2_queue->get_device().is_cpu()) {
-      nthread = 8;
+      nthread = SIMD_VEC;
       nblocks = op2_queue->get_device().get_info<cl::sycl::info::device::max_compute_units>();
     }
     //transfer global reduction data to GPU
@@ -85,7 +85,7 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
         
         };
         
-      auto kern = [=](cl::sycl::nd_item<1> item) {
+      auto kern = [=](cl::sycl::nd_item<1> item) [[intel::reqd_sub_group_size(SIMD_VEC)]] {
         double arg1_l[1];
         for ( int d=0; d<1; d++ ){
           arg1_l[d]=ZERO_double;
@@ -102,7 +102,7 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
         //global reductions
 
         for ( int d=0; d<1; d++ ){
-          op_reduction<OP_INC>(reduct1,arg1_offset+d+item.get_group_linear_id()*1,arg1_l[d],red_double,item);
+          op_reduction<OP_INC,1>(reduct1,arg1_offset+d+item.get_group_linear_id()*1,arg1_l[d],red_double,item);
         }
 
       };
