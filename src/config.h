@@ -80,6 +80,8 @@ typedef struct {
     PartitionerMethods::PartitionerMethods partitioner_method;
     char* partitioner_method_string;
 
+    bool renumber;
+
     bool validate_result;
 
     bool measure_mem_bound;
@@ -113,6 +115,7 @@ static struct option long_opts[] =
     { "num-cycles",           required_argument, NULL, 'g' },
     { "partitioner",          required_argument, NULL, 'm' },
     { "partitioner-method",   required_argument, NULL, 'r' },
+    { "renumber",             no_argument,       NULL, 'n' },
     { "validate",             no_argument,       NULL, 'v' },
     { "measure-mem-bound",    no_argument,       NULL, 'b' },
     { "output-variables",     no_argument,       (int*)&conf.output_variables,    1 },
@@ -149,6 +152,8 @@ inline void set_config_defaults() {
     conf.partitioner_method = PartitionerMethods::NotSet;
     conf.partitioner_string = (char*)malloc(sizeof(char));
     conf.partitioner_string[0] = '\0';
+
+    conf.renumber = false;
 
     conf.output_step_factors = false;
     conf.output_fluxes  = false;
@@ -221,6 +226,12 @@ inline void set_config_param(const char* const key, const char* const value) {
         }
         else {
             printf("WARNING: Unknown value '%s' encountered for key '%s' during parsing of config file.\n", value, key);
+        }
+    }
+
+    else if (strcmp(key, "renumber")==0) {
+        if (strcmp(value, "Y")==0) {
+            conf.renumber = true;
         }
     }
 
@@ -348,6 +359,9 @@ inline void print_help(void)
     fprintf(stderr, "          kway\n");
     fprintf(stderr, "          geomkway\n");
     fprintf(stderr, "\n");
+    fprintf(stderr, "-n, --renumber\n");
+    fprintf(stderr, "        enable renumbering of the mesh using Scotch \n");
+    fprintf(stderr, "\n");
     fprintf(stderr, "-b, --measure-mem-bound\n");
     fprintf(stderr, "        run synthetic kernel 'unstructured_stream' to measure\n");
     fprintf(stderr, "        memory bound of'compute_flux_edge' kernel\n");
@@ -400,6 +414,9 @@ inline bool parse_arguments(int argc, char** argv) {
                 break;
             case 'r':
                 set_config_param("partitioner-method", strdup(optarg));
+                break;
+            case 'n':
+                conf.renumber = true;
                 break;
             case 'l':
                 conf.legacy_mode = true;

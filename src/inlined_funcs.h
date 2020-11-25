@@ -114,7 +114,7 @@ static inline OP_FUN_PREFIX double compute_pressure(double& density, double& den
     }
     static inline OP_FUN_PREFIX double compute_speed_of_sound(double& inverse_density, double& pressure)
     {
-        return std::sqrt((double(GAMMA)*pressure)*inverse_density);
+        return sqrt((double(GAMMA)*pressure)*inverse_density);
     }
 #else
     static OP_FUN_PREFIX inline void compute_velocity(double& density, double3& momentum, double3& velocity)

@@ -46,7 +46,7 @@ PTSCOTCH_LIB += -lptscotch -lscotch -lptscotcherr
 ifdef DEBUG
   OPTIMISE := -pg -g -O0
 else
-  OPTIMISE := -O3
+  OPTIMISE := -O3 -DVECTORIZE
 endif
 
 BIN_DIR = bin
@@ -112,7 +112,11 @@ ifeq ($(COMPILER),cray)
   CPP           = CC
   MPICPP        = CC
 else
+ifeq ($(OP2_COMPILER),intel-sycl)
+  CPP = dpcpp
+else
   $(error unrecognised value for COMPILER: $(COMPILER))
+endif
 endif
 endif
 endif
@@ -195,7 +199,69 @@ ifeq ($(COMPILER),cray)
   OMPFLAGS      = -h omp
   MPIFLAGS      = $(CPPFLAGS)
 else
+ifeq ($(OP2_COMPILER),clang)
+  CPP           = clang++
+  CCFLAGS       = -O3 -ffast-math
+  CPPFLAGS      = $(CCFLAGS)
+  OMPFLAGS      = -I$(OMPTARGET_LIBS)/../include -fopenmp=libomp -Rpass-analysis
+  OMPOFFLOAD    = $(OMPFLAGS) -fopenmp-targets=nvptx64-nvidia-cuda -ffp-contract=fast -Xcuda-ptxas -v 
+  MPICC         = $(MPI_INSTALL_PATH)/bin/mpicc
+  MPICPP        = $(MPI_INSTALL_PATH)/bin/mpicxx
+  MPIFLAGS      = $(CPPFLAGS)
+  NVCCFLAGS     = -ccbin=$(NVCC_HOST_COMPILER)
+else
+ifeq ($(OP2_COMPILER),sycl)
+  CPP		= g++
+  CC		= g++
+  CCFLAGS       = -O3 
+  CPPFLAGS      = $(CCFLAGS)
+  SYCL_FLAGS    = -std=c++11 -fsycl
+  NVCCFLAGS     = -ccbin=$(NVCC_HOST_COMPILER)
+  MPICPP        = $(CC)
+  MPIFLAGS      = $(CPPFLAGS)
+else
+ifeq ($(OP2_COMPILER),hipsycl)
+  CPP           = syclcc-clang
+  CC            = syclcc-clang
+  SYCLCXX	= syclcc-clang
+  CCFLAGS       = -O3 
+  CPPFLAGS      = $(CCFLAGS)
+  #SYCL_FLAGS    = --hipsycl-gpu-arch=sm_60  -Wdeprecated-declarations
+  SYCL_FLAGS    += -DHIPSYCL
+  NVCCFLAGS = -ccbin=$(NVCC_HOST_COMPILER)
+  MPICPP        = $(CC)
+  MPIFLAGS      = $(CPPFLAGS)
+  ifdef BOOST_INSTALL_PATH
+    SYCL_INCLUDES += -I$(BOOST_INSTALL_PATH)/include
+    SYCL_LIBS += -L$(BOOST_INSTALL_PATH)/lib
+  endif
+  ifdef HIPSYCL_INSTALL_PATH
+    SYCL_LIBS += -L$(HIPSYCL_INSTALL_PATH)/lib
+  endif
+else
+ifeq ($(OP2_COMPILER),intel-sycl)
+  ifdef DEBUG
+    CCFLAGS  = -g -O0
+  else
+    CCFLAGS  = -O3
+  endif
+  CXX       = g++
+  SYCLCXX   = dpcpp 
+  CXXFLAGS  = $(CCFLAGS) 
+  MPICXX    = $(MPI_INSTALL_PATH)/bin/mpicxx 
+  MPIFLAGS  = $(CXXFLAGS)
+  OMPFLAGS      = -I$(OMPTARGET_LIBS)/../include -fopenmp
+  SYCL_LIB   = -L$(SYCL_INSTALL_PATH)/lib -lOpenCL
+  NVCCFLAGS = -ccbin=$(NVCC_HOST_COMPILER)
+  SYCL_FLAGS = -std=c++11 -fsycl -I$(SYCL_INSTALL_PATH)/include -I$(SYCL_INSTALL_PATH)/include #intel sycl
+  #SYCL_FLAGS = -std=c++11 -fsycl #intel sycl
+  SYCL_LINK_SEQ = -foffload-static-lib=$(OP2_INSTALL_PATH)/c/lib/libop2_sycl.a
+else
   $(error unrecognised value for COMPILER: $(COMPILER))
+endif
+endif
+endif
+endif
 endif
 endif
 endif
@@ -213,26 +279,41 @@ endif
 #
 # set flags for NVCC compilation and linking
 #
+
 ifndef NV_ARCH
-  MESSAGE=select an NVIDA device to compile in CUDA, e.g. make NV_ARCH=Pascal
-  NV_ARCH=Pascal
+  MESSAGE=select an NVIDA device to compile in CUDA, e.g. make NV_ARCH=KEPLER
+  NV_ARCH=Kepler
 endif
 ifeq ($(NV_ARCH),Fermi)
-  CODE_GEN_CUDA=-arch=sm_20
+  CODE_GEN_CUDA=-gencode arch=compute_20,code=sm_21
 else
 ifeq ($(NV_ARCH),Kepler)
   CODE_GEN_CUDA=-gencode arch=compute_35,code=sm_35
+ifeq ($(OP2_COMPILER),hipsycl)
+  SYCL_FLAGS += --hipsycl-gpu-arch=sm_35
+endif
 else
 ifeq ($(NV_ARCH),Maxwell)
   CODE_GEN_CUDA=-gencode arch=compute_50,code=sm_50
 else
 ifeq ($(NV_ARCH),Pascal)
   CODE_GEN_CUDA=-gencode arch=compute_60,code=sm_60
+ifeq ($(OP2_COMPILER),hipsycl)
+  SYCL_FLAGS += --hipsycl-gpu-arch=sm_60
+endif
+else
+ifeq ($(NV_ARCH),Volta)
+  CODE_GEN_CUDA=-gencode arch=compute_70,code=sm_70
+ifeq ($(OP2_COMPILER),hipsycl)
+  SYCL_FLAGS += --hipsycl-gpu-arch=sm_70
 endif
 endif
 endif
 endif
-NVCCFLAGS = 
+endif
+endif
+
+NVCCFLAGS =
 ifdef NVCC_BIN
 	NVCCFLAGS = -ccbin $(NVCC_BIN)
 endif
@@ -249,16 +330,16 @@ endif
 ## Enable VERIFY_OP2_TIMING to perform timing measurements external to
 ## those performed by OP2 internally. Intended to verify whether OP2 timers
 ## are correct, particularly for MPI sync time.
-# MGCFD_INCS += -DVERIFY_OP2_TIMING
+#MGCFD_INCS += -DVERIFY_OP2_TIMING
 
-## Enable DUMP_EXT_PERF_DATA to write out externally-collected 
-## performance data. Included number of loop iterations counts of 
-## each kernel, and if VERIFY_OP2_TIMING is enabled then also 
+## Enable DUMP_EXT_PERF_DATA to write out externally-collected
+## performance data. Included number of loop iterations counts of
+## each kernel, and if VERIFY_OP2_TIMING is enabled then also
 ## its compute and sync times.
 # MGCFD_INCS += -DDUMP_EXT_PERF_DATA
 
-all: seq openmp mpi mpi_vec mpi_openmp
-# all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda
+#all: seq openmp mpi mpi_vec mpi_openmp
+all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda sycl
 # all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda openacc openmp4
 
 parallel: N = $(shell nproc)
@@ -266,6 +347,7 @@ parallel:; @$(MAKE) -j$(N) -l$(N) all
 
 ## User-friendly wrappers around actual targets:
 seq: $(BIN_DIR)/mgcfd_seq
+sycl: $(BIN_DIR)/mgcfd_sycl
 openmp: $(BIN_DIR)/mgcfd_openmp
 mpi: $(BIN_DIR)/mgcfd_mpi
 vec: mpi_vec
@@ -281,6 +363,9 @@ OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
 
 OP2_SEQ_OBJECTS := $(OBJ_DIR)/mgcfd_seq_main.o \
                    $(OBJ_DIR)/mgcfd_seq_kernels.o
+
+OP2_SYCL_OBJECTS := $(OBJ_DIR)/mgcfd_sycl_main.o \
+                   $(OBJ_DIR)/mgcfd_sycl_kernels.o
 
 OP2_MPI_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_main.o \
                    $(OBJ_DIR)/mgcfd_mpi_kernels.o
@@ -333,6 +418,7 @@ KERNELS := calc_rms_kernel \
 	zero_1d_array_kernel \
 	zero_5d_array_kernel
 SEQ_KERNELS := $(patsubst %, $(SRC_DIR)/../seq/%_seqkernel.cpp, $(KERNELS))
+SYCL_KERNELS := $(patsubst %, $(SRC_DIR)/../sycl/%_kernel.cpp, $(KERNELS))
 OMP_KERNELS := $(patsubst %, $(SRC_DIR)/../openmp/%_kernel.cpp, $(KERNELS))
 CUDA_KERNELS := $(patsubst %, $(SRC_DIR)/../cuda/%_kernel.cu, $(KERNELS))
 VEC_KERNELS := $(patsubst %, $(SRC_DIR)/../vec/%_veckernel.cpp, $(KERNELS))
@@ -357,6 +443,24 @@ $(BIN_DIR)/mgcfd_seq: $(OP2_SEQ_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_seq -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) \
+		-o $@
+
+
+## SYCL
+$(OBJ_DIR)/mgcfd_sycl_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
+		-c -o $@ $^
+$(OBJ_DIR)/mgcfd_sycl_kernels.o: $(SRC_DIR)/../sycl/_kernels.cpp $(SYCL_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(SYCLCXX) $(CXXFLAGS) -DSYCL $(SYCL_FLAGS) $(SYCL_INCLUDES) $(OPTIMISE) $(MGCFD_INCS) \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) -I$(MPI_INSTALL_PATH)/include/ \
+		-c -o $@ $(SRC_DIR)/../sycl/_kernels.cpp
+$(BIN_DIR)/mgcfd_sycl: $(OP2_SYCL_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(SYCL_LIBS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+		-lm $(OP2_LIB) -lop2_sycl $(SYCL_LINK_SEQ) -lop2_hdf5 $(HDF5_LIB) \
 		-o $@
 
 

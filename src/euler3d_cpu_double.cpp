@@ -10,7 +10,6 @@
 #include <fstream>
 #include <cmath>
 #include <string>
-#include <omp.h>
 #include <sys/time.h>
 #include <sstream>
 #include <cstdlib>
@@ -144,6 +143,10 @@ int main(int argc, char** argv)
         long_long flux_kernel_event_counts[levels*num_events];
         for (int i=0; i<(levels*num_events); i++) {
             flux_kernel_event_counts[i] = 0;
+        }
+        long_long ustream_kernel_event_counts[levels*num_events];
+        for (int i=0; i<(levels*num_events); i++) {
+            ustream_kernel_event_counts[i] = 0;
         }
 
         int event_set;
@@ -366,7 +369,7 @@ int main(int argc, char** argv)
             op_partition("INERTIAL", "", op_nodes[0], OP_ID, p_node_coords[0]);
         }
         op_printf("PARTITIONING COMPLETE\n");
-        op_renumber(p_edge_to_nodes[0]);
+        if (conf.renumber) op_renumber(p_edge_to_nodes[0]);
 
         for (int i=0; i<levels; i++) {
             sprintf(op_name, "p_variables_L%d", i);
