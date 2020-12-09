@@ -5,13 +5,18 @@
 //user function
 class unstructured_stream_kernel_kernel;
 
-//host stub function
-void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
-  op_arg arg0,
-  op_arg arg1,
-  op_arg arg2,
-  op_arg arg3,
-  op_arg arg4){
+#ifdef PAPI
+#include "papi_funcs.h"
+#endif
+
+
+void op_par_loop_unstructured_stream_kernel_instrumented(
+  char const *name, op_set set,
+  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
+  #ifdef PAPI
+  , long_long* restrict event_counts, int event_set, int num_events
+  #endif
+  ) {
 
   int nargs = 5;
   op_arg args[5];
@@ -231,3 +236,19 @@ void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_timers_core(&cpu_t2, &wall_t2);
   OP_kernels[12].time     += wall_t2 - wall_t1;
 }
+
+// host stub function
+void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
+  op_arg arg0,
+  op_arg arg1,
+  op_arg arg2,
+  op_arg arg3,
+  op_arg arg4){
+
+  op_par_loop_unstructured_stream_kernel_instrumented(name, set,
+    arg0, arg1, arg2, arg3, arg4
+    #ifdef PAPI
+    , NULL, 0, 0
+    #endif
+    );
+};
