@@ -399,7 +399,7 @@ int main(int argc, char** argv)
 
             sprintf(op_name, "p_fluxes_L%d", i);
             p_fluxes[i] = op_decl_dat_temp_char(op_nodes[i], NVAR, "float", sizeof(float), op_name);
-            if (conf.measure_mem_bound) {
+            if (conf.measure_mem_bound || conf.measure_compute_bound) {
                 sprintf(op_name, "p_dummy_fluxes_L%d", i);
                 p_dummy_fluxes[i] = op_decl_dat_temp_char(op_nodes[i], NVAR, "float", sizeof(double), op_name);
             }
@@ -511,6 +511,23 @@ int main(int argc, char** argv)
                         op_arg_dat(p_fluxes[level], 0, p_edge_to_nodes[level], NVAR, "float", OP_INC),
                         op_arg_dat(p_fluxes[level], 1, p_edge_to_nodes[level], NVAR, "float", OP_INC));
 
+            if (conf.measure_mem_bound) {
+                op_par_loop(unstructured_stream_kernel, "unstructured_stream_kernel", op_edges[level],
+                            op_arg_dat(p_variables[level], 0, p_edge_to_nodes[level], NVAR, "float", OP_READ),
+                            op_arg_dat(p_variables[level], 1, p_edge_to_nodes[level], NVAR, "float", OP_READ),
+                            op_arg_dat(p_edge_weights[level], -1, OP_ID, NDIM, "float", OP_READ),
+                            op_arg_dat(p_dummy_fluxes[level], 0, p_edge_to_nodes[level], NVAR, "float", OP_INC),
+                            op_arg_dat(p_dummy_fluxes[level], 1, p_edge_to_nodes[level], NVAR, "float", OP_INC));
+            }
+            if (conf.measure_compute_bound) {
+                op_par_loop(compute_stream_loop, "compute_stream_loop", op_edges[level],
+                            op_arg_dat(p_variables[level], 0, p_edge_to_nodes[level], NVAR, "float", OP_READ),
+                            op_arg_dat(p_variables[level], 1, p_edge_to_nodes[level], NVAR, "float", OP_READ),
+                            op_arg_dat(p_edge_weights[level], -1, OP_ID, NDIM, "float", OP_READ),
+                            op_arg_dat(p_dummy_fluxes[level], 0, p_edge_to_nodes[level], NVAR, "float", OP_INC),
+                            op_arg_dat(p_dummy_fluxes[level], 1, p_edge_to_nodes[level], NVAR, "float", OP_INC));
+            }
+
             op_par_loop(compute_bnd_node_flux_kernel, "compute_bnd_node_flux_kernel", op_bnd_nodes[level],
                         op_arg_dat(p_bnd_node_groups[level],  -1, OP_ID, 1, "int", OP_READ), 
                         op_arg_dat(p_bnd_node_weights[level], -1, OP_ID, NDIM, "float", OP_READ),
@@ -523,15 +540,6 @@ int main(int argc, char** argv)
                         op_arg_dat(p_fluxes[level],        -1, OP_ID, NVAR, "float", OP_INC),
                         op_arg_dat(p_old_variables[level], -1, OP_ID, NVAR, "float", OP_READ),
                         op_arg_dat(p_variables[level],     -1, OP_ID, NVAR, "float", OP_WRITE));
-
-            if (conf.measure_mem_bound) {
-                op_par_loop(unstructured_stream_kernel, "unstructured_stream_kernel", op_edges[level],
-                            op_arg_dat(p_variables[level], 0, p_edge_to_nodes[level], NVAR, "float", OP_READ),
-                            op_arg_dat(p_variables[level], 1, p_edge_to_nodes[level], NVAR, "float", OP_READ),
-                            op_arg_dat(p_edge_weights[level], -1, OP_ID, NDIM, "float", OP_READ),
-                            op_arg_dat(p_dummy_fluxes[level], 0, p_edge_to_nodes[level], NVAR, "float", OP_INC),
-                            op_arg_dat(p_dummy_fluxes[level], 1, p_edge_to_nodes[level], NVAR, "float", OP_INC));
-            }
         }
 
         op_par_loop(residual_kernel, "residual_kernel", op_nodes[level],

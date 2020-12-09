@@ -86,6 +86,7 @@ typedef struct {
     bool validate_result;
 
     bool measure_mem_bound;
+    bool measure_compute_bound;
 
     bool output_volumes;
     bool output_step_factors;
@@ -119,12 +120,13 @@ static struct option long_opts[] =
     { "renumber",             no_argument,       NULL, 'n' },
     { "validate",             no_argument,       NULL, 'v' },
     { "measure-mem-bound",    no_argument,       NULL, 'b' },
+    { "measure-compute-bound",no_argument,       NULL, 'f' },
     { "output-variables",     no_argument,       (int*)&conf.output_variables,    1 },
     { "output-fluxes",        no_argument,       (int*)&conf.output_fluxes,       1 },
     { "output-step-factors",  no_argument,       (int*)&conf.output_step_factors, 1 },
     { "output-flow-interval", required_argument, NULL, 'I' },
 };
-#define GETOPTS "hc:li:d:p:o:g:m:r:vbI:"
+#define GETOPTS "hc:li:d:p:o:g:m:r:vbfI:"
 
 inline void set_config_defaults() {
     conf.config_filepath = (char*)malloc(sizeof(char));
@@ -146,6 +148,7 @@ inline void set_config_defaults() {
     conf.validate_result = false;
 
     conf.measure_mem_bound = false;
+    conf.measure_compute_bound = false;
 
     conf.num_cycles = 25;
 
@@ -193,6 +196,12 @@ inline void set_config_param(const char* const key, const char* const value) {
     else if (strcmp(key,"measure_mem_bound")==0) {
         if (strcmp(value, "Y")==0) {
             conf.measure_mem_bound = true;
+        }
+    }
+    
+    else if (strcmp(key,"measure_compute_bound")==0) {
+        if (strcmp(value, "Y")==0) {
+            conf.measure_compute_bound = true;
         }
     }
 
@@ -427,6 +436,9 @@ inline bool parse_arguments(int argc, char** argv) {
                 break;
             case 'b':
                 conf.measure_mem_bound = true;
+                break;
+            case 'f':
+                conf.measure_compute_bound = true;
                 break;
             case 'v':
                 conf.validate_result = true;

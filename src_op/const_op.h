@@ -28,13 +28,13 @@
  * Options
  *
  */
-#define GAMMA 1.4
+#define GAMMA 1.4f
 
 #define NDIM 3
 
 #define RK 3	// 3rd order RK
-#define ff_mach 1.2
-#define deg_angle_of_attack 0.0
+#define ff_mach 1.2f
+#define deg_angle_of_attack 0.0f
 
 /*
  * not options
@@ -44,7 +44,7 @@
 #define VAR_DENSITY_ENERGY (VAR_MOMENTUM+NDIM)
 #define NVAR (VAR_DENSITY_ENERGY+1)
 
-#define PI 3.1415926535897931
+#define PI 3.1415926535897931f
 
 #define MG_UP 0
 #define MG_DOWN 1

@@ -19,7 +19,7 @@ static inline OP_FUN_PREFIX void zero_array(int nelr, float* variables)
     #endif
     for(int i = 0; i < nelr; i++)
     {
-        variables[i] = 0.0;
+        variables[i] = 0.0f;
     }
 }
 
@@ -45,16 +45,16 @@ static inline OP_FUN_PREFIX void zero_edges(int nelr, edge* mx, edge* my, edge* 
         #endif
         for(int i = 0; i < nelr; i++)
         {
-            mx[i].a = 0.0;
-            mx[i].b = 0.0;
-            my[i].a = 0.0;
-            my[i].b = 0.0;
-            mz[i].a = 0.0;
-            mz[i].b = 0.0;
-            p[i].a = 0.0;
-            p[i].b = 0.0;
-            pe[i].a = 0.0;
-            pe[i].b = 0.0;
+            mx[i].a = 0.0f;
+            mx[i].b = 0.0f;
+            my[i].a = 0.0f;
+            my[i].b = 0.0f;
+            mz[i].a = 0.0f;
+            mz[i].b = 0.0f;
+            p[i].a = 0.0f;
+            p[i].b = 0.0f;
+            pe[i].a = 0.0f;
+            pe[i].b = 0.0f;
         }
 
         #ifdef VERITAS
@@ -102,7 +102,7 @@ static inline OP_FUN_PREFIX float compute_speed_sqd(float3& velocity)
 
 static inline OP_FUN_PREFIX float compute_pressure(float& density, float& density_energy, float& speed_sqd)
 {
-    return (float(GAMMA)-float(1.0))*(density_energy - float(0.5)*density*speed_sqd);
+    return (float(GAMMA)-float(1.0f))*(density_energy - float(0.5f)*density*speed_sqd);
 }
 
 #ifdef IDIVIDE
