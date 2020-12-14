@@ -7,7 +7,7 @@
 #define MAX_CONST_SIZE 128
 #endif
 #ifndef SIMD_VEC
-#define SIMD_VEC 4
+#define SIMD_VEC 8
 #endif
 
 //header
