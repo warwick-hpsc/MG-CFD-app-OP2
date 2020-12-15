@@ -626,7 +626,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
     int worldrank;
     MPI_Comm_rank(MPI_COMM_WORLD, &worldrank); 
-
+ 
     int mgcfd_unit_num = relative_positions[worldrank].placelocator;
     int unit_count = 0;
     int mgcfd_count = 1;//since units start from 1
@@ -635,20 +635,21 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         if(units[unit_count].type == 'M' && mgcfd_unit_num == mgcfd_count){
             found=true;
         }else {
-            if(units[unit_count].type == 'M'){
+            if(units[unit_count].type != 'C'){
                 mgcfd_count++;
             }
             unit_count++;
         }
     }
-
+     
     int recv_size = 0;
     int total_coupler_unit_count = units[unit_count].coupler_ranks.size();
     std::vector<bool> left;
     
     for(int z = 0; z < total_coupler_unit_count; z++){
         int coupler_rank = units[unit_count].coupler_ranks[z][0]; //This can be left alone since the instance number is the same for all ranks in a coupler unit
-        int coupler_position = relative_positions[coupler_rank].placelocator; /* converts coupler instance number to relative index for units AoS - needed due to stack nature of coupler allocation */
+        int coupler_position = relative_positions[coupler_rank].placelocator; // converts coupler instance number to relative index for units AoS - needed due to stack nature of coupler allocation
+        
         found = false;
         int unit_count_2 = 0;
         int coupler_unit_count = 1;
@@ -673,7 +674,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         }
     }
         
-    int coupler_rank = units[unit_count].coupler_ranks[0][0]; /* This assumes only 1 coupler unit per 2 MG-CFD sessions */
+    int coupler_rank = units[unit_count].coupler_ranks[0][0]; //This assumes only 1 coupler unit per 2 MG-CFD sessions 
     int *recv_buffer = new int[recv_size];
     int prev_cycle = -1;
 
@@ -784,7 +785,6 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             op_printf("Cycle %d comms ending\n", i);
             
         }
-        
         
 
 

@@ -28,7 +28,7 @@ int main(int argc, char** argv){
 	char unit_1[] = "UNIT_1";
 	char unit_2[] = "UNIT_2";
 	char total[] = "TOTAL";
-	bool debug = true;
+	bool debug = false;
 
 	int mpi_ranks = 0;
 	char keyword[8];//longest word is COUPLER
@@ -125,17 +125,6 @@ int main(int argc, char** argv){
 			}
 			temp_marker += units[i].processes;
 		}
-        //TEMP: once communication is set up change remove this section. Needed to populate mg-cfd ranks and coupler ranks when not coupled.
-        if(units[i].type == 'F'){
-            std::vector<int> temp;
-            int loc = i+1;
-            for(int j=0; j<temp_marker; j++){
-                if(relative_positions[j].placelocator == loc && relative_positions[j].typelocator != 'C'){
-                    temp.push_back(j); 
-                }
-            }
-            units[i].mgcfd_ranks.push_back(temp);
-        }        
 		if(units[i].type == 'C'){
 			temp_coupler++;
 			temp_coupler_position.push_back(temp_coupler);
@@ -188,6 +177,7 @@ int main(int argc, char** argv){
 		}
 	}
 
+
 	//for debugging purposes
 	if(rank == 0 && debug == true){
 		for(int i = 0; i<mpi_ranks; i++){
@@ -197,21 +187,20 @@ int main(int argc, char** argv){
 		}
 		for(int i = 0; i<num_of_units; i++){
 			printf("\n\nType %c\n", units[i].type);
-            if(units[i].coupler_ranks.size() != 0){
-			    int no_of_elements_coupler = units[i].coupler_ranks[0].size();
-			    for(int j = 0; j < no_of_elements_coupler; j++){
-				    printf("Coupler ranks: %d\n", units[i].coupler_ranks[0][j]);
-			    }
-            }
+			int no_of_elements_coupler = units[i].coupler_ranks[0].size();
+			for(int j = 0; j < no_of_elements_coupler; j++){
+				printf("Coupler ranks: %d\n", units[i].coupler_ranks[0][j]);
+			}
 			int no_of_elements = units[i].mgcfd_ranks[0].size();
 			for(int j = 0; j < no_of_elements; j++){
-			    printf("MGCFD Ranks: %d\n", units[i].mgcfd_ranks[0][j]);
-			    if(units[i].type == 'C'){
-				    printf("MGCFD Ranks: %d\n", units[i].mgcfd_ranks[1][j]);
-			    }
-            }
+				printf("MGCFD Ranks: %d\n", units[i].mgcfd_ranks[0][j]);
+				if(units[i].type == 'C'){
+					printf("MGCFD Ranks: %d\n", units[i].mgcfd_ranks[1][j]);
+				}
+			}
 		}
 	}
+
 	MPI_Group world_group;
 	MPI_Comm_group(MPI_COMM_WORLD, &world_group);
 
@@ -253,14 +242,13 @@ int main(int argc, char** argv){
 		}
 	}
     MPI_Fint comms_shell = MPI_Comm_c2f(new_comm);
+
 //end of the set up we then call mgcfd main or fenics main if its not a coupler.
 	if(!is_coupler){
 		if(is_mgcfd){
-            //printf("calling mgcfd from proc %d\n",rank);
-            //MPI_Finalize();
-            main_mgcfd(argc, argv, comms_shell, instance_number, units, relative_positions);
+			main_mgcfd(argc, argv, comms_shell, instance_number, units, relative_positions);
 		}else{
-            printf("calling fenics code from process %d\n",rank);
+            printf("calling fenics code from process %d",rank);
             MPI_Finalize();
 			//main_mgcfd(argc, argv, comms_shell, instance_number, units, relative_positions);
 		}
@@ -275,23 +263,15 @@ int main(int argc, char** argv){
 		bool found = false;
 		int unit_count = 0;
     	while(!found){
-            //TEMP: if statement can be removed when fenics comms is set up
-            if(units[unit_count].coupler_ranks.size() == 0){
-                unit_count++;
-            }
 			for(int j=units[unit_count].coupler_ranks[0][0]; j<units[unit_count].coupler_ranks[0][0]+units[unit_count].coupler_ranks[0].size();j++){//if rank of processes matches a rank for a particular coupler unit, assign the new communicator
 				if(units[unit_count].type == 'C' && rank == j){
 					found=true;
-				}/*else if(!(j < (units[unit_count].coupler_ranks[0][0]+units[unit_count].coupler_ranks[0].size() - 1)) && found == false){//to make sure all ranks of each coupler units are found
-                    printf("proc %d we went to increase\n");
+				}else if(!(j < (units[unit_count].coupler_ranks[0][0]+units[unit_count].coupler_ranks[0].size() - 1)) && found == false){//to make sure all ranks of each coupler units are found
 					unit_count++;
-                    printf("proc %d we went past increase \n");
-				}*/
+				}
 			}
-            if(found == false){
-                unit_count++;
-            }
     	}
+
 		int left_rank = units[unit_count].mgcfd_ranks[0][0];
 		int left_size = static_cast<int>(units[unit_count].mgcfd_ranks[0].size());
 		int right_rank = units[unit_count].mgcfd_ranks[1][0];
@@ -359,7 +339,7 @@ int main(int argc, char** argv){
 		std::map< int, std::vector<double> > left_map_of_state_vars_total[4] = {map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3};
 		std::map< int, std::vector<double> > right_map_of_state_vars_total[4] = {map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3};
 
-		while((cycle_counter < 25) && ((cycle_counter % upd_freq) == 0)){// Change this value to the number of cycles if it is not the default
+		while((cycle_counter < 25) && ((cycle_counter % upd_freq) == 0)){/* Change this value to the number of cycles if it is not the default*/
 
 			int local_size;
 			MPI_Comm_size(coupler_comm, &local_size);
@@ -475,4 +455,5 @@ int main(int argc, char** argv){
 		MPI_Finalize();
    		exit(0);
 	}
+
 }
