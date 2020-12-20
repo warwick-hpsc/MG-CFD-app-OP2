@@ -52,6 +52,7 @@ defaults["num threads"] = [1]
 defaults["num repeats"] = 1
 defaults["mg cycles"] = 50
 defaults["output flow interval"] = 0
+defaults["measure mem bound"] = False
 # Partitioning:
 defaults["partitioners"] = ["parmetis"]
 defaults["partitioner methods"] = None
@@ -206,6 +207,7 @@ if __name__=="__main__":
     mg_cycles = get_key_value(profile, "run", "mg cycles")
     output_flow_interval = get_key_value(profile, "run", "output flow interval")
     validate_solution = get_key_value(profile, "run", "validate solution")
+    measure_mem_bound = get_key_value(profile, "run", "measure mem bound")
     mgcfd_unit_runtime_secs = get_key_value(profile, "run", "unit walltime")
     partitioners = get_key_value(profile, "run", "partitioners")
     partitioner_methods = get_key_value(profile, "run", "partitioner methods")
@@ -384,6 +386,7 @@ if __name__=="__main__":
             py_sed(batch_tmp_filepath, "<MG_CYCLES>", mg_cycles)
             py_sed(batch_tmp_filepath, "<OUTPUT_FLOW_INTERVAL>", output_flow_interval)
             py_sed(batch_tmp_filepath, "<VALIDATE_SOLUTION>", str(validate_solution).lower())
+            py_sed(batch_tmp_filepath, "<MEASURE_MEM_BOUND>", str(measure_mem_bound).lower())
 
             ## - Walltime estimation:
             if mgcfd_unit_runtime_secs == 0.0:
