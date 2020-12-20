@@ -76,25 +76,31 @@ inline void init_papi(int* num_events)
 {
     int ret;
 
-    if (PAPI_num_counters() < 2) {
-       fprintf(stderr, "ERROR: No hardware counters here, or PAPI not supported.\n");
+    if ((ret=PAPI_library_init(PAPI_VER_CURRENT)) != PAPI_VER_CURRENT) {
+        fprintf(stderr, "ERROR: PAPI_library_init() failed: '%s'.\n", PAPI_strerror(ret));
+        exit(EXIT_FAILURE);
+    }
+
+    // if (PAPI_num_counters() < 2) {
+    int num_ctrs = 0;
+    int num_comps = PAPI_num_components();
+    printf("num_comps = %d\n", num_comps);
+    for (int c=0; c<num_comps; c++) {
+        num_ctrs += PAPI_num_cmp_hwctrs(c);
+    }
+    if (num_ctrs < 2) {
+       fprintf(stderr, "ERROR: No hardware counters here, or PAPI not supported (num_ctrs=%d)\n", num_ctrs);
        exit(-1);
     }
 
     std::string line;
     std::ifstream file_if(conf.papi_config_file);
     *num_events = 0;
-    while(std::getline(file_if, line))
-    {
+    while(std::getline(file_if, line)) {
         if (line.c_str()[0] == '#' || strcmp(line.c_str(), "")==0) {
             continue;
         }
         (*num_events)++;
-    }
-
-    if ((ret=PAPI_library_init(PAPI_VER_CURRENT)) != PAPI_VER_CURRENT) {
-        fprintf(stderr, "ERROR: PAPI_library_init() failed: '%s'.\n", PAPI_strerror(ret));
-        exit(EXIT_FAILURE);
     }
 
     if ((ret=PAPI_thread_init(omp_get_thread_num_ul)) != PAPI_OK) {
