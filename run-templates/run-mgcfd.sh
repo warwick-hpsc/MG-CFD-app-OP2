@@ -17,6 +17,7 @@ data_dirpath="<DATA_DIRPATH>"
 # MG-CFD run variables:
 mg_cycles=<MG_CYCLES>
 validate_solution=<VALIDATE_SOLUTION>
+measure_mem_bound=<MEASURE_MEM_BOUND>
 output_flow_interval=<OUTPUT_FLOW_INTERVAL>
 
 partitioner=<PARTITIONER>
@@ -131,6 +132,9 @@ if $papi ; then
 fi
 if $validate_solution ; then
   exec_command+=" -v"
+fi
+if $measure_mem_bound ; then
+  exec_command+=" -b"
 fi
 echo "$exec_command"
 eval "$exec_command"
