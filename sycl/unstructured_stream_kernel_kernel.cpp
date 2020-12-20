@@ -54,6 +54,16 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
 
     op_plan *Plan = op_plan_get_stage(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_ALL);
 
+    #ifdef PAPI
+      // Init and start PAPI
+      long_long* temp_count_stores = NULL;
+      if (num_events > 0) {
+        temp_count_stores = (long_long*)malloc(sizeof(long_long)*num_events);
+        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+        my_papi_start(event_set);
+      }
+    #endif
+
     cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
     cl::sycl::buffer<double,1> *arg3_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg3.data_d);
     cl::sycl::buffer<int,1> *map0_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)arg0.map_data_d);
@@ -69,7 +79,20 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
     int block_offset = 0;
     for ( int col=0; col<Plan->ncolors; col++ ){
       if (col==Plan->ncolors_core) {
+        #ifdef PAPI
+          if (num_events > 0)
+            my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
+        #endif
+
         op_mpi_wait_all_cuda(nargs, args);
+
+        #ifdef PAPI
+          if (num_events > 0) {
+            // Restart PAPI
+            for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+            my_papi_start(event_set);
+        }
+        #endif
       }
       int nthread = SIMD_VEC;
 
@@ -229,6 +252,14 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
     }
     OP_kernels[12].transfer  += Plan->transfer;
     OP_kernels[12].transfer2 += Plan->transfer2;
+    
+    #ifdef PAPI
+      if (num_events > 0) {
+        my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
+        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+        free(temp_count_stores);
+      }
+    #endif
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   op2_queue->wait();
