@@ -359,7 +359,7 @@ int main(int argc, char** argv){
 		std::map< int, std::vector<double> > left_map_of_state_vars_total[4] = {map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3};
 		std::map< int, std::vector<double> > right_map_of_state_vars_total[4] = {map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3};
 
-		while((cycle_counter < 25) && ((cycle_counter % upd_freq) == 0)){// Change this value to the number of cycles if it is not the default
+		while((cycle_counter < mgcycles) && ((cycle_counter % upd_freq) == 0)){// Change this value to the number of cycles if it is not the default
 
 			int local_size;
 			MPI_Comm_size(coupler_comm, &local_size);
@@ -378,20 +378,21 @@ int main(int argc, char** argv){
 	        MPI_Scatter(left_p_variables_l3, (left_nodes_size_chunks[3] * NVAR), MPI_DOUBLE, left_p_variables_l3_sg, (left_nodes_size_chunks[3] * NVAR), MPI_DOUBLE, 0, coupler_comm);
 
 	        //rendezvous routines start
-	        srand (time(NULL));
-	        for(int k = 0; k < 4; k++){
-		        map_counter = 0;
-				map_counter_max = map_counter_max_sizes_l[k];//this is size of mesh recieved from scatter
-				left_map_of_state_vars_total[k].clear();
-				while(map_counter < map_counter_max){
-					std::vector<double> node_state_vars;
-					for(int i = 0; i<NVAR; i++){
-						node_state_vars.push_back(*(left_p_variable_pointers[k] + (map_counter * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
+	        if(cycle_counter == 0){
+		        for(int k = 0; k < 4; k++){
+			        map_counter = 0;
+					map_counter_max = map_counter_max_sizes_l[k];//this is size of mesh recieved from scatter
+					left_map_of_state_vars_total[k].clear();
+					while(map_counter < map_counter_max){
+						std::vector<double> node_state_vars;
+						for(int i = 0; i<NVAR; i++){
+							node_state_vars.push_back(*(left_p_variable_pointers[k] + (map_counter * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
+						}
+						left_map_of_state_vars_total[k].insert(std::make_pair(map_counter, node_state_vars));
+						map_counter++;
 					}
-					left_map_of_state_vars_total[k].insert(std::make_pair(map_counter, node_state_vars));
-					map_counter++;
-				}
-	        }
+		        }
+	    	}
 
 	        for(int k = 0; k < 4; k++){
 		        map_counter = 0;
@@ -429,20 +430,21 @@ int main(int argc, char** argv){
 	        MPI_Scatter(right_p_variables_l3, (right_nodes_size_chunks[3] * NVAR), MPI_DOUBLE, right_p_variables_l3_sg, (right_nodes_size_chunks[3] * NVAR), MPI_DOUBLE, 0, coupler_comm);
 
 	        //rendezvous routines start
-	        srand (time(NULL));
-	        for(int k = 0; k < 4; k++){
-		        map_counter = 0;
-				map_counter_max = map_counter_max_sizes_l[k];//this is size of mesh recieved from scatter
-				right_map_of_state_vars_total[k].clear();
-				while(map_counter < map_counter_max){
-					std::vector<double> node_state_vars;
-					for(int i = 0; i<NVAR; i++){
-						node_state_vars.push_back(*(right_p_variable_pointers[k] + (map_counter * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
+	        if(cycle_counter == 0){
+		        for(int k = 0; k < 4; k++){
+			        map_counter = 0;
+					map_counter_max = map_counter_max_sizes_l[k];//this is size of mesh recieved from scatter
+					right_map_of_state_vars_total[k].clear();
+					while(map_counter < map_counter_max){
+						std::vector<double> node_state_vars;
+						for(int i = 0; i<NVAR; i++){
+							node_state_vars.push_back(*(right_p_variable_pointers[k] + (map_counter * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
+						}
+						right_map_of_state_vars_total[k].insert(std::make_pair(map_counter, node_state_vars));
+						map_counter++;
 					}
-					right_map_of_state_vars_total[k].insert(std::make_pair(map_counter, node_state_vars));
-					map_counter++;
-				}
-	        }
+		        }
+		    }
 
 	        for(int k = 0; k < 4; k++){
 		        map_counter = 0;
@@ -476,3 +478,4 @@ int main(int argc, char** argv){
    		exit(0);
 	}
 }
+

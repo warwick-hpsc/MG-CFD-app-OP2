@@ -135,7 +135,7 @@ inline void set_config_defaults() {
 
     conf.validate_result = false;
 
-    conf.num_cycles = 25;
+    conf.num_cycles = 50;
 
     conf.partitioner = Partitioners::Parmetis;
     conf.partitioner_method = PartitionerMethods::NotSet;

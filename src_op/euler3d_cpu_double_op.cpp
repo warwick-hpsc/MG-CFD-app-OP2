@@ -748,7 +748,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
             if(internal_rank == MPI_ROOT){
                 op_printf("Cycle %d comms starting\n", i);
-
+                
                 for(int z = 0; z < total_coupler_unit_count; z++){
                     coupler_rank = units[unit_count].coupler_ranks[z][0];
 
@@ -1159,6 +1159,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
     return 0;
 }
+
 
 
 

@@ -1,0 +1,2402 @@
+Intel(R) Advisor can now assist with vectorization and show optimization
+  report messages with your source code.
+See "https://software.intel.com/en-us/intel-advisor-xe" for details.
+
+Intel(R) C++ Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 18.0.2.199 Build 20180210
+
+Compiler options: -Isrc -Isrc/Kernels -I/rr-home/awp/coupler-remix/mg-cfd-install/op2/OP2-Common/op2/c/include -I/rr-home/awp/coupler-remix/mg-cfd-install/hdf5/include -I/opt/intel/parallelstudio/2018/update2/compilers_and_libraries_2018.2.199/linux/mpi/intel64/include -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -DVECTORIZE -qopt-report=5 -restrict -fmax-errors=1 -O3 -xHost -DMPI_ON -c -o obj/mgcfd_mpi_cpx_kernels.o
+
+    Report from: Interprocedural optimizations [ipo]
+
+  WHOLE PROGRAM (SAFE) [EITHER METHOD]: false
+  WHOLE PROGRAM (SEEN) [TABLE METHOD]: false
+  WHOLE PROGRAM (READ) [OBJECT READER METHOD]: false
+
+INLINING OPTION VALUES:
+  -inline-factor: 100
+  -inline-min-size: 30
+  -inline-max-size: 230
+  -inline-max-total-size: 2000
+  -inline-max-per-routine: 10000
+  -inline-max-per-compile: 500000
+
+In the inlining report below:
+   "sz" refers to the "size" of the routine. The smaller a routine's size,
+      the more likely it is to be inlined.
+   "isz" refers to the "inlined size" of the routine. This is the amount
+      the calling routine will grow if the called routine is inlined into it.
+      The compiler generally limits the amount a routine can grow by having
+      routines inlined into it.
+
+Begin optimization report for: zero_5d_array_kernel(double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (zero_5d_array_kernel(double *)) src/../seq/.././src/Kernels/misc.h(20,1)
+
+===========================================================================
+
+Begin optimization report for: zero_1d_array_kernel(double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (zero_1d_array_kernel(double *)) src/../seq/.././src/Kernels/misc.h(36,1)
+
+===========================================================================
+
+Begin optimization report for: calculate_cell_volumes(const double *, const double *, double *, double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (calculate_cell_volumes(const double *, const double *, double *, double *, double *)) src/../seq/.././src/Kernels/misc.h(46,1)
+
+===========================================================================
+
+Begin optimization report for: dampen_ewt(double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (dampen_ewt(double *)) src/../seq/.././src/Kernels/misc.h(80,1)
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_zero_5d_array_kernel(const char *, op_set, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_zero_5d_array_kernel(const char *, op_set, op_arg)) [5/82=6.1%] src/../seq/zero_5d_array_kernel_seqkernel.cpp(10,15)
+  -> EXTERN: (19,3) op_timing_realloc(int)
+  -> EXTERN: (20,3) op_timers_core(double *, double *)
+  -> EXTERN: (24,5) printf(const char *, ...)
+  -> EXTERN: (27,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (32,7) zero_5d_array_kernel(double *) (isz = 15) (sz = 20)
+  -> EXTERN: (38,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (41,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/zero_5d_array_kernel_seqkernel.cpp(31,5)
+   remark #25096: Loop Interchange not done due to: Imperfect Loop Nest (Either at Source or due to other Compiler Transformations)
+   remark #25452: Original Order found to be proper, but by a close margin
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ src/../seq/zero_5d_array_kernel_seqkernel.cpp(32,7) ]
+   remark #15335: loop was not vectorized: vectorization possible but seems inefficient. Use vector always directive or -vec-threshold0 to override 
+   remark #15329: vectorization support: irregularly indexed store was emulated for the variable <array[j]>, part of index is linear but may overflow   [ src/../seq/.././src/Kernels/misc.h(22,9) ]
+   remark #15329: vectorization support: irregularly indexed store was emulated for the variable <array[j]>, part of index is linear but may overflow   [ src/../seq/.././src/Kernels/misc.h(22,9) ]
+   remark #15329: vectorization support: irregularly indexed store was emulated for the variable <array[j]>, part of index is linear but may overflow   [ src/../seq/.././src/Kernels/misc.h(22,9) ]
+   remark #15329: vectorization support: irregularly indexed store was emulated for the variable <array[j]>, part of index is linear but may overflow   [ src/../seq/.././src/Kernels/misc.h(22,9) ]
+   remark #15329: vectorization support: irregularly indexed store was emulated for the variable <array[j]>, part of index is linear but may overflow   [ src/../seq/.././src/Kernels/misc.h(22,9) ]
+   remark #15305: vectorization support: vector length 2
+   remark #15309: vectorization support: normalized vectorization overhead 0.146
+   remark #15463: unmasked indexed (or scatter) stores: 5 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 19 
+   remark #15477: vector cost: 20.500 
+   remark #15478: estimated potential speedup: 0.920 
+   remark #15488: --- end vector cost summary ---
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/misc.h(21,5) inlined into src/../seq/zero_5d_array_kernel_seqkernel.cpp(33,7)
+      remark #25436: completely unrolled by 5   (pre-vector) 
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/zero_5d_array_kernel_seqkernel.cpp(15,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/zero_5d_array_kernel_seqkernel.cpp(15,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/zero_5d_array_kernel_seqkernel.cpp(10,15):remark #34051: REGISTER ALLOCATION : [_Z32op_par_loop_zero_5d_array_kernelPKcP11op_set_core6op_arg] src/../seq/zero_5d_array_kernel_seqkernel.cpp:10
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   14[ rax rdx rcx rbx rsi rdi r8 r12 zmm0-zmm5]
+        
+    Routine temporaries
+        Total         :      48
+            Global    :      15
+            Local     :      33
+        Regenerable   :      23
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     128 bytes*
+            Reads     :       2 [2.00e+00 ~ 1.8%]
+            Writes    :       3 [3.00e+00 ~ 2.8%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_zero_1d_array_kernel(const char *, op_set, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_zero_1d_array_kernel(const char *, op_set, op_arg)) [6/82=7.3%] src/../seq/zero_1d_array_kernel_seqkernel.cpp(10,15)
+  -> EXTERN: (19,3) op_timing_realloc(int)
+  -> EXTERN: (20,3) op_timers_core(double *, double *)
+  -> EXTERN: (24,5) printf(const char *, ...)
+  -> EXTERN: (27,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (32,7) zero_1d_array_kernel(double *) (isz = 0) (sz = 5)
+  -> EXTERN: (38,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (41,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/zero_1d_array_kernel_seqkernel.cpp(31,5)
+   remark #25408: memset generated
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at src/../seq/zero_1d_array_kernel_seqkernel.cpp(31,5)
+      remark #15389: vectorization support: reference arg0.data[n] has unaligned access   [ src/../seq/.././src/Kernels/misc.h(37,6) ]
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15305: vectorization support: vector length 4
+      remark #15399: vectorization support: unroll factor set to 2
+      remark #15309: vectorization support: normalized vectorization overhead 0.300
+      remark #15300: LOOP WAS VECTORIZED
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 4 
+      remark #15477: vector cost: 1.250 
+      remark #15478: estimated potential speedup: 1.650 
+      remark #15488: --- end vector cost summary ---
+      remark #25015: Estimate of max trip count of loop=1
+   LOOP END
+
+   LOOP BEGIN at src/../seq/zero_1d_array_kernel_seqkernel.cpp(31,5)
+   <Remainder loop for vectorization>
+      remark #25015: Estimate of max trip count of loop=12
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/zero_1d_array_kernel_seqkernel.cpp(15,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/zero_1d_array_kernel_seqkernel.cpp(15,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/zero_1d_array_kernel_seqkernel.cpp(31,5):remark #34014: optimization advice for memset: increase the destination's alignment to 16 (and use __assume_aligned) to speed up library implementation
+src/../seq/zero_1d_array_kernel_seqkernel.cpp(31,5):remark #34026: call to memset implemented as a call to optimized library version
+src/../seq/zero_1d_array_kernel_seqkernel.cpp(10,15):remark #34051: REGISTER ALLOCATION : [_Z32op_par_loop_zero_1d_array_kernelPKcP11op_set_core6op_arg] src/../seq/zero_1d_array_kernel_seqkernel.cpp:10
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   13[ rax rdx rcx rbx rsi rdi r15 zmm0-zmm5]
+        
+    Routine temporaries
+        Total         :      55
+            Global    :      18
+            Local     :      37
+        Regenerable   :      27
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     128 bytes*
+            Reads     :       2 [2.00e+00 ~ 1.7%]
+            Writes    :       3 [3.00e+00 ~ 2.5%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_calculate_cell_volumes(const char *, op_set, op_arg, op_arg, op_arg, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_calculate_cell_volumes(const char *, op_set, op_arg, op_arg, op_arg, op_arg, op_arg)) [7/82=8.5%] src/../seq/calculate_cell_volumes_seqkernel.cpp(14,15)
+  -> EXTERN: (27,3) op_timing_realloc(int)
+  -> EXTERN: (28,3) op_timers_core(double *, double *)
+  -> EXTERN: (31,5) printf(const char *, ...)
+  -> EXTERN: (34,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> EXTERN: (40,9) op_mpi_wait_all(int, op_arg *)
+  -> INLINE (MANUAL): (46,7) calculate_cell_volumes(const double *, const double *, double *, double *, double *) (isz = 103) (sz = 116)
+  -> EXTERN: (56,5) op_mpi_wait_all(int, op_arg *)
+  -> EXTERN: (59,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (62,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/calculate_cell_volumes_seqkernel.cpp(38,5)
+   remark #25456: Number of Array Refs Scalar Replaced In Loop: 9
+   remark #15382: vectorization support: call to function op_mpi_wait_all(int, op_arg *) cannot be vectorized   [ src/../seq/calculate_cell_volumes_seqkernel.cpp(40,9) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/misc.h(49,5) inlined into src/../seq/calculate_cell_volumes_seqkernel.cpp(47,7)
+      remark #25436: completely unrolled by 3   (pre-vector) 
+   LOOP END
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/misc.h(56,5) inlined into src/../seq/calculate_cell_volumes_seqkernel.cpp(47,7)
+      remark #25436: completely unrolled by 3   (pre-vector) 
+   LOOP END
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/misc.h(66,5) inlined into src/../seq/calculate_cell_volumes_seqkernel.cpp(47,7)
+      remark #25045: Fused Loops: ( 66 73 )
+
+      remark #25436: completely unrolled by 3   (pre-vector) 
+   LOOP END
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/misc.h(73,5) inlined into src/../seq/calculate_cell_volumes_seqkernel.cpp(47,7)
+      remark #25046: Loop lost in Fusion 
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/calculate_cell_volumes_seqkernel.cpp(19,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/calculate_cell_volumes_seqkernel.cpp(19,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/calculate_cell_volumes_seqkernel.cpp(20,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/calculate_cell_volumes_seqkernel.cpp(20,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/calculate_cell_volumes_seqkernel.cpp(21,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/calculate_cell_volumes_seqkernel.cpp(21,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/calculate_cell_volumes_seqkernel.cpp(22,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/calculate_cell_volumes_seqkernel.cpp(22,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/calculate_cell_volumes_seqkernel.cpp(23,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/calculate_cell_volumes_seqkernel.cpp(23,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/calculate_cell_volumes_seqkernel.cpp(14,15):remark #34051: REGISTER ALLOCATION : [_Z34op_par_loop_calculate_cell_volumesPKcP11op_set_core6op_argS3_S3_S3_S3_] src/../seq/calculate_cell_volumes_seqkernel.cpp:14
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   30[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm15]
+        
+    Routine temporaries
+        Total         :     113
+            Global    :      15
+            Local     :      98
+        Regenerable   :      45
+        Spilled       :       5
+        
+    Routine stack
+        Variables     :     512 bytes*
+            Reads     :       2 [2.00e+00 ~ 0.5%]
+            Writes    :      15 [1.50e+01 ~ 4.1%]
+        Spills        :      24 bytes*
+            Reads     :       3 [2.27e+00 ~ 0.6%]
+            Writes    :       3 [2.27e+00 ~ 0.6%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_dampen_ewt(const char *, op_set, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_dampen_ewt(const char *, op_set, op_arg)) [8/82=9.8%] src/../seq/dampen_ewt_seqkernel.cpp(10,15)
+  -> EXTERN: (19,3) op_timing_realloc(int)
+  -> EXTERN: (20,3) op_timers_core(double *, double *)
+  -> EXTERN: (24,5) printf(const char *, ...)
+  -> EXTERN: (27,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (32,7) dampen_ewt(double *) (isz = 14) (sz = 19)
+  -> EXTERN: (38,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (41,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/dampen_ewt_seqkernel.cpp(31,5)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed OUTPUT dependence between arg0.data[3*n] (81:5) and *(ewt+16) (83:5)
+   remark #15346: vector dependence: assumed OUTPUT dependence between *(ewt+16) (83:5) and arg0.data[3*n] (81:5)
+   remark #25439: unrolled with remainder by 2  
+LOOP END
+
+LOOP BEGIN at src/../seq/dampen_ewt_seqkernel.cpp(31,5)
+<Remainder>
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/dampen_ewt_seqkernel.cpp(15,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/dampen_ewt_seqkernel.cpp(15,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/dampen_ewt_seqkernel.cpp(10,15):remark #34051: REGISTER ALLOCATION : [_Z22op_par_loop_dampen_ewtPKcP11op_set_core6op_arg] src/../seq/dampen_ewt_seqkernel.cpp:10
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   16[ rax rdx rcx rsi rdi r8-r9 r12-r13 zmm0-zmm6]
+        
+    Routine temporaries
+        Total         :      62
+            Global    :      17
+            Local     :      45
+        Regenerable   :      24
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     128 bytes*
+            Reads     :       2 [2.00e+00 ~ 1.7%]
+            Writes    :       3 [3.00e+00 ~ 2.5%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: copy_double_kernel(const double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (copy_double_kernel(const double *, double *)) src/../seq/.././src/Kernels/copy_double_kernel.h(9,1)
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_copy_double_kernel(const char *, op_set, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_copy_double_kernel(const char *, op_set, op_arg, op_arg)) [10/82=12.2%] src/../seq/copy_double_kernel_seqkernel.cpp(11,15)
+  -> EXTERN: (21,3) op_timing_realloc(int)
+  -> EXTERN: (22,3) op_timers_core(double *, double *)
+  -> EXTERN: (26,5) printf(const char *, ...)
+  -> EXTERN: (29,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (34,7) copy_double_kernel(const double *, double *) (isz = 17) (sz = 24)
+  -> EXTERN: (41,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (44,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/copy_double_kernel_seqkernel.cpp(33,5)
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ src/../seq/copy_double_kernel_seqkernel.cpp(34,7) ]
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ src/../seq/copy_double_kernel_seqkernel.cpp(34,7) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed FLOW dependence between old_variables[i] (11:3) and variables[i] (11:3)
+   remark #15346: vector dependence: assumed ANTI dependence between variables[i] (11:3) and old_variables[i] (11:3)
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/copy_double_kernel.h(10,2) inlined into src/../seq/copy_double_kernel_seqkernel.cpp(35,7)
+      remark #25436: completely unrolled by 5   (pre-vector) 
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/copy_double_kernel_seqkernel.cpp(16,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/copy_double_kernel_seqkernel.cpp(16,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/copy_double_kernel_seqkernel.cpp(17,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/copy_double_kernel_seqkernel.cpp(17,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/copy_double_kernel_seqkernel.cpp(11,15):remark #34051: REGISTER ALLOCATION : [_Z30op_par_loop_copy_double_kernelPKcP11op_set_core6op_argS3_] src/../seq/copy_double_kernel_seqkernel.cpp:11
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   17[ rax rdx rcx rbx rsi rdi r8-r12 zmm0-zmm5]
+        
+    Routine temporaries
+        Total         :      57
+            Global    :      15
+            Local     :      42
+        Regenerable   :      27
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     224 bytes*
+            Reads     :       2 [2.00e+00 ~ 1.4%]
+            Writes    :       6 [6.00e+00 ~ 4.3%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: compute_flux_contribution(double &, double3 &, double &, double &, double3 &, double *, double *, double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (compute_flux_contribution(double &, double3 &, double &, double &, double3 &, double *, double *, double *, double *)) src/inlined_funcs.h(79,1)
+
+===========================================================================
+
+Begin optimization report for: compute_speed_sqd(double3 &)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (compute_speed_sqd(double3 &)) src/inlined_funcs.h(99,1)
+
+===========================================================================
+
+Begin optimization report for: compute_pressure(double &, double &, double &)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (compute_pressure(double &, double &, double &)) src/inlined_funcs.h(104,1)
+
+===========================================================================
+
+Begin optimization report for: compute_velocity(double &, double3 &, double3 &)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (compute_velocity(double &, double3 &, double3 &)) src/inlined_funcs.h(121,5)
+
+===========================================================================
+
+Begin optimization report for: compute_speed_of_sound(double &, double &)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (compute_speed_of_sound(double &, double &)) src/inlined_funcs.h(127,5)
+
+===========================================================================
+
+Begin optimization report for: calculate_dt_kernel(const double *, const double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (calculate_dt_kernel(const double *, const double *, double *)) src/../seq/.././src/Kernels/time_stepping_kernels.h(17,1)
+
+===========================================================================
+
+Begin optimization report for: get_min_dt_kernel(const double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (get_min_dt_kernel(const double *, double *)) src/../seq/.././src/Kernels/time_stepping_kernels.h(37,1)
+
+===========================================================================
+
+Begin optimization report for: compute_step_factor_kernel(const double *, const double *, const double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (compute_step_factor_kernel(const double *, const double *, const double *, double *)) src/../seq/.././src/Kernels/time_stepping_kernels.h(48,1)
+
+===========================================================================
+
+Begin optimization report for: time_step_kernel(const int *, const double *, double *, const double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (time_step_kernel(const int *, const double *, double *, const double *, double *)) src/../seq/.././src/Kernels/time_stepping_kernels.h(72,1)
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_calculate_dt_kernel(const char *, op_set, op_arg, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_calculate_dt_kernel(const char *, op_set, op_arg, op_arg, op_arg)) [20/82=24.4%] src/../seq/calculate_dt_kernel_seqkernel.cpp(12,15)
+  -> EXTERN: (23,3) op_timing_realloc(int)
+  -> EXTERN: (24,3) op_timers_core(double *, double *)
+  -> EXTERN: (28,5) printf(const char *, ...)
+  -> EXTERN: (31,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (36,7) calculate_dt_kernel(const double *, const double *, double *) (isz = 49) (sz = 58)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/time_stepping_kernels.h:(26,23) compute_velocity(double &, double3 &, double3 &) (isz = 11) (sz = 20)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/time_stepping_kernels.h:(27,29) compute_speed_sqd(double3 &) (isz = 10) (sz = 16)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/time_stepping_kernels.h:(28,29) compute_pressure(double &, double &, double &) (isz = 4) (sz = 14)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/time_stepping_kernels.h:(29,29) compute_speed_of_sound(double &, double &) (isz = 3) (sz = 12)
+    -> EXTERN: src/../seq/.././src/Kernels/time_stepping_kernels.h:(31,26) cbrt(double)
+  -> EXTERN: (44,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (47,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/calculate_dt_kernel_seqkernel.cpp(35,5)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed ANTI dependence between arg0.data[5*n] (18:22) and arg2.data[n] (31:6)
+   remark #15346: vector dependence: assumed FLOW dependence between arg2.data[n] (31:6) and arg0.data[5*n] (18:22)
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/calculate_dt_kernel_seqkernel.cpp(17,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/calculate_dt_kernel_seqkernel.cpp(17,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/calculate_dt_kernel_seqkernel.cpp(18,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/calculate_dt_kernel_seqkernel.cpp(18,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/calculate_dt_kernel_seqkernel.cpp(19,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/calculate_dt_kernel_seqkernel.cpp(19,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/calculate_dt_kernel_seqkernel.cpp(12,15):remark #34051: REGISTER ALLOCATION : [_Z31op_par_loop_calculate_dt_kernelPKcP11op_set_core6op_argS3_S3_] src/../seq/calculate_dt_kernel_seqkernel.cpp:12
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   21[ rax rdx rcx rbx rsi rdi r8 r12-r15 zmm0-zmm9]
+        
+    Routine temporaries
+        Total         :      85
+            Global    :      22
+            Local     :      63
+        Regenerable   :      34
+        Spilled       :      10
+        
+    Routine stack
+        Variables     :     320 bytes*
+            Reads     :       2 [2.00e+00 ~ 0.8%]
+            Writes    :       9 [9.00e+00 ~ 3.5%]
+        Spills        :      64 bytes*
+            Reads     :       8 [1.64e+01 ~ 6.4%]
+            Writes    :       8 [1.64e+01 ~ 6.4%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_get_min_dt_kernel(const char *, op_set, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_get_min_dt_kernel(const char *, op_set, op_arg, op_arg)) [21/82=25.6%] src/../seq/get_min_dt_kernel_seqkernel.cpp(11,15)
+  -> EXTERN: (21,3) op_timing_realloc(int)
+  -> EXTERN: (22,3) op_timers_core(double *, double *)
+  -> EXTERN: (26,5) printf(const char *, ...)
+  -> EXTERN: (29,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (34,7) get_min_dt_kernel(const double *, double *) (isz = 2) (sz = 9)
+  -> EXTERN: (41,3) op_mpi_reduce_double(op_arg *, double *)
+  -> EXTERN: (42,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (45,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/get_min_dt_kernel_seqkernel.cpp(33,5)
+<Peeled loop for vectorization, Multiversioned v1>
+   remark #25015: Estimate of max trip count of loop=3
+LOOP END
+
+LOOP BEGIN at src/../seq/get_min_dt_kernel_seqkernel.cpp(33,5)
+<Multiversioned v1>
+   remark #25228: Loop multiversioned for Data Dependence
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ src/../seq/.././src/Kernels/time_stepping_kernels.h(38,5) ]
+   remark #15389: vectorization support: reference arg0.data[n] has unaligned access   [ src/../seq/.././src/Kernels/time_stepping_kernels.h(38,11) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 1.450
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 8 
+   remark #15477: vector cost: 1.250 
+   remark #15478: estimated potential speedup: 4.940 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at src/../seq/get_min_dt_kernel_seqkernel.cpp(33,5)
+<Remainder loop for vectorization, Multiversioned v1>
+   remark #15389: vectorization support: reference arg0.data[n] has unaligned access   [ src/../seq/.././src/Kernels/time_stepping_kernels.h(38,11) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 5.333
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at src/../seq/get_min_dt_kernel_seqkernel.cpp(33,5)
+<Remainder loop for vectorization, Multiversioned v1>
+LOOP END
+
+LOOP BEGIN at src/../seq/get_min_dt_kernel_seqkernel.cpp(33,5)
+<Multiversioned v2>
+   remark #15304: loop was not vectorized: non-vectorizable loop instance from multiversioning
+   remark #25439: unrolled with remainder by 2  
+LOOP END
+
+LOOP BEGIN at src/../seq/get_min_dt_kernel_seqkernel.cpp(33,5)
+<Remainder, Multiversioned v2>
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/get_min_dt_kernel_seqkernel.cpp(16,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/get_min_dt_kernel_seqkernel.cpp(16,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/get_min_dt_kernel_seqkernel.cpp(17,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/get_min_dt_kernel_seqkernel.cpp(17,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/get_min_dt_kernel_seqkernel.cpp(11,15):remark #34051: REGISTER ALLOCATION : [_Z29op_par_loop_get_min_dt_kernelPKcP11op_set_core6op_argS3_] src/../seq/get_min_dt_kernel_seqkernel.cpp:11
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   17[ rax rdx rcx rsi rdi r8-r10 r12 r15 zmm0-zmm6]
+        
+    Routine temporaries
+        Total         :     113
+            Global    :      29
+            Local     :      84
+        Regenerable   :      19
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     224 bytes*
+            Reads     :       2 [2.00e+00 ~ 1.2%]
+            Writes    :       6 [6.00e+00 ~ 3.6%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_compute_step_factor_kernel(const char *, op_set, op_arg, op_arg, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_compute_step_factor_kernel(const char *, op_set, op_arg, op_arg, op_arg, op_arg)) [22/82=26.8%] src/../seq/compute_step_factor_kernel_seqkernel.cpp(13,15)
+  -> EXTERN: (25,3) op_timing_realloc(int)
+  -> EXTERN: (26,3) op_timers_core(double *, double *)
+  -> EXTERN: (30,5) printf(const char *, ...)
+  -> EXTERN: (33,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (38,7) compute_step_factor_kernel(const double *, const double *, const double *, double *) (isz = 42) (sz = 53)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/time_stepping_kernels.h:(57,23) compute_velocity(double &, double3 &, double3 &) (isz = 11) (sz = 20)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/time_stepping_kernels.h:(58,29) compute_speed_sqd(double3 &) (isz = 10) (sz = 16)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/time_stepping_kernels.h:(59,29) compute_pressure(double &, double &, double &) (isz = 4) (sz = 14)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/time_stepping_kernels.h:(60,29) compute_speed_of_sound(double &, double &) (isz = 3) (sz = 12)
+  -> EXTERN: (47,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (50,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/compute_step_factor_kernel_seqkernel.cpp(37,5)
+<Peeled loop for vectorization, Multiversioned v1>
+   remark #25015: Estimate of max trip count of loop=3
+LOOP END
+
+LOOP BEGIN at src/../seq/compute_step_factor_kernel_seqkernel.cpp(37,5)
+<Multiversioned v1>
+   remark #25228: Loop multiversioned for Data Dependence
+   remark #15388: vectorization support: reference arg3.data[n] has aligned access   [ src/../seq/.././src/Kernels/time_stepping_kernels.h(63,6) ]
+   remark #15389: vectorization support: reference arg1.data[n] has unaligned access   [ src/../seq/.././src/Kernels/time_stepping_kernels.h(63,34) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15399: vectorization support: unroll factor set to 4
+   remark #15309: vectorization support: normalized vectorization overhead 0.097
+   remark #15300: LOOP WAS VECTORIZED
+   remark #15442: entire loop may be executed in remainder
+   remark #15449: unmasked aligned unit stride stores: 1 
+   remark #15450: unmasked unaligned unit stride loads: 1 
+   remark #15475: --- begin vector cost summary ---
+   remark #15476: scalar cost: 31 
+   remark #15477: vector cost: 9.000 
+   remark #15478: estimated potential speedup: 3.120 
+   remark #15486: divides: 1 
+   remark #15488: --- end vector cost summary ---
+LOOP END
+
+LOOP BEGIN at src/../seq/compute_step_factor_kernel_seqkernel.cpp(37,5)
+<Remainder loop for vectorization, Multiversioned v1>
+   remark #15389: vectorization support: reference arg3.data[n] has unaligned access   [ src/../seq/.././src/Kernels/time_stepping_kernels.h(63,6) ]
+   remark #15389: vectorization support: reference arg1.data[n] has unaligned access   [ src/../seq/.././src/Kernels/time_stepping_kernels.h(63,34) ]
+   remark #15381: vectorization support: unaligned access used inside loop body
+   remark #15305: vectorization support: vector length 4
+   remark #15309: vectorization support: normalized vectorization overhead 0.447
+   remark #15301: REMAINDER LOOP WAS VECTORIZED
+LOOP END
+
+LOOP BEGIN at src/../seq/compute_step_factor_kernel_seqkernel.cpp(37,5)
+<Remainder loop for vectorization, Multiversioned v1>
+LOOP END
+
+LOOP BEGIN at src/../seq/compute_step_factor_kernel_seqkernel.cpp(37,5)
+<Multiversioned v2>
+   remark #15304: loop was not vectorized: non-vectorizable loop instance from multiversioning
+   remark #25439: unrolled with remainder by 2  
+LOOP END
+
+LOOP BEGIN at src/../seq/compute_step_factor_kernel_seqkernel.cpp(37,5)
+<Remainder, Multiversioned v2>
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/compute_step_factor_kernel_seqkernel.cpp(18,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_step_factor_kernel_seqkernel.cpp(18,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_step_factor_kernel_seqkernel.cpp(19,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_step_factor_kernel_seqkernel.cpp(19,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_step_factor_kernel_seqkernel.cpp(20,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_step_factor_kernel_seqkernel.cpp(20,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_step_factor_kernel_seqkernel.cpp(21,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_step_factor_kernel_seqkernel.cpp(21,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_step_factor_kernel_seqkernel.cpp(13,15):remark #34051: REGISTER ALLOCATION : [_Z38op_par_loop_compute_step_factor_kernelPKcP11op_set_core6op_argS3_S3_S3_] src/../seq/compute_step_factor_kernel_seqkernel.cpp:13
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   23[ rax rdx rcx rsi rdi r8-r11 r14-r15 zmm0-zmm11]
+        
+    Routine temporaries
+        Total         :     112
+            Global    :      34
+            Local     :      78
+        Regenerable   :      35
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     416 bytes*
+            Reads     :       2 [2.00e+00 ~ 1.1%]
+            Writes    :      12 [1.20e+01 ~ 6.6%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: compute_bnd_node_flux_kernel(const int *, const double *, const double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (compute_bnd_node_flux_kernel(const int *, const double *, const double *, double *)) src/../seq/.././src/Kernels/flux.h(148,1)
+
+===========================================================================
+
+Begin optimization report for: compute_flux_edge_kernel(const double *, const double *, const double *, double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (compute_flux_edge_kernel(const double *, const double *, const double *, double *, double *)) src/../seq/.././src/Kernels/flux.h(176,1)
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_compute_flux_edge_kernel(const char *, op_set, op_arg, op_arg, op_arg, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_compute_flux_edge_kernel(const char *, op_set, op_arg, op_arg, op_arg, op_arg, op_arg)) [25/82=30.5%] src/../seq/compute_flux_edge_kernel_seqkernel.cpp(18,15)
+  -> INLINE: (20,3) op_par_loop_compute_flux_edge_kernel_instrumented(const char *, op_set, op_arg, op_arg, op_arg, op_arg, op_arg, long *) (isz = 343) (sz = 362)
+    -> EXTERN: (56,3) op_timing_realloc(int)
+    -> EXTERN: (57,3) op_timers_core(double *, double *)
+    -> EXTERN: (63,5) printf(const char *, ...)
+    -> EXTERN: (66,3) op_timers_core(double *, double *)
+    -> EXTERN: (67,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+    -> EXTERN: (68,3) op_timers_core(double *, double *)
+    -> EXTERN: (83,5) op_timers_core(double *, double *)
+    -> EXTERN: (91,9) op_timers_core(double *, double *)
+    -> EXTERN: (93,9) op_mpi_wait_all(int, op_arg *)
+    -> EXTERN: (94,9) op_timers_core(double *, double *)
+    -> INLINE (MANUAL): (109,7) compute_flux_edge_kernel(const double *, const double *, const double *, double *, double *) (isz = 393) (sz = 406)
+      -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(202,3) compute_velocity(double &, double3 &, double3 &) (isz = 11) (sz = 20)
+      -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(205,24) compute_speed_sqd(double3 &) (isz = 10) (sz = 16)
+      -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(208,16) compute_pressure(double &, double &, double &) (isz = 4) (sz = 14)
+      -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(213,29) compute_speed_of_sound(double &, double &) (isz = 3) (sz = 12)
+      -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(216,3) compute_flux_contribution(double &, double3 &, double &, double &, double3 &, double *, double *, double *, double *) (isz = 62) (sz = 83)
+      -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(247,3) compute_velocity(double &, double3 &, double3 &) (isz = 11) (sz = 20)
+      -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(250,24) compute_speed_sqd(double3 &) (isz = 10) (sz = 16)
+      -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(252,16) compute_pressure(double &, double &, double &) (isz = 4) (sz = 14)
+      -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(257,29) compute_speed_of_sound(double &, double &) (isz = 3) (sz = 12)
+      -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(260,3) compute_flux_contribution(double &, double3 &, double &, double &, double3 &, double *, double *, double *, double *) (isz = 62) (sz = 83)
+    -> EXTERN: (116,5) op_timers_core(double *, double *)
+    -> EXTERN: (129,3) op_timers_core(double *, double *)
+    -> EXTERN: (131,5) op_mpi_wait_all(int, op_arg *)
+    -> EXTERN: (134,3) op_mpi_set_dirtybit(int, op_arg *)
+    -> EXTERN: (135,3) op_timers_core(double *, double *)
+    -> EXTERN: (139,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/compute_flux_edge_kernel_seqkernel.cpp(84,5) inlined into src/../seq/compute_flux_edge_kernel_seqkernel.cpp(21,3)
+   remark #15382: vectorization support: call to function op_timers_core(double *, double *) cannot be vectorized   [ src/../seq/compute_flux_edge_kernel_seqkernel.cpp(91,9) ]
+   remark #15382: vectorization support: call to function op_mpi_wait_all(int, op_arg *) cannot be vectorized   [ src/../seq/compute_flux_edge_kernel_seqkernel.cpp(93,9) ]
+   remark #15382: vectorization support: call to function op_timers_core(double *, double *) cannot be vectorized   [ src/../seq/compute_flux_edge_kernel_seqkernel.cpp(94,9) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(48,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(48,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(49,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(49,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(50,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(50,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(51,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(51,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(52,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(52,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(18,15):remark #34051: REGISTER ALLOCATION : [_Z36op_par_loop_compute_flux_edge_kernelPKcP11op_set_core6op_argS3_S3_S3_S3_] src/../seq/compute_flux_edge_kernel_seqkernel.cpp:18
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   30[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm15]
+        
+    Routine temporaries
+        Total         :     236
+            Global    :      21
+            Local     :     215
+        Regenerable   :      68
+        Spilled       :      22
+        
+    Routine stack
+        Variables     :     544 bytes*
+            Reads     :       2 [2.00e+00 ~ 0.3%]
+            Writes    :      15 [1.50e+01 ~ 2.1%]
+        Spills        :     152 bytes*
+            Reads     :      20 [5.48e+01 ~ 7.6%]
+            Writes    :      19 [5.18e+01 ~ 7.2%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_compute_flux_edge_kernel_instrumented(const char *, op_set, op_arg, op_arg, op_arg, op_arg, op_arg, long *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_compute_flux_edge_kernel_instrumented(const char *, op_set, op_arg, op_arg, op_arg, op_arg, op_arg, long *)) [26/82=31.7%] src/../seq/compute_flux_edge_kernel_seqkernel.cpp(43,1)
+  -> EXTERN: (56,3) op_timing_realloc(int)
+  -> EXTERN: (57,3) op_timers_core(double *, double *)
+  -> EXTERN: (63,5) printf(const char *, ...)
+  -> EXTERN: (66,3) op_timers_core(double *, double *)
+  -> EXTERN: (67,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> EXTERN: (68,3) op_timers_core(double *, double *)
+  -> EXTERN: (83,5) op_timers_core(double *, double *)
+  -> EXTERN: (91,9) op_timers_core(double *, double *)
+  -> EXTERN: (93,9) op_mpi_wait_all(int, op_arg *)
+  -> EXTERN: (94,9) op_timers_core(double *, double *)
+  -> INLINE (MANUAL): (109,7) compute_flux_edge_kernel(const double *, const double *, const double *, double *, double *) (isz = 393) (sz = 406)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(202,3) compute_velocity(double &, double3 &, double3 &) (isz = 11) (sz = 20)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(205,24) compute_speed_sqd(double3 &) (isz = 10) (sz = 16)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(208,16) compute_pressure(double &, double &, double &) (isz = 4) (sz = 14)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(213,29) compute_speed_of_sound(double &, double &) (isz = 3) (sz = 12)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(216,3) compute_flux_contribution(double &, double3 &, double &, double &, double3 &, double *, double *, double *, double *) (isz = 62) (sz = 83)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(247,3) compute_velocity(double &, double3 &, double3 &) (isz = 11) (sz = 20)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(250,24) compute_speed_sqd(double3 &) (isz = 10) (sz = 16)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(252,16) compute_pressure(double &, double &, double &) (isz = 4) (sz = 14)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(257,29) compute_speed_of_sound(double &, double &) (isz = 3) (sz = 12)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux.h:(260,3) compute_flux_contribution(double &, double3 &, double &, double &, double3 &, double *, double *, double *, double *) (isz = 62) (sz = 83)
+  -> EXTERN: (116,5) op_timers_core(double *, double *)
+  -> EXTERN: (129,3) op_timers_core(double *, double *)
+  -> EXTERN: (131,5) op_mpi_wait_all(int, op_arg *)
+  -> EXTERN: (134,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (135,3) op_timers_core(double *, double *)
+  -> EXTERN: (139,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/compute_flux_edge_kernel_seqkernel.cpp(84,5)
+   remark #15382: vectorization support: call to function op_timers_core(double *, double *) cannot be vectorized   [ src/../seq/compute_flux_edge_kernel_seqkernel.cpp(91,9) ]
+   remark #15382: vectorization support: call to function op_mpi_wait_all(int, op_arg *) cannot be vectorized   [ src/../seq/compute_flux_edge_kernel_seqkernel.cpp(93,9) ]
+   remark #15382: vectorization support: call to function op_timers_core(double *, double *) cannot be vectorized   [ src/../seq/compute_flux_edge_kernel_seqkernel.cpp(94,9) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(48,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(48,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(49,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(49,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(50,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(50,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(51,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(51,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(52,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(52,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_flux_edge_kernel_seqkernel.cpp(43,1):remark #34051: REGISTER ALLOCATION : [_Z49op_par_loop_compute_flux_edge_kernel_instrumentedPKcP11op_set_core6op_argS3_S3_S3_S3_Pl] src/../seq/compute_flux_edge_kernel_seqkernel.cpp:43
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   30[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm15]
+        
+    Routine temporaries
+        Total         :     240
+            Global    :      24
+            Local     :     216
+        Regenerable   :      69
+        Spilled       :      23
+        
+    Routine stack
+        Variables     :     544 bytes*
+            Reads     :       2 [2.00e+00 ~ 0.3%]
+            Writes    :      15 [1.50e+01 ~ 2.1%]
+        Spills        :     144 bytes*
+            Reads     :      19 [5.43e+01 ~ 7.4%]
+            Writes    :      18 [5.13e+01 ~ 7.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_compute_bnd_node_flux_kernel(const char *, op_set, op_arg, op_arg, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_compute_bnd_node_flux_kernel(const char *, op_set, op_arg, op_arg, op_arg, op_arg)) [27/82=32.9%] src/../seq/compute_bnd_node_flux_kernel_seqkernel.cpp(13,15)
+  -> EXTERN: (25,3) op_timing_realloc(int)
+  -> EXTERN: (26,3) op_timers_core(double *, double *)
+  -> EXTERN: (29,5) printf(const char *, ...)
+  -> EXTERN: (32,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> EXTERN: (38,9) op_mpi_wait_all(int, op_arg *)
+  -> INLINE (MANUAL): (43,7) compute_bnd_node_flux_kernel(const int *, const double *, const double *, double *) (isz = 276) (sz = 287)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux_boundary.elem_func:(30,5) compute_velocity(double &, double3 &, double3 &) (isz = 11) (sz = 20)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux_boundary.elem_func:(33,26) compute_speed_sqd(double3 &) (isz = 10) (sz = 16)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux_boundary.elem_func:(35,18) compute_pressure(double &, double &, double &) (isz = 4) (sz = 14)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux_boundary.elem_func:(40,31) compute_speed_of_sound(double &, double &) (isz = 3) (sz = 12)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux_boundary.elem_func:(43,5) compute_flux_contribution(double &, double3 &, double &, double &, double3 &, double *, double *, double *, double *) (isz = 62) (sz = 83)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux_wall.elem_func:(29,5) compute_velocity(double &, double3 &, double3 &) (isz = 11) (sz = 20)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux_wall.elem_func:(32,26) compute_speed_sqd(double3 &) (isz = 10) (sz = 16)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux_wall.elem_func:(34,18) compute_pressure(double &, double &, double &) (isz = 4) (sz = 14)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux_wall.elem_func:(39,31) compute_speed_of_sound(double &, double &) (isz = 3) (sz = 12)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/flux_wall.elem_func:(42,5) compute_flux_contribution(double &, double3 &, double &, double &, double3 &, double *, double *, double *, double *) (isz = 62) (sz = 83)
+  -> EXTERN: (52,5) op_mpi_wait_all(int, op_arg *)
+  -> EXTERN: (55,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (58,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/compute_bnd_node_flux_kernel_seqkernel.cpp(36,5)
+   remark #15382: vectorization support: call to function op_mpi_wait_all(int, op_arg *) cannot be vectorized   [ src/../seq/compute_bnd_node_flux_kernel_seqkernel.cpp(38,9) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/compute_bnd_node_flux_kernel_seqkernel.cpp(18,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_bnd_node_flux_kernel_seqkernel.cpp(18,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_bnd_node_flux_kernel_seqkernel.cpp(19,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_bnd_node_flux_kernel_seqkernel.cpp(19,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_bnd_node_flux_kernel_seqkernel.cpp(20,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_bnd_node_flux_kernel_seqkernel.cpp(20,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_bnd_node_flux_kernel_seqkernel.cpp(21,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/compute_bnd_node_flux_kernel_seqkernel.cpp(21,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/compute_bnd_node_flux_kernel_seqkernel.cpp(13,15):remark #34051: REGISTER ALLOCATION : [_Z40op_par_loop_compute_bnd_node_flux_kernelPKcP11op_set_core6op_argS3_S3_S3_] src/../seq/compute_bnd_node_flux_kernel_seqkernel.cpp:13
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   30[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm15]
+        
+    Routine temporaries
+        Total         :     162
+            Global    :      22
+            Local     :     140
+        Regenerable   :      45
+        Spilled       :       7
+        
+    Routine stack
+        Variables     :     416 bytes*
+            Reads     :       2 [2.00e+00 ~ 0.6%]
+            Writes    :      12 [1.20e+01 ~ 3.7%]
+        Spills        :      40 bytes*
+            Reads     :       5 [4.15e+00 ~ 1.3%]
+            Writes    :       5 [4.15e+00 ~ 1.3%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_time_step_kernel(const char *, op_set, op_arg, op_arg, op_arg, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_time_step_kernel(const char *, op_set, op_arg, op_arg, op_arg, op_arg, op_arg)) [28/82=34.1%] src/../seq/time_step_kernel_seqkernel.cpp(14,15)
+  -> EXTERN: (27,3) op_timing_realloc(int)
+  -> EXTERN: (28,3) op_timers_core(double *, double *)
+  -> EXTERN: (32,5) printf(const char *, ...)
+  -> EXTERN: (35,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (40,7) time_step_kernel(const int *, const double *, double *, const double *, double *) (isz = 57) (sz = 70)
+  -> EXTERN: (50,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (53,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/time_step_kernel_seqkernel.cpp(39,5)
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/time_stepping_kernels.h(81,5) inlined into src/../seq/time_step_kernel_seqkernel.cpp(41,7)
+      remark #15389: vectorization support: reference flux[_2] has unaligned access
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15305: vectorization support: vector length 4
+      remark #15309: vectorization support: normalized vectorization overhead 0.600
+      remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 4 
+      remark #15477: vector cost: 1.250 
+      remark #15478: estimated potential speedup: 1.660 
+      remark #15488: --- end vector cost summary ---
+      remark #25015: Estimate of max trip count of loop=1
+   LOOP END
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/time_stepping_kernels.h(75,5) inlined into src/../seq/time_step_kernel_seqkernel.cpp(41,7)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+      remark #15346: vector dependence: assumed FLOW dependence between variable[_2] (75:5) and old_variable[_2] (75:5)
+      remark #15346: vector dependence: assumed ANTI dependence between old_variable[_2] (75:5) and variable[_2] (75:5)
+      remark #25436: completely unrolled by 5  
+   LOOP END
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/time_stepping_kernels.h(81,5) inlined into src/../seq/time_step_kernel_seqkernel.cpp(41,7)
+   <Remainder loop for vectorization>
+      remark #25436: completely unrolled by 1  
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/time_step_kernel_seqkernel.cpp(19,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/time_step_kernel_seqkernel.cpp(19,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/time_step_kernel_seqkernel.cpp(20,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/time_step_kernel_seqkernel.cpp(20,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/time_step_kernel_seqkernel.cpp(21,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/time_step_kernel_seqkernel.cpp(21,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/time_step_kernel_seqkernel.cpp(22,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/time_step_kernel_seqkernel.cpp(22,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/time_step_kernel_seqkernel.cpp(23,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/time_step_kernel_seqkernel.cpp(23,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/time_step_kernel_seqkernel.cpp(14,15):remark #34051: REGISTER ALLOCATION : [_Z28op_par_loop_time_step_kernelPKcP11op_set_core6op_argS3_S3_S3_S3_] src/../seq/time_step_kernel_seqkernel.cpp:14
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   26[ rax rdx rcx rbx rsi rdi r8-r11 r15 zmm0-zmm14]
+        
+    Routine temporaries
+        Total         :      87
+            Global    :      21
+            Local     :      66
+        Regenerable   :      43
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     512 bytes*
+            Reads     :       2 [2.00e+00 ~ 0.9%]
+            Writes    :      15 [1.50e+01 ~ 6.9%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: indirect_rw_kernel(const double *, const double *, const double *, double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (indirect_rw_kernel(const double *, const double *, const double *, double *, double *)) src/../seq/.././src/Kernels/indirect_rw.h(13,1)
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_indirect_rw_kernel(const char *, op_set, op_arg, op_arg, op_arg, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_indirect_rw_kernel(const char *, op_set, op_arg, op_arg, op_arg, op_arg, op_arg)) [30/82=36.6%] src/../seq/indirect_rw_kernel_seqkernel.cpp(14,15)
+  -> EXTERN: (27,3) op_timing_realloc(int)
+  -> EXTERN: (28,3) op_timers_core(double *, double *)
+  -> EXTERN: (31,5) printf(const char *, ...)
+  -> EXTERN: (34,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> EXTERN: (40,9) op_mpi_wait_all(int, op_arg *)
+  -> INLINE (MANUAL): (46,7) indirect_rw_kernel(const double *, const double *, const double *, double *, double *) (isz = 99) (sz = 112)
+  -> EXTERN: (56,5) op_mpi_wait_all(int, op_arg *)
+  -> EXTERN: (59,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (62,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/indirect_rw_kernel_seqkernel.cpp(38,5)
+   remark #15382: vectorization support: call to function op_mpi_wait_all(int, op_arg *) cannot be vectorized   [ src/../seq/indirect_rw_kernel_seqkernel.cpp(40,9) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/indirect_rw_kernel_seqkernel.cpp(19,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/indirect_rw_kernel_seqkernel.cpp(19,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/indirect_rw_kernel_seqkernel.cpp(20,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/indirect_rw_kernel_seqkernel.cpp(20,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/indirect_rw_kernel_seqkernel.cpp(21,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/indirect_rw_kernel_seqkernel.cpp(21,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/indirect_rw_kernel_seqkernel.cpp(22,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/indirect_rw_kernel_seqkernel.cpp(22,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/indirect_rw_kernel_seqkernel.cpp(23,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/indirect_rw_kernel_seqkernel.cpp(23,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/indirect_rw_kernel_seqkernel.cpp(14,15):remark #34051: REGISTER ALLOCATION : [_Z30op_par_loop_indirect_rw_kernelPKcP11op_set_core6op_argS3_S3_S3_S3_] src/../seq/indirect_rw_kernel_seqkernel.cpp:14
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   30[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm15]
+        
+    Routine temporaries
+        Total         :     105
+            Global    :      14
+            Local     :      91
+        Regenerable   :      44
+        Spilled       :       5
+        
+    Routine stack
+        Variables     :     512 bytes*
+            Reads     :       2 [2.00e+00 ~ 0.6%]
+            Writes    :      15 [1.50e+01 ~ 4.3%]
+        Spills        :      24 bytes*
+            Reads     :       3 [2.27e+00 ~ 0.6%]
+            Writes    :       3 [2.27e+00 ~ 0.6%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: residual_kernel(const double *, const double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (residual_kernel(const double *, const double *, double *)) src/../seq/.././src/Kernels/validation.h(31,1)
+
+===========================================================================
+
+Begin optimization report for: calc_rms_kernel(const double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (calc_rms_kernel(const double *, double *)) src/../seq/.././src/Kernels/validation.h(40,1)
+
+===========================================================================
+
+Begin optimization report for: identify_differences(const double *, const double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (identify_differences(const double *, const double *, double *)) src/../seq/.././src/Kernels/validation.h(50,1)
+
+===========================================================================
+
+Begin optimization report for: count_non_zeros(const double *, int *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (count_non_zeros(const double *, int *)) src/../seq/.././src/Kernels/validation.h(94,1)
+
+===========================================================================
+
+Begin optimization report for: count_bad_vals(const double *, int *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (count_bad_vals(const double *, int *)) src/../seq/.././src/Kernels/validation.h(105,1)
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_residual_kernel(const char *, op_set, op_arg, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_residual_kernel(const char *, op_set, op_arg, op_arg, op_arg)) [36/82=43.9%] src/../seq/residual_kernel_seqkernel.cpp(12,15)
+  -> EXTERN: (23,3) op_timing_realloc(int)
+  -> EXTERN: (24,3) op_timers_core(double *, double *)
+  -> EXTERN: (28,5) printf(const char *, ...)
+  -> EXTERN: (31,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (36,7) residual_kernel(const double *, const double *, double *) (isz = 20) (sz = 29)
+  -> EXTERN: (44,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (47,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/residual_kernel_seqkernel.cpp(35,5)
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ src/../seq/residual_kernel_seqkernel.cpp(36,7) ]
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ src/../seq/residual_kernel_seqkernel.cpp(36,7) ]
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ src/../seq/residual_kernel_seqkernel.cpp(36,7) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed FLOW dependence between residual[v] (33:9) and old_variable[v] (33:9)
+   remark #15346: vector dependence: assumed ANTI dependence between old_variable[v] (33:9) and residual[v] (33:9)
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/validation.h(32,5) inlined into src/../seq/residual_kernel_seqkernel.cpp(37,7)
+      remark #25436: completely unrolled by 5   (pre-vector) 
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/residual_kernel_seqkernel.cpp(17,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/residual_kernel_seqkernel.cpp(17,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/residual_kernel_seqkernel.cpp(18,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/residual_kernel_seqkernel.cpp(18,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/residual_kernel_seqkernel.cpp(19,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/residual_kernel_seqkernel.cpp(19,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/residual_kernel_seqkernel.cpp(12,15):remark #34051: REGISTER ALLOCATION : [_Z27op_par_loop_residual_kernelPKcP11op_set_core6op_argS3_S3_] src/../seq/residual_kernel_seqkernel.cpp:12
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   20[ rax rdx rcx rbx rsi rdi r8-r10 r12 zmm0-zmm9]
+        
+    Routine temporaries
+        Total         :      68
+            Global    :      16
+            Local     :      52
+        Regenerable   :      32
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     320 bytes*
+            Reads     :       2 [2.00e+00 ~ 1.1%]
+            Writes    :       9 [9.00e+00 ~ 5.2%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_calc_rms_kernel(const char *, op_set, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_calc_rms_kernel(const char *, op_set, op_arg, op_arg)) [37/82=45.1%] src/../seq/calc_rms_kernel_seqkernel.cpp(11,15)
+  -> EXTERN: (21,3) op_timing_realloc(int)
+  -> EXTERN: (22,3) op_timers_core(double *, double *)
+  -> EXTERN: (26,5) printf(const char *, ...)
+  -> EXTERN: (29,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (34,7) calc_rms_kernel(const double *, double *) (isz = 21) (sz = 28)
+  -> EXTERN: (41,3) op_mpi_reduce_double(op_arg *, double *)
+  -> EXTERN: (42,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (45,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/calc_rms_kernel_seqkernel.cpp(33,5)
+   remark #25096: Loop Interchange not done due to: Imperfect Loop Nest (Either at Source or due to other Compiler Transformations)
+   remark #25452: Original Order found to be proper, but by a close margin
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ src/../seq/calc_rms_kernel_seqkernel.cpp(34,7) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed ANTI dependence between residual[i] (42:10) and *arg1.data (42:10)
+   remark #15346: vector dependence: assumed FLOW dependence between *arg1.data (42:10) and residual[i] (42:10)
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/validation.h(41,5) inlined into src/../seq/calc_rms_kernel_seqkernel.cpp(35,7)
+      remark #25436: completely unrolled by 5   (pre-vector) 
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/calc_rms_kernel_seqkernel.cpp(16,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/calc_rms_kernel_seqkernel.cpp(16,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/calc_rms_kernel_seqkernel.cpp(17,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/calc_rms_kernel_seqkernel.cpp(17,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/calc_rms_kernel_seqkernel.cpp(11,15):remark #34051: REGISTER ALLOCATION : [_Z27op_par_loop_calc_rms_kernelPKcP11op_set_core6op_argS3_] src/../seq/calc_rms_kernel_seqkernel.cpp:11
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   22[ rax rdx rcx rsi rdi r8 r12-r13 zmm0-zmm13]
+        
+    Routine temporaries
+        Total         :      69
+            Global    :      17
+            Local     :      52
+        Regenerable   :      20
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     224 bytes*
+            Reads     :       2 [2.00e+00 ~ 1.1%]
+            Writes    :       6 [6.00e+00 ~ 3.2%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_count_bad_vals(const char *, op_set, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_count_bad_vals(const char *, op_set, op_arg, op_arg)) [38/82=46.3%] src/../seq/count_bad_vals_seqkernel.cpp(11,15)
+  -> EXTERN: (21,3) op_timing_realloc(int)
+  -> EXTERN: (22,3) op_timers_core(double *, double *)
+  -> EXTERN: (26,5) printf(const char *, ...)
+  -> EXTERN: (29,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (34,7) count_bad_vals(const double *, int *) (isz = 34) (sz = 41)
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/validation.h:(110,17) std::isnan(double) (isz = 3) (sz = 10)
+      -> EXTERN: /usr/include/c++/6/cmath:(650,12) __isnan
+    -> INLINE (MANUAL): src/../seq/.././src/Kernels/validation.h:(110,36) std::isinf(double) (isz = 3) (sz = 10)
+      -> EXTERN: /usr/include/c++/6/cmath:(623,12) __builtin_isinfd
+  -> EXTERN: (41,3) op_mpi_reduce_int(op_arg *, int *)
+  -> EXTERN: (42,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (45,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/count_bad_vals_seqkernel.cpp(33,5)
+   remark #25096: Loop Interchange not done due to: Imperfect Loop Nest (Either at Source or due to other Compiler Transformations)
+   remark #25452: Original Order found to be proper, but by a close margin
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed OUTPUT dependence between *arg1.data (111:18) and *arg1.data (111:18)
+   remark #15346: vector dependence: assumed OUTPUT dependence between *arg1.data (111:18) and *arg1.data (111:18)
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/validation.h(109,9) inlined into src/../seq/count_bad_vals_seqkernel.cpp(35,7)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+      remark #15346: vector dependence: assumed FLOW dependence between *arg1.data (111:18) and *arg1.data (111:18)
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/count_bad_vals_seqkernel.cpp(16,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/count_bad_vals_seqkernel.cpp(16,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/count_bad_vals_seqkernel.cpp(17,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/count_bad_vals_seqkernel.cpp(17,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/count_bad_vals_seqkernel.cpp(11,15):remark #34051: REGISTER ALLOCATION : [_Z26op_par_loop_count_bad_valsPKcP11op_set_core6op_argS3_] src/../seq/count_bad_vals_seqkernel.cpp:11
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   16[ rax rdx rcx rsi rdi r8-r10 r12-r13 zmm0-zmm5]
+        
+    Routine temporaries
+        Total         :      61
+            Global    :      17
+            Local     :      44
+        Regenerable   :      21
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     224 bytes*
+            Reads     :       2 [2.00e+00 ~ 0.7%]
+            Writes    :       6 [6.00e+00 ~ 2.0%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: up_pre_kernel(double *, int *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (up_pre_kernel(double *, int *)) src/../seq/.././src/Kernels/mg.h(32,1)
+
+===========================================================================
+
+Begin optimization report for: up_kernel(const double *, double *, int *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (up_kernel(const double *, double *, int *)) src/../seq/.././src/Kernels/mg.h(45,1)
+
+===========================================================================
+
+Begin optimization report for: up_post_kernel(double *, const int *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (up_post_kernel(double *, const int *)) src/../seq/.././src/Kernels/mg.h(57,1)
+
+===========================================================================
+
+Begin optimization report for: down_kernel(double *, const double *, const double *, const double *, const double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (down_kernel(double *, const double *, const double *, const double *, const double *)) src/../seq/.././src/Kernels/mg.h(72,1)
+
+===========================================================================
+
+Begin optimization report for: down_v2_kernel_pre(double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (down_v2_kernel_pre(double *, double *)) src/../seq/.././src/Kernels/mg.h(88,1)
+
+===========================================================================
+
+Begin optimization report for: down_v2_kernel(const double *, const double *, const double *, const double *, const double *, const double *, double *, double *, double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (down_v2_kernel(const double *, const double *, const double *, const double *, const double *, const double *, double *, double *, double *, double *)) src/../seq/.././src/Kernels/mg.h(107,1)
+
+===========================================================================
+
+Begin optimization report for: down_v2_kernel_post(const double *, const double *, const double *, double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (down_v2_kernel_post(const double *, const double *, const double *, double *)) src/../seq/.././src/Kernels/mg.h(193,1)
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_up_pre_kernel(const char *, op_set, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_up_pre_kernel(const char *, op_set, op_arg, op_arg)) [46/82=56.1%] src/../seq/up_pre_kernel_seqkernel.cpp(11,15)
+  -> EXTERN: (21,3) op_timing_realloc(int)
+  -> EXTERN: (22,3) op_timers_core(double *, double *)
+  -> EXTERN: (25,5) printf(const char *, ...)
+  -> EXTERN: (28,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> EXTERN: (34,9) op_mpi_wait_all(int, op_arg *)
+  -> INLINE (MANUAL): (39,7) up_pre_kernel(double *, int *) (isz = 13) (sz = 20)
+  -> EXTERN: (46,5) op_mpi_wait_all(int, op_arg *)
+  -> EXTERN: (49,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (52,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/up_pre_kernel_seqkernel.cpp(32,5)
+   remark #25096: Loop Interchange not done due to: Imperfect Loop Nest (Either at Source or due to other Compiler Transformations)
+   remark #25452: Original Order found to be proper, but by a close margin
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/mg.h(33,5) inlined into src/../seq/up_pre_kernel_seqkernel.cpp(40,7)
+      remark #15389: vectorization support: reference variable[_2] has unaligned access
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15305: vectorization support: vector length 4
+      remark #15309: vectorization support: normalized vectorization overhead 0.600
+      remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 4 
+      remark #15477: vector cost: 1.250 
+      remark #15478: estimated potential speedup: 1.660 
+      remark #15488: --- end vector cost summary ---
+      remark #25015: Estimate of max trip count of loop=1
+   LOOP END
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/mg.h(33,5) inlined into src/../seq/up_pre_kernel_seqkernel.cpp(40,7)
+   <Remainder loop for vectorization>
+      remark #25436: completely unrolled by 1  
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/up_pre_kernel_seqkernel.cpp(16,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/up_pre_kernel_seqkernel.cpp(16,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/up_pre_kernel_seqkernel.cpp(17,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/up_pre_kernel_seqkernel.cpp(17,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/up_pre_kernel_seqkernel.cpp(11,15):remark #34051: REGISTER ALLOCATION : [_Z25op_par_loop_up_pre_kernelPKcP11op_set_core6op_argS3_] src/../seq/up_pre_kernel_seqkernel.cpp:11
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   22[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm7]
+        
+    Routine temporaries
+        Total         :      66
+            Global    :      14
+            Local     :      52
+        Regenerable   :      35
+        Spilled       :       5
+        
+    Routine stack
+        Variables     :     224 bytes*
+            Reads     :       2 [2.00e+00 ~ 1.0%]
+            Writes    :       6 [6.00e+00 ~ 3.1%]
+        Spills        :      24 bytes*
+            Reads     :       3 [2.27e+00 ~ 1.2%]
+            Writes    :       3 [2.27e+00 ~ 1.2%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_up_kernel(const char *, op_set, op_arg, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_up_kernel(const char *, op_set, op_arg, op_arg, op_arg)) [47/82=57.3%] src/../seq/up_kernel_seqkernel.cpp(12,15)
+  -> EXTERN: (23,3) op_timing_realloc(int)
+  -> EXTERN: (24,3) op_timers_core(double *, double *)
+  -> EXTERN: (27,5) printf(const char *, ...)
+  -> EXTERN: (30,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> EXTERN: (36,9) op_mpi_wait_all(int, op_arg *)
+  -> INLINE (MANUAL): (41,7) up_kernel(const double *, double *, int *) (isz = 37) (sz = 46)
+  -> EXTERN: (49,5) op_mpi_wait_all(int, op_arg *)
+  -> EXTERN: (52,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (55,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/up_kernel_seqkernel.cpp(34,5)
+   remark #15382: vectorization support: call to function op_mpi_wait_all(int, op_arg *) cannot be vectorized   [ src/../seq/up_kernel_seqkernel.cpp(36,9) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/mg.h(46,5) inlined into src/../seq/up_kernel_seqkernel.cpp(42,7)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+      remark #15346: vector dependence: assumed FLOW dependence between variable_above[_2] (46:5) and variable[_2] (46:5)
+      remark #15346: vector dependence: assumed ANTI dependence between variable[_2] (46:5) and variable_above[_2] (46:5)
+      remark #25436: completely unrolled by 5  
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/up_kernel_seqkernel.cpp(17,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/up_kernel_seqkernel.cpp(17,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/up_kernel_seqkernel.cpp(18,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/up_kernel_seqkernel.cpp(18,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/up_kernel_seqkernel.cpp(19,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/up_kernel_seqkernel.cpp(19,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/up_kernel_seqkernel.cpp(12,15):remark #34051: REGISTER ALLOCATION : [_Z21op_par_loop_up_kernelPKcP11op_set_core6op_argS3_S3_] src/../seq/up_kernel_seqkernel.cpp:12
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   24[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm9]
+        
+    Routine temporaries
+        Total         :      81
+            Global    :      13
+            Local     :      68
+        Regenerable   :      38
+        Spilled       :       5
+        
+    Routine stack
+        Variables     :     320 bytes*
+            Reads     :       2 [2.00e+00 ~ 0.8%]
+            Writes    :       9 [9.00e+00 ~ 3.5%]
+        Spills        :      24 bytes*
+            Reads     :       3 [2.27e+00 ~ 0.9%]
+            Writes    :       3 [2.27e+00 ~ 0.9%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_up_post_kernel(const char *, op_set, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_up_post_kernel(const char *, op_set, op_arg, op_arg)) [48/82=58.5%] src/../seq/up_post_kernel_seqkernel.cpp(11,15)
+  -> EXTERN: (21,3) op_timing_realloc(int)
+  -> EXTERN: (22,3) op_timers_core(double *, double *)
+  -> EXTERN: (26,5) printf(const char *, ...)
+  -> EXTERN: (29,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (34,7) up_post_kernel(double *, const int *) (isz = 34) (sz = 41)
+  -> EXTERN: (41,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (44,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/up_post_kernel_seqkernel.cpp(33,5)
+   remark #25096: Loop Interchange not done due to: Imperfect Loop Nest (Either at Source or due to other Compiler Transformations)
+   remark #25452: Original Order found to be proper, but by a close margin
+   remark #15542: loop was not vectorized: inner loop was already vectorized
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/mg.h(59,5) inlined into src/../seq/up_post_kernel_seqkernel.cpp(35,7)
+      remark #15389: vectorization support: reference variable[_2] has unaligned access
+      remark #15389: vectorization support: reference variable[_2] has unaligned access
+      remark #15381: vectorization support: unaligned access used inside loop body
+      remark #15305: vectorization support: vector length 4
+      remark #15309: vectorization support: normalized vectorization overhead 0.875
+      remark #15301: MATERIALIZED LOOP WAS VECTORIZED
+      remark #15450: unmasked unaligned unit stride loads: 1 
+      remark #15451: unmasked unaligned unit stride stores: 1 
+      remark #15475: --- begin vector cost summary ---
+      remark #15476: scalar cost: 7 
+      remark #15477: vector cost: 2.000 
+      remark #15478: estimated potential speedup: 1.590 
+      remark #15488: --- end vector cost summary ---
+      remark #25015: Estimate of max trip count of loop=1
+   LOOP END
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/mg.h(59,5) inlined into src/../seq/up_post_kernel_seqkernel.cpp(35,7)
+   <Remainder loop for vectorization>
+      remark #25436: completely unrolled by 1  
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/up_post_kernel_seqkernel.cpp(16,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/up_post_kernel_seqkernel.cpp(16,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/up_post_kernel_seqkernel.cpp(17,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/up_post_kernel_seqkernel.cpp(17,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/up_post_kernel_seqkernel.cpp(11,15):remark #34051: REGISTER ALLOCATION : [_Z26op_par_loop_up_post_kernelPKcP11op_set_core6op_argS3_] src/../seq/up_post_kernel_seqkernel.cpp:11
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   15[ rax rdx rcx rbx rsi rdi r8-r9 r15 zmm0-zmm5]
+        
+    Routine temporaries
+        Total         :      61
+            Global    :      19
+            Local     :      42
+        Regenerable   :      28
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     224 bytes*
+            Reads     :       2 [2.00e+00 ~ 1.3%]
+            Writes    :       6 [6.00e+00 ~ 4.0%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_down_v2_kernel_pre(const char *, op_set, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_down_v2_kernel_pre(const char *, op_set, op_arg, op_arg)) [49/82=59.8%] src/../seq/down_v2_kernel_pre_seqkernel.cpp(11,15)
+  -> EXTERN: (21,3) op_timing_realloc(int)
+  -> EXTERN: (22,3) op_timers_core(double *, double *)
+  -> EXTERN: (26,5) printf(const char *, ...)
+  -> EXTERN: (29,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (34,7) down_v2_kernel_pre(double *, double *) (isz = 13) (sz = 20)
+  -> EXTERN: (41,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (44,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/down_v2_kernel_pre_seqkernel.cpp(33,5)
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed OUTPUT dependence between arg0.data[n*5] (89:6) and *(residual_sum+32) (94:5)
+   remark #15346: vector dependence: assumed OUTPUT dependence between *(residual_sum+32) (94:5) and arg0.data[n*5] (89:6)
+   remark #25439: unrolled with remainder by 2  
+LOOP END
+
+LOOP BEGIN at src/../seq/down_v2_kernel_pre_seqkernel.cpp(33,5)
+<Remainder>
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/down_v2_kernel_pre_seqkernel.cpp(16,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_pre_seqkernel.cpp(16,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_pre_seqkernel.cpp(17,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_pre_seqkernel.cpp(17,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_pre_seqkernel.cpp(11,15):remark #34051: REGISTER ALLOCATION : [_Z30op_par_loop_down_v2_kernel_prePKcP11op_set_core6op_argS3_] src/../seq/down_v2_kernel_pre_seqkernel.cpp:11
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   19[ rax rdx rcx rbx rsi rdi r8-r12 zmm0-zmm7]
+        
+    Routine temporaries
+        Total         :      62
+            Global    :      18
+            Local     :      44
+        Regenerable   :      29
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     224 bytes*
+            Reads     :       2 [2.00e+00 ~ 1.6%]
+            Writes    :       6 [6.00e+00 ~ 4.8%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_down_v2_kernel(const char *, op_set, op_arg, op_arg, op_arg, op_arg, op_arg, op_arg, op_arg, op_arg, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_down_v2_kernel(const char *, op_set, op_arg, op_arg, op_arg, op_arg, op_arg, op_arg, op_arg, op_arg, op_arg, op_arg)) [50/82=61.0%] src/../seq/down_v2_kernel_seqkernel.cpp(19,15)
+  -> EXTERN: (37,3) op_timing_realloc(int)
+  -> EXTERN: (38,3) op_timers_core(double *, double *)
+  -> EXTERN: (41,5) printf(const char *, ...)
+  -> EXTERN: (44,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> EXTERN: (50,9) op_mpi_wait_all(int, op_arg *)
+  -> INLINE (MANUAL): (58,7) down_v2_kernel(const double *, const double *, const double *, const double *, const double *, const double *, double *, double *, double *, double *) (isz = 343) (sz = 366)
+  -> EXTERN: (73,5) op_mpi_wait_all(int, op_arg *)
+  -> EXTERN: (76,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (79,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/down_v2_kernel_seqkernel.cpp(48,5)
+   remark #15541: outer loop was not auto-vectorized: consider using SIMD directive
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/mg.h(121,9) inlined into src/../seq/down_v2_kernel_seqkernel.cpp(59,7)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+      remark #15346: vector dependence: assumed FLOW dependence between residuals1a_prolonged[_2] (121:9) and residuals1a[_2] (121:9)
+      remark #15346: vector dependence: assumed ANTI dependence between residuals1a[_2] (121:9) and residuals1a_prolonged[_2] (121:9)
+      remark #25436: completely unrolled by 5  
+   LOOP END
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/mg.h(130,9) inlined into src/../seq/down_v2_kernel_seqkernel.cpp(59,7)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+      remark #15346: vector dependence: assumed FLOW dependence between residuals1a_prolonged[_2] (130:9) and residuals1a[_2] (130:9)
+      remark #15346: vector dependence: assumed ANTI dependence between residuals1a[_2] (130:9) and residuals1a_prolonged[_2] (130:9)
+      remark #25436: completely unrolled by 5  
+   LOOP END
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/mg.h(143,9) inlined into src/../seq/down_v2_kernel_seqkernel.cpp(59,7)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+      remark #15346: vector dependence: assumed FLOW dependence between residuals1a_prolonged[_2] (143:9) and residuals1b[_2] (143:9)
+      remark #15346: vector dependence: assumed ANTI dependence between residuals1b[_2] (143:9) and residuals1a_prolonged[_2] (143:9)
+      remark #25436: completely unrolled by 5  
+   LOOP END
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/mg.h(157,9) inlined into src/../seq/down_v2_kernel_seqkernel.cpp(59,7)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+      remark #15346: vector dependence: assumed FLOW dependence between residuals1b_prolonged[_2] (157:9) and residuals1b[_2] (157:9)
+      remark #15346: vector dependence: assumed ANTI dependence between residuals1b[_2] (157:9) and residuals1b_prolonged[_2] (157:9)
+      remark #25436: completely unrolled by 5  
+   LOOP END
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/mg.h(166,9) inlined into src/../seq/down_v2_kernel_seqkernel.cpp(59,7)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+      remark #15346: vector dependence: assumed FLOW dependence between residuals1b_prolonged[_2] (166:9) and residuals1b[_2] (166:9)
+      remark #15346: vector dependence: assumed ANTI dependence between residuals1b[_2] (166:9) and residuals1b_prolonged[_2] (166:9)
+      remark #25436: completely unrolled by 5  
+   LOOP END
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/mg.h(179,9) inlined into src/../seq/down_v2_kernel_seqkernel.cpp(59,7)
+      remark #15344: loop was not vectorized: vector dependence prevents vectorization
+      remark #15346: vector dependence: assumed FLOW dependence between residuals1b_prolonged[_2] (179:9) and residuals1b[_2] (179:9)
+      remark #15346: vector dependence: assumed ANTI dependence between residuals1b[_2] (179:9) and residuals1b_prolonged[_2] (179:9)
+      remark #25436: completely unrolled by 5  
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/down_v2_kernel_seqkernel.cpp(24,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_seqkernel.cpp(24,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_seqkernel.cpp(25,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_seqkernel.cpp(25,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_seqkernel.cpp(26,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_seqkernel.cpp(26,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_seqkernel.cpp(27,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_seqkernel.cpp(27,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_seqkernel.cpp(28,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_seqkernel.cpp(28,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_seqkernel.cpp(29,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_seqkernel.cpp(29,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_seqkernel.cpp(30,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_seqkernel.cpp(30,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_seqkernel.cpp(31,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_seqkernel.cpp(31,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_seqkernel.cpp(32,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_seqkernel.cpp(32,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_seqkernel.cpp(33,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_seqkernel.cpp(33,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_seqkernel.cpp(19,15):remark #34051: REGISTER ALLOCATION : [_Z26op_par_loop_down_v2_kernelPKcP11op_set_core6op_argS3_S3_S3_S3_S3_S3_S3_S3_S3_] src/../seq/down_v2_kernel_seqkernel.cpp:19
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   30[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm15]
+        
+    Routine temporaries
+        Total         :     236
+            Global    :      37
+            Local     :     199
+        Regenerable   :      70
+        Spilled       :      10
+        
+    Routine stack
+        Variables     :     992 bytes*
+            Reads     :       2 [2.00e+00 ~ 0.2%]
+            Writes    :      30 [3.00e+01 ~ 3.4%]
+        Spills        :      64 bytes*
+            Reads     :      11 [1.88e+01 ~ 2.1%]
+            Writes    :       9 [1.04e+01 ~ 1.2%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_down_v2_kernel_post(const char *, op_set, op_arg, op_arg, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_down_v2_kernel_post(const char *, op_set, op_arg, op_arg, op_arg, op_arg)) [51/82=62.2%] src/../seq/down_v2_kernel_post_seqkernel.cpp(13,15)
+  -> EXTERN: (25,3) op_timing_realloc(int)
+  -> EXTERN: (26,3) op_timers_core(double *, double *)
+  -> EXTERN: (30,5) printf(const char *, ...)
+  -> EXTERN: (33,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (38,7) down_v2_kernel_post(const double *, const double *, const double *, double *) (isz = 25) (sz = 36)
+  -> EXTERN: (47,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (50,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/down_v2_kernel_post_seqkernel.cpp(37,5)
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ src/../seq/down_v2_kernel_post_seqkernel.cpp(38,7) ]
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ src/../seq/down_v2_kernel_post_seqkernel.cpp(38,7) ]
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ src/../seq/down_v2_kernel_post_seqkernel.cpp(38,7) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed FLOW dependence between variables2[i] (197:9) and arg1.data[n] (197:9)
+   remark #15346: vector dependence: assumed ANTI dependence between arg1.data[n] (197:9) and variables2[i] (197:9)
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/mg.h(196,5) inlined into src/../seq/down_v2_kernel_post_seqkernel.cpp(39,7)
+      remark #25436: completely unrolled by 5   (pre-vector) 
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/down_v2_kernel_post_seqkernel.cpp(18,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_post_seqkernel.cpp(18,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_post_seqkernel.cpp(19,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_post_seqkernel.cpp(19,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_post_seqkernel.cpp(20,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_post_seqkernel.cpp(20,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_post_seqkernel.cpp(21,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_v2_kernel_post_seqkernel.cpp(21,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_v2_kernel_post_seqkernel.cpp(13,15):remark #34051: REGISTER ALLOCATION : [_Z31op_par_loop_down_v2_kernel_postPKcP11op_set_core6op_argS3_S3_S3_] src/../seq/down_v2_kernel_post_seqkernel.cpp:13
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   27[ rax rdx rcx rbx rsi rdi r8-r11 r15 zmm0-zmm15]
+        
+    Routine temporaries
+        Total         :      91
+            Global    :      18
+            Local     :      73
+        Regenerable   :      36
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     416 bytes*
+            Reads     :       2 [2.00e+00 ~ 0.8%]
+            Writes    :      12 [1.20e+01 ~ 4.6%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_down_kernel(const char *, op_set, op_arg, op_arg, op_arg, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_down_kernel(const char *, op_set, op_arg, op_arg, op_arg, op_arg, op_arg)) [52/82=63.4%] src/../seq/down_kernel_seqkernel.cpp(14,15)
+  -> EXTERN: (27,3) op_timing_realloc(int)
+  -> EXTERN: (28,3) op_timers_core(double *, double *)
+  -> EXTERN: (31,5) printf(const char *, ...)
+  -> EXTERN: (34,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> EXTERN: (40,9) op_mpi_wait_all(int, op_arg *)
+  -> INLINE (MANUAL): (45,7) down_kernel(double *, const double *, const double *, const double *, const double *) (isz = 80) (sz = 93)
+  -> EXTERN: (55,5) op_mpi_wait_all(int, op_arg *)
+  -> EXTERN: (58,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (61,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/down_kernel_seqkernel.cpp(38,5)
+   remark #15382: vectorization support: call to function op_mpi_wait_all(int, op_arg *) cannot be vectorized   [ src/../seq/down_kernel_seqkernel.cpp(40,9) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/down_kernel_seqkernel.cpp(19,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_kernel_seqkernel.cpp(19,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_kernel_seqkernel.cpp(20,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_kernel_seqkernel.cpp(20,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_kernel_seqkernel.cpp(21,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_kernel_seqkernel.cpp(21,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_kernel_seqkernel.cpp(22,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_kernel_seqkernel.cpp(22,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_kernel_seqkernel.cpp(23,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/down_kernel_seqkernel.cpp(23,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/down_kernel_seqkernel.cpp(14,15):remark #34051: REGISTER ALLOCATION : [_Z23op_par_loop_down_kernelPKcP11op_set_core6op_argS3_S3_S3_S3_] src/../seq/down_kernel_seqkernel.cpp:14
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   30[ rax rdx rcx rbx rsi rdi r8-r15 zmm0-zmm15]
+        
+    Routine temporaries
+        Total         :     114
+            Global    :      15
+            Local     :      99
+        Regenerable   :      48
+        Spilled       :       6
+        
+    Routine stack
+        Variables     :     512 bytes*
+            Reads     :       2 [2.00e+00 ~ 0.5%]
+            Writes    :      15 [1.50e+01 ~ 4.1%]
+        Spills        :      32 bytes*
+            Reads     :       4 [3.02e+00 ~ 0.8%]
+            Writes    :       4 [3.02e+00 ~ 0.8%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_identify_differences(const char *, op_set, op_arg, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_identify_differences(const char *, op_set, op_arg, op_arg, op_arg)) [53/82=64.6%] src/../seq/identify_differences_seqkernel.cpp(12,15)
+  -> EXTERN: (23,3) op_timing_realloc(int)
+  -> EXTERN: (24,3) op_timers_core(double *, double *)
+  -> EXTERN: (28,5) printf(const char *, ...)
+  -> EXTERN: (31,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (36,7) identify_differences(const double *, const double *, double *) (isz = 39) (sz = 48)
+  -> EXTERN: (44,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (47,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/identify_differences_seqkernel.cpp(35,5)
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ src/../seq/identify_differences_seqkernel.cpp(36,7) ]
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ src/../seq/identify_differences_seqkernel.cpp(36,7) ]
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ src/../seq/identify_differences_seqkernel.cpp(36,7) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed ANTI dependence between master_value[v] (74:9) and difference[v] (86:13)
+   remark #15346: vector dependence: assumed FLOW dependence between difference[v] (86:13) and master_value[v] (74:9)
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/validation.h(67,5) inlined into src/../seq/identify_differences_seqkernel.cpp(37,7)
+      remark #25436: completely unrolled by 5   (pre-vector) 
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/identify_differences_seqkernel.cpp(17,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/identify_differences_seqkernel.cpp(17,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/identify_differences_seqkernel.cpp(18,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/identify_differences_seqkernel.cpp(18,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/identify_differences_seqkernel.cpp(19,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/identify_differences_seqkernel.cpp(19,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/identify_differences_seqkernel.cpp(12,15):remark #34051: REGISTER ALLOCATION : [_Z32op_par_loop_identify_differencesPKcP11op_set_core6op_argS3_S3_] src/../seq/identify_differences_seqkernel.cpp:12
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   19[ rax rdx rcx rsi rdi r8-r10 r14-r15 zmm0-zmm8]
+        
+    Routine temporaries
+        Total         :      96
+            Global    :      25
+            Local     :      71
+        Regenerable   :      35
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     320 bytes*
+            Reads     :       2 [2.00e+00 ~ 0.6%]
+            Writes    :       9 [9.00e+00 ~ 2.8%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_count_non_zeros(const char *, op_set, op_arg, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_count_non_zeros(const char *, op_set, op_arg, op_arg)) [54/82=65.9%] src/../seq/count_non_zeros_seqkernel.cpp(11,15)
+  -> EXTERN: (21,3) op_timing_realloc(int)
+  -> EXTERN: (22,3) op_timers_core(double *, double *)
+  -> EXTERN: (26,5) printf(const char *, ...)
+  -> EXTERN: (29,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (34,7) count_non_zeros(const double *, int *) (isz = 17) (sz = 24)
+  -> EXTERN: (41,3) op_mpi_reduce_int(op_arg *, int *)
+  -> EXTERN: (42,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (45,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/count_non_zeros_seqkernel.cpp(33,5)
+   remark #25096: Loop Interchange not done due to: Imperfect Loop Nest (Either at Source or due to other Compiler Transformations)
+   remark #25451: Advice: Loop Interchange, if possible, might help loopnest. Suggested Permutation : ( 1 2 ) --> ( 2 1 ) 
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed FLOW dependence between *arg1.data (97:15) and *arg1.data (97:15)
+   remark #25439: unrolled with remainder by 2  
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/validation.h(95,5) inlined into src/../seq/count_non_zeros_seqkernel.cpp(35,7)
+      remark #25436: completely unrolled by 5   (pre-vector) 
+   LOOP END
+LOOP END
+
+LOOP BEGIN at src/../seq/count_non_zeros_seqkernel.cpp(33,5)
+<Remainder>
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/count_non_zeros_seqkernel.cpp(16,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/count_non_zeros_seqkernel.cpp(16,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/count_non_zeros_seqkernel.cpp(17,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/count_non_zeros_seqkernel.cpp(17,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/count_non_zeros_seqkernel.cpp(11,15):remark #34051: REGISTER ALLOCATION : [_Z27op_par_loop_count_non_zerosPKcP11op_set_core6op_argS3_] src/../seq/count_non_zeros_seqkernel.cpp:11
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   16[ rax rdx rcx rbx rsi rdi r8-r10 r15 zmm0-zmm5]
+        
+    Routine temporaries
+        Total         :      62
+            Global    :      19
+            Local     :      43
+        Regenerable   :      21
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     224 bytes*
+            Reads     :       2 [2.00e+00 ~ 1.8%]
+            Writes    :       6 [6.00e+00 ~ 5.3%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: std::allocator_traits<std::allocator<char>>::deallocate(std::allocator_traits<std::allocator<char>>::allocator_type &, std::allocator_traits<std::allocator<char>>::pointer, std::allocator_traits<std::allocator<char>>::size_type)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (std::allocator_traits<std::allocator<char>>::deallocate(std::allocator_traits<std::allocator<char>>::allocator_type &, std::allocator_traits<std::allocator<char>>::pointer, std::allocator_traits<std::allocator<char>>::size_type)) /usr/include/c++/6/bits/alloc_traits.h(462,7)
+
+===========================================================================
+
+Begin optimization report for: std::pointer_traits<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>::const_pointer>::pointer_to(std::__make_not_void<std::pointer_traits<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>::const_pointer>::element_type> &)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (std::pointer_traits<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>::const_pointer>::pointer_to(std::__make_not_void<std::pointer_traits<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>::const_pointer>::element_type> &)) /usr/include/c++/6/bits/ptr_traits.h(142,7)
+
+===========================================================================
+
+Begin optimization report for: std::__cxx11::basic_stringbuf<char, std::char_traits<char>, std::allocator<char>>::~basic_stringbuf(std::__cxx11::basic_stringbuf<char, std::char_traits<char>, std::allocator<char>> *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (std::__cxx11::basic_stringbuf<char, std::char_traits<char>, std::allocator<char>>::~basic_stringbuf(std::__cxx11::basic_stringbuf<char, std::char_traits<char>, std::allocator<char>> *)) /usr/include/c++/6/iosfwd(96,11)
+
+===========================================================================
+
+Begin optimization report for: __gnu_cxx::new_allocator<char>::deallocate(__gnu_cxx::new_allocator<char> *, __gnu_cxx::new_allocator<char>::pointer, __gnu_cxx::new_allocator<char>::size_type)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (__gnu_cxx::new_allocator<char>::deallocate(__gnu_cxx::new_allocator<char> *, __gnu_cxx::new_allocator<char>::pointer, __gnu_cxx::new_allocator<char>::size_type)) /usr/include/c++/6/ext/new_allocator.h(110,7)
+
+===========================================================================
+
+Begin optimization report for: std::isinf(double)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (std::isinf(double)) /usr/include/c++/6/cmath(623,3)
+
+===========================================================================
+
+Begin optimization report for: std::isnan(double)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (std::isnan(double)) /usr/include/c++/6/cmath(650,3)
+
+===========================================================================
+
+Begin optimization report for: std::addressof<std::__make_not_void<std::pointer_traits<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>::const_pointer>::element_type>>(std::__make_not_void<std::pointer_traits<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>::const_pointer>::element_type> &)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (std::addressof<std::__make_not_void<std::pointer_traits<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>::const_pointer>::element_type>>(std::__make_not_void<std::pointer_traits<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>::const_pointer>::element_type> &)) /usr/include/c++/6/bits/move.h(136,5)
+
+===========================================================================
+
+Begin optimization report for: std::__addressof<std::__make_not_void<std::pointer_traits<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>::const_pointer>::element_type>>(std::__make_not_void<std::pointer_traits<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>::const_pointer>::element_type> &)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (std::__addressof<std::__make_not_void<std::pointer_traits<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>::const_pointer>::element_type>>(std::__make_not_void<std::pointer_traits<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>::const_pointer>::element_type> &)) /usr/include/c++/6/bits/move.h(48,5)
+
+===========================================================================
+
+Begin optimization report for: __sti__$E()
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (__sti__$E()) [80/82=97.6%] <compiler generated>
+  -> EXTERN: /usr/include/c++/6/iostream:(74,25) __cxa_atexit(void (*)(void *), void *, void *)
+  -> EXTERN: /usr/include/c++/6/iostream:(74,25) std::ios_base::Init::Init(std::ios_base::Init *)
+
+
+    Report from: Code generation optimizations [cg]
+
+<compiler generated>:remark #34051: REGISTER ALLOCATION : [__sti__$E] (null):0
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :    3[ rdx rsi rdi]
+        
+    Routine temporaries
+        Total         :      13
+            Global    :       7
+            Local     :       6
+        Regenerable   :       7
+        Spilled       :       0
+        
+    Routine stack
+        Variables     :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: op_par_loop_initialize_variables_kernel(const char *, op_set, op_arg)
+
+    Report from: Interprocedural optimizations [ipo]
+
+INLINE REPORT: (op_par_loop_initialize_variables_kernel(const char *, op_set, op_arg)) [81/82=98.8%] src/../seq/initialize_variables_kernel_seqkernel.cpp(10,15)
+  -> EXTERN: (19,3) op_timing_realloc(int)
+  -> EXTERN: (20,3) op_timers_core(double *, double *)
+  -> EXTERN: (24,5) printf(const char *, ...)
+  -> EXTERN: (27,18) op_mpi_halo_exchanges(op_set, int, op_arg *)
+  -> INLINE (MANUAL): (32,7) initialize_variables_kernel(double *) (isz = 16) (sz = 21)
+  -> EXTERN: (38,3) op_mpi_set_dirtybit(int, op_arg *)
+  -> EXTERN: (41,3) op_timers_core(double *, double *)
+
+
+    Report from: Loop nest, Vector & Auto-parallelization optimizations [loop, vec, par]
+
+
+LOOP BEGIN at src/../seq/initialize_variables_kernel_seqkernel.cpp(31,5)
+   remark #25084: Preprocess Loopnests: Moving Out Store    [ src/../seq/initialize_variables_kernel_seqkernel.cpp(32,7) ]
+   remark #15344: loop was not vectorized: vector dependence prevents vectorization
+   remark #15346: vector dependence: assumed FLOW dependence between variables[j] (14:9) and ff_variable[j] (14:9)
+   remark #15346: vector dependence: assumed ANTI dependence between ff_variable[j] (14:9) and variables[j] (14:9)
+
+   LOOP BEGIN at src/../seq/.././src/Kernels/misc.h(13,5) inlined into src/../seq/initialize_variables_kernel_seqkernel.cpp(33,7)
+      remark #25436: completely unrolled by 5   (pre-vector) 
+   LOOP END
+LOOP END
+
+    Report from: Code generation optimizations [cg]
+
+src/../seq/initialize_variables_kernel_seqkernel.cpp(15,13):remark #34014: optimization advice for memcpy: increase the source's alignment to 32 (and use __assume_aligned) to increase the width of loads
+src/../seq/initialize_variables_kernel_seqkernel.cpp(15,13):remark #34000: call to memcpy implemented inline with loads and stores with proven source (alignment, offset): (8, 0), and destination (alignment, offset): (32, 0)
+src/../seq/initialize_variables_kernel_seqkernel.cpp(10,15):remark #34051: REGISTER ALLOCATION : [_Z39op_par_loop_initialize_variables_kernelPKcP11op_set_core6op_arg] src/../seq/initialize_variables_kernel_seqkernel.cpp:10
+
+    Hardware registers
+        Reserved     :    2[ rsp rip]
+        Available    :   39[ rax rdx rcx rbx rbp rsi rdi r8-r15 mm0-mm7 zmm0-zmm15]
+        Callee-save  :    6[ rbx rbp r12-r15]
+        Assigned     :   17[ rax rdx rcx rbx rsi rdi r8-r12 zmm0-zmm5]
+        
+    Routine temporaries
+        Total         :      52
+            Global    :      14
+            Local     :      38
+        Regenerable   :      22
+        Spilled       :       2
+        
+    Routine stack
+        Variables     :     128 bytes*
+            Reads     :       2 [2.00e+00 ~ 2.3%]
+            Writes    :       3 [3.00e+00 ~ 3.4%]
+        Spills        :       0 bytes*
+            Reads     :       0 [0.00e+00 ~ 0.0%]
+            Writes    :       0 [0.00e+00 ~ 0.0%]
+    
+    Notes
+    
+        *Non-overlapping variables and spills may share stack space,
+         so the total stack size might be less than this.
+    
+
+===========================================================================
+
+Begin optimization report for: initialize_variables_kernel(double *)
+
+    Report from: Interprocedural optimizations [ipo]
+
+DEAD STATIC FUNCTION: (initialize_variables_kernel(double *)) src/../seq/.././src/Kernels/misc.h(12,1)
+
+===========================================================================
