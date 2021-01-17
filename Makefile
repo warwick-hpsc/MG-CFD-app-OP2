@@ -45,8 +45,6 @@ ifdef PETSC_INSTALL_PATH
     PETSC_INC = -I$(PETSC_INSTALL_PATH)/include
     PETSC_LIB = -L$(PETSC_INSTALL_PATH)/lib
 endif
-PETSC_INC += -DHAVE_PETSC
-PETSC_LIB += -lpetsc
 
 ifdef DOLFINX_INSTALL_PATH
     DOLFINX_INC = -I$(DOLFINX_INSTALL_PATH)/include
@@ -57,6 +55,8 @@ ifdef FENICS
     FENICS_DEF = -Ddeffenics
     DOLFINX_LIB += -ldolfinx
     FENICS_LIB = $(BIN_DIR)/libdolfinx_cpx.a
+    PETSC_INC += -DHAVE_PETSC
+    PETSC_LIB += -lpetsc
 endif
 
 ifdef DEBUG
