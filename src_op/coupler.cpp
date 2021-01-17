@@ -1,4 +1,7 @@
 #include "mgcfd_lib.h"
+#ifdef deffenics 
+    #include "dolfinx_lib.h"
+#endif
 #include <stdio.h>
 #include <mpi.h>
 #include <string.h>
@@ -260,9 +263,10 @@ int main(int argc, char** argv){
             //MPI_Finalize();
             main_mgcfd(argc, argv, comms_shell, instance_number, units, relative_positions);
 		}else{
-            printf("calling fenics code from process %d\n",rank);
+            #ifdef deffenics
+                main_dolfinx(argc, argv, comms_shell, instance_number, units, relative_positions);
+            #endif
             MPI_Finalize();
-			//main_mgcfd(argc, argv, comms_shell, instance_number, units, relative_positions);
 		}
 	}else{
 		#include "coupler_config.h"
@@ -282,11 +286,7 @@ int main(int argc, char** argv){
 			for(int j=units[unit_count].coupler_ranks[0][0]; j<units[unit_count].coupler_ranks[0][0]+units[unit_count].coupler_ranks[0].size();j++){//if rank of processes matches a rank for a particular coupler unit, assign the new communicator
 				if(units[unit_count].type == 'C' && rank == j){
 					found=true;
-				}/*else if(!(j < (units[unit_count].coupler_ranks[0][0]+units[unit_count].coupler_ranks[0].size() - 1)) && found == false){//to make sure all ranks of each coupler units are found
-                    printf("proc %d we went to increase\n");
-					unit_count++;
-                    printf("proc %d we went past increase \n");
-				}*/
+				}
 			}
             if(found == false){
                 unit_count++;

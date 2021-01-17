@@ -41,7 +41,23 @@ endif
 PTSCOTCH_INC += -DHAVE_PTSCOTCH
 PTSCOTCH_LIB += -lptscotch -lscotch -lptscotcherr
 
+ifdef PETSC_INSTALL_PATH
+    PETSC_INC = -I$(PETSC_INSTALL_PATH)/include
+    PETSC_LIB = -L$(PETSC_INSTALL_PATH)/lib
+endif
+PETSC_INC += -DHAVE_PETSC
+PETSC_LIB += -lpetsc
 
+ifdef DOLFINX_INSTALL_PATH
+    DOLFINX_INC = -I$(DOLFINX_INSTALL_PATH)/include
+    DOLFINX_LIB = -L$(DOLFINX_INSTALL_PATH)/lib
+endif
+
+ifdef FENICS
+    FENICS_DEF = -Ddeffenics
+    DOLFINX_LIB += -ldolfinx
+    FENICS_LIB = $(BIN_DIR)/libdolfinx_cpx.a
+endif
 
 ifdef DEBUG
   OPTIMISE := -pg -g -O0
@@ -187,8 +203,6 @@ ifdef PAPI
   MGCFD_INCS += -DPAPI
   MGCFD_LIBS := -lpapi -lpfm
 endif
-
-
 ## Enable VERIFY_OP2_TIMING to perform timing measurements external to
 ## those performed by OP2 internally. Intended to verify whether OP2 timers
 ## are correct, particularly for MPI sync time.
@@ -356,11 +370,11 @@ $(BIN_DIR)/mgcfd_cpx.a: $(OP2_MPI_CPX_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	ar rcs $(BIN_DIR)/mgcfd_cpx.a $(OP2_MPI_CPX_OBJECTS)
 
-$(BIN_DIR)/mgcfd_cpx_runtime: $(OP2_MPI_CPX_MAIN) $(BIN_DIR)/mgcfd_cpx.a
+$(BIN_DIR)/mgcfd_cpx_runtime: $(OP2_MPI_CPX_MAIN) $(BIN_DIR)/mgcfd_cpx.a $(FENICS_LIB)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(BIN_DIR)/mgcfd_cpx.a $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
-		-o $@ 
+        -lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(DOLFINX_LIB) $(PETSC_LIB) \
+        $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) -o $@ 
 
 ## MPI_VEC
 $(OBJ_DIR)/mgcfd_mpi_vec_main.o: $(OP2_MAIN_SRC)
