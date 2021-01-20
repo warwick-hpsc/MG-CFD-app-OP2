@@ -337,10 +337,10 @@ int main(int argc, char** argv){
         double *left_p_variables_l0_sg, *left_p_variables_l1_sg, *left_p_variables_l2_sg, *left_p_variables_l3_sg;
         double *right_p_variables_l0_sg, *right_p_variables_l1_sg, *right_p_variables_l2_sg, *right_p_variables_l3_sg;
 
-		int map_counter;
-		int map_counter_max;
-		int map_counter_max_sizes_l[4] = {left_nodes_size_chunks[0],left_nodes_size_chunks[1], left_nodes_size_chunks[2], left_nodes_size_chunks[3]};
-		int map_counter_max_sizes_r[4] = {right_nodes_size_chunks[0],right_nodes_size_chunks[1], right_nodes_size_chunks[2], right_nodes_size_chunks[3]};
+		double map_counter;
+		double map_counter_max;
+		double map_counter_max_sizes_l[4] = {left_nodes_size_chunks[0],left_nodes_size_chunks[1], left_nodes_size_chunks[2], left_nodes_size_chunks[3]};
+		double map_counter_max_sizes_r[4] = {right_nodes_size_chunks[0],right_nodes_size_chunks[1], right_nodes_size_chunks[2], right_nodes_size_chunks[3]};
 
 		left_p_variables_l0_sg = (double *) malloc((left_nodes_size_chunks[0]) * NVAR * sizeof(double)); //left p_variables storage for scatter/gather
         left_p_variables_l1_sg = (double *) malloc((left_nodes_size_chunks[1]) * NVAR * sizeof(double));
@@ -355,9 +355,9 @@ int main(int argc, char** argv){
         double *left_p_variable_pointers[4] = {left_p_variables_l0_sg,left_p_variables_l1_sg,left_p_variables_l2_sg,left_p_variables_l3_sg};
         double *right_p_variable_pointers[4] = {right_p_variables_l0_sg,right_p_variables_l1_sg,right_p_variables_l2_sg,right_p_variables_l3_sg};
 
-		std::map< int, std::vector<double> > map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3; //p_variable maps to represent rendezvous binary trees
-		std::map< int, std::vector<double> > left_map_of_state_vars_total[4] = {map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3};
-		std::map< int, std::vector<double> > right_map_of_state_vars_total[4] = {map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3};
+		std::map< double, std::vector<double> > map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3; //p_variable maps to represent rendezvous binary trees
+		std::map< double, std::vector<double> > left_map_of_state_vars_total[4] = {map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3};
+		std::map< double, std::vector<double> > right_map_of_state_vars_total[4] = {map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3};
 
 		while((cycle_counter < mgcycles) && ((cycle_counter % upd_freq) == 0)){// Change this value to the number of cycles if it is not the default
 
@@ -386,7 +386,7 @@ int main(int argc, char** argv){
 					while(map_counter < map_counter_max){
 						std::vector<double> node_state_vars;
 						for(int i = 0; i<NVAR; i++){
-							node_state_vars.push_back(*(left_p_variable_pointers[k] + (map_counter * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
+							node_state_vars.push_back(*(left_p_variable_pointers[k] + (static_cast<long long>(map_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
 						}
 						left_map_of_state_vars_total[k].insert(std::make_pair(map_counter, node_state_vars));
 						map_counter++;
@@ -438,7 +438,7 @@ int main(int argc, char** argv){
 					while(map_counter < map_counter_max){
 						std::vector<double> node_state_vars;
 						for(int i = 0; i<NVAR; i++){
-							node_state_vars.push_back(*(right_p_variable_pointers[k] + (map_counter * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
+							node_state_vars.push_back(*(right_p_variable_pointers[k] + (static_cast<long long>(map_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
 						}
 						right_map_of_state_vars_total[k].insert(std::make_pair(map_counter, node_state_vars));
 						map_counter++;
@@ -478,4 +478,5 @@ int main(int argc, char** argv){
    		exit(0);
 	}
 }
+
 
