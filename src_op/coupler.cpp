@@ -337,10 +337,11 @@ int main(int argc, char** argv){
         double *left_p_variables_l0_sg, *left_p_variables_l1_sg, *left_p_variables_l2_sg, *left_p_variables_l3_sg;
         double *right_p_variables_l0_sg, *right_p_variables_l1_sg, *right_p_variables_l2_sg, *right_p_variables_l3_sg;
 
-		double map_counter;
-		double map_counter_max;
-		double map_counter_max_sizes_l[4] = {left_nodes_size_chunks[0],left_nodes_size_chunks[1], left_nodes_size_chunks[2], left_nodes_size_chunks[3]};
-		double map_counter_max_sizes_r[4] = {right_nodes_size_chunks[0],right_nodes_size_chunks[1], right_nodes_size_chunks[2], right_nodes_size_chunks[3]};
+		double vector_counter;
+		int sub_count;
+		double vector_counter_max;
+		double vector_counter_max_sizes_l[4] = {left_nodes_size_chunks[0],left_nodes_size_chunks[1], left_nodes_size_chunks[2], left_nodes_size_chunks[3]};
+		double vector_counter_max_sizes_r[4] = {right_nodes_size_chunks[0],right_nodes_size_chunks[1], right_nodes_size_chunks[2], right_nodes_size_chunks[3]};
 
 		left_p_variables_l0_sg = (double *) malloc((left_nodes_size_chunks[0]) * NVAR * sizeof(double)); //left p_variables storage for scatter/gather
         left_p_variables_l1_sg = (double *) malloc((left_nodes_size_chunks[1]) * NVAR * sizeof(double));
@@ -358,9 +359,9 @@ int main(int argc, char** argv){
 		double *left_p_variable_pointers_full[4] = {left_p_variables_l0,left_p_variables_l1,left_p_variables_l2,left_p_variables_l3};
         double *right_p_variable_pointers_full[4] = {right_p_variables_l0,right_p_variables_l1,right_p_variables_l2,right_p_variables_l3};
 
-		std::map< double, std::vector<double> > map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3; //p_variable maps to represent rendezvous binary trees
-		std::map< double, std::vector<double> > left_map_of_state_vars_total[4] = {map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3};
-		std::map< double, std::vector<double> > right_map_of_state_vars_total[4] = {map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3};
+		std::vector< std::vector<double> > vector_of_state_vars_l0, vector_of_state_vars_l1, vector_of_state_vars_l2, vector_of_state_vars_l3; //p_variable vectors to represent brute force search
+		std::vector< std::vector<double> > left_vector_of_state_vars_total[4] = {vector_of_state_vars_l0, vector_of_state_vars_l1, vector_of_state_vars_l2, vector_of_state_vars_l3};
+		std::vector< std::vector<double> > right_vector_of_state_vars_total[4] = {vector_of_state_vars_l0, vector_of_state_vars_l1, vector_of_state_vars_l2, vector_of_state_vars_l3};
 
 		while((cycle_counter < mgcycles) && (cycle_counter % conversion_factor) == 0){// Change this value to the number of cycles if it is not the default
 
@@ -409,50 +410,49 @@ int main(int argc, char** argv){
 			if((cycle_counter % upd_freq) == 0){
 
 				for(int k = 0; k < 4; k++){
-			        map_counter = 0;
+			        vector_counter = 0;
 					if(MUM == 0){
-						map_counter_max = left_nodes_sizes[k];//this is size of mesh recieved from broadcast
+						vector_counter_max = left_nodes_sizes[k];//this is size of mesh recieved from broadcast
 					}else{
-						map_counter_max = map_counter_max_sizes_l[k];//this is size of mesh recieved from scatter
+						vector_counter_max = vector_counter_max_sizes_l[k];//this is size of mesh recieved from scatter
 					}
-					
-					left_map_of_state_vars_total[k].clear();
-					while(map_counter < map_counter_max){
+					left_vector_of_state_vars_total[k].clear();
+					while(vector_counter < vector_counter_max){
 						std::vector<double> node_state_vars;
 						for(int i = 0; i<NVAR; i++){
 							if(MUM == 0){
-								node_state_vars.push_back(*(left_p_variable_pointers_full[k] + (static_cast<long long>(map_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
+								node_state_vars.push_back(*(left_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
 							}else{
-								node_state_vars.push_back(*(left_p_variable_pointers[k] + (static_cast<long long>(map_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
+								node_state_vars.push_back(*(left_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
 							}
 						}
-						left_map_of_state_vars_total[k].insert(std::make_pair(map_counter, node_state_vars));
-						map_counter++;
+						left_vector_of_state_vars_total[k].insert(left_vector_of_state_vars_total[k].begin(), node_state_vars);
+						vector_counter++;
 					}
 		        }
 			}
 
 			if((cycle_counter % upd_freq) == 0){
 				for(int k = 0; k < 4; k++){
-			        map_counter = 0;
+			        vector_counter = 0;
 					if(MUM == 0){
-						map_counter_max = right_nodes_sizes[k];//this is size of mesh recieved from broadcast
+						vector_counter_max = right_nodes_sizes[k];//this is size of mesh recieved from broadcast
 					}else{
-						map_counter_max = map_counter_max_sizes_r[k];//this is size of mesh recieved from scatter
+						vector_counter_max = vector_counter_max_sizes_r[k];//this is size of mesh recieved from scatter
 					}
 
-					right_map_of_state_vars_total[k].clear();
-					while(map_counter < map_counter_max){
+					right_vector_of_state_vars_total[k].clear();
+					while(vector_counter < (vector_counter_max/total_ranks)){
 						std::vector<double> node_state_vars;
 						for(int i = 0; i<NVAR; i++){
 							if(MUM == 0){
-								node_state_vars.push_back(*(right_p_variable_pointers_full[k] + (static_cast<long long>(map_counter) * NVAR) + i));//essentially move along right_p_variables in chunks of NVAR
+								node_state_vars.push_back(*(right_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along right_p_variables in chunks of NVAR
 							}else{
-								node_state_vars.push_back(*(right_p_variable_pointers[k] + (static_cast<long long>(map_counter) * NVAR) + i));//essentially move along right_p_variables in chunks of NVAR
+								node_state_vars.push_back(*(right_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along right_p_variables in chunks of NVAR
 							}
 						}
-						right_map_of_state_vars_total[k].insert(std::make_pair(map_counter, node_state_vars));
-						map_counter++;
+						right_vector_of_state_vars_total[k].insert(right_vector_of_state_vars_total[k].begin(), node_state_vars);
+						vector_counter++;
 					}
 		        }
 			}
@@ -467,17 +467,22 @@ int main(int argc, char** argv){
 					std::vector<double> node_state_vars_temp;
 					double valuecheck_left;
 					double valuecheck_right;
-					map_counter = 0;
-					map_counter_max = map_counter_max_sizes_l[k];//this is size of mesh recieved from scatter
-					while(map_counter < map_counter_max){
-						node_state_vars_left = left_map_of_state_vars_total[k].find(map_counter)->second;
-						node_state_vars_right = right_map_of_state_vars_total[k].find(map_counter)->second;
-						node_state_vars_temp = node_state_vars_right;
-						for(int i = 0; i<NVAR; i++){
-							node_state_vars_right.at(i) = (node_state_vars_left.at(i) + node_state_vars_right.at(i))/2;
-							node_state_vars_left.at(i) = (node_state_vars_left.at(i) + node_state_vars_temp.at(i))/2;
+					vector_counter = 0;
+					sub_count = 0;
+					vector_counter_max = vector_counter_max_sizes_l[k];//this is size of mesh recieved from scatter
+					while(sub_count < total_ranks){
+						while(vector_counter < vector_counter_max/total_ranks){
+							node_state_vars_left = left_vector_of_state_vars_total[k].at(vector_counter);
+							node_state_vars_right = right_vector_of_state_vars_total[k].at(vector_counter);
+							node_state_vars_temp = node_state_vars_right;
+							for(int i = 0; i<NVAR; i++){
+								node_state_vars_right.at(i) = (node_state_vars_left.at(i) + node_state_vars_right.at(i))/2;
+								node_state_vars_left.at(i) = (node_state_vars_left.at(i) + node_state_vars_temp.at(i))/2;
+							}
+							vector_counter++;
 						}
-						map_counter++;
+						vector_counter = 0;
+						sub_count++;
 					}
 				}
 			}
