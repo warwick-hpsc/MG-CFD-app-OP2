@@ -417,7 +417,7 @@ int main(int argc, char** argv){
 						vector_counter_max = vector_counter_max_sizes_l[k];//this is size of mesh recieved from scatter
 					}
 					left_vector_of_state_vars_total[k].clear();
-					while(vector_counter < vector_counter_max){
+					while(vector_counter < (vector_counter_max/total_ranks)){
 						std::vector<double> node_state_vars;
 						for(int i = 0; i<NVAR; i++){
 							if(MUM == 0){
