@@ -417,17 +417,21 @@ int main(int argc, char** argv){
 						vector_counter_max = vector_counter_max_sizes_l[k];//this is size of mesh recieved from scatter
 					}
 					left_vector_of_state_vars_total[k].clear();
-					while(vector_counter < (vector_counter_max/total_ranks)){
-						std::vector<double> node_state_vars;
-						for(int i = 0; i<NVAR; i++){
-							if(MUM == 0){
-								node_state_vars.push_back(*(left_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
-							}else{
-								node_state_vars.push_back(*(left_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
+					while(sub_count < total_ranks){
+						while(vector_counter < (vector_counter_max/total_ranks)){
+							std::vector<double> node_state_vars;
+							for(int i = 0; i<NVAR; i++){
+								if(MUM == 0){
+									node_state_vars.push_back(*(left_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
+								}else{
+									node_state_vars.push_back(*(left_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
+								}
 							}
+							left_vector_of_state_vars_total[k].insert(left_vector_of_state_vars_total[k].begin(), node_state_vars);
+							vector_counter++;
 						}
-						left_vector_of_state_vars_total[k].insert(left_vector_of_state_vars_total[k].begin(), node_state_vars);
-						vector_counter++;
+						vector_counter = 0;
+						sub_count++;
 					}
 		        }
 			}
@@ -440,19 +444,23 @@ int main(int argc, char** argv){
 					}else{
 						vector_counter_max = vector_counter_max_sizes_r[k];//this is size of mesh recieved from scatter
 					}
-
+					sub_count = 0;
 					right_vector_of_state_vars_total[k].clear();
-					while(vector_counter < (vector_counter_max/total_ranks)){
-						std::vector<double> node_state_vars;
-						for(int i = 0; i<NVAR; i++){
-							if(MUM == 0){
-								node_state_vars.push_back(*(right_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along right_p_variables in chunks of NVAR
-							}else{
-								node_state_vars.push_back(*(right_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along right_p_variables in chunks of NVAR
+					while(sub_count < total_ranks){
+						while(vector_counter < (vector_counter_max/total_ranks)){
+							std::vector<double> node_state_vars;
+							for(int i = 0; i<NVAR; i++){
+								if(MUM == 0){
+									node_state_vars.push_back(*(right_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along right_p_variables in chunks of NVAR
+								}else{
+									node_state_vars.push_back(*(right_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along right_p_variables in chunks of NVAR
+								}
 							}
+							right_vector_of_state_vars_total[k].insert(right_vector_of_state_vars_total[k].begin(), node_state_vars);
+							vector_counter++;
 						}
-						right_vector_of_state_vars_total[k].insert(right_vector_of_state_vars_total[k].begin(), node_state_vars);
-						vector_counter++;
+						vector_counter = 0;
+						sub_count++;
 					}
 		        }
 			}
