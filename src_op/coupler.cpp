@@ -31,7 +31,7 @@ int main(int argc, char** argv){
 	char unit_1[] = "UNIT_1";
 	char unit_2[] = "UNIT_2";
 	char total[] = "TOTAL";
-	bool debug = true;
+	bool debug = false;
 
 	int mpi_ranks = 0;
 	char keyword[8];//longest word is COUPLER
@@ -127,18 +127,7 @@ int main(int argc, char** argv){
 				relative_positions[j].placelocator = temp_work;
 			}
 			temp_marker += units[i].processes;
-		}
-        //TEMP: once communication is set up change remove this section. Needed to populate mg-cfd ranks and coupler ranks when not coupled.
-        if(units[i].type == 'F'){
-            std::vector<int> temp;
-            int loc = i+1;
-            for(int j=0; j<temp_marker; j++){
-                if(relative_positions[j].placelocator == loc && relative_positions[j].typelocator != 'C'){
-                    temp.push_back(j); 
-                }
-            }
-            units[i].mgcfd_ranks.push_back(temp);
-        }        
+		}       
 		if(units[i].type == 'C'){
 			temp_coupler++;
 			temp_coupler_position.push_back(temp_coupler);
@@ -259,8 +248,6 @@ int main(int argc, char** argv){
 //end of the set up we then call mgcfd main or fenics main if its not a coupler.
 	if(!is_coupler){
 		if(is_mgcfd){
-            //printf("calling mgcfd from proc %d\n",rank);
-            //MPI_Finalize();
             main_mgcfd(argc, argv, comms_shell, instance_number, units, relative_positions);
 		}else{
             #ifdef deffenics
@@ -279,10 +266,6 @@ int main(int argc, char** argv){
 		bool found = false;
 		int unit_count = 0;
     	while(!found){
-            //TEMP: if statement can be removed when fenics comms is set up
-            if(units[unit_count].coupler_ranks.size() == 0){
-                unit_count++;
-            }
 			for(int j=units[unit_count].coupler_ranks[0][0]; j<units[unit_count].coupler_ranks[0][0]+units[unit_count].coupler_ranks[0].size();j++){//if rank of processes matches a rank for a particular coupler unit, assign the new communicator
 				if(units[unit_count].type == 'C' && rank == j){
 					found=true;

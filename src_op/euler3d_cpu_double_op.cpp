@@ -707,7 +707,6 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     }
 
     int ranks_per_coupler;
-    
     if (internal_rank == MPI_ROOT) {
         for(int z = 0; z < total_coupler_unit_count; z++){
             ranks_per_coupler = units[unit_count].coupler_ranks[z].size();
@@ -752,7 +751,6 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             
             if(internal_rank == MPI_ROOT){
                 op_printf("Cycle %d comms starting\n", i);
-                
                 for(int z = 0; z < total_coupler_unit_count; z++){
                     coupler_rank = units[unit_count].coupler_ranks[z][0];
                     MPI_Send(p_variables_data_l0, boundary_nodes_sizes[0] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
