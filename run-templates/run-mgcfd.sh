@@ -127,6 +127,9 @@ exec_command+=" $bin_filepath -i $input_dat_filename -o ${run_outdir}/ -g $mg_cy
 if [ "$output_flow_interval" -gt "0" ]; then
   exec_command+=" -I $output_flow_interval"
 fi
+if [ "$data_dirpath" != "" ]; then
+  exec_command+=" -d $data_dirpath"
+fi
 if $papi ; then
   exec_command+=" -p ${run_outdir}/papi.conf"
 fi

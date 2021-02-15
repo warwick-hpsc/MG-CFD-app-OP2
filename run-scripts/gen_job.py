@@ -36,6 +36,7 @@ defaults["cpp wrapper"] = None
 defaults["mpicpp wrapper"] = None
 defaults["openmp"] = False
 defaults["mpi"] = False
+defaults["vec"] = False
 defaults["cuda"] = False
 defaults["openacc"] = False
 defaults["openmp4"] = False
@@ -149,6 +150,7 @@ if __name__=="__main__":
     cpp_wrapper = get_key_value(profile, "compile", "cpp wrapper")
     mpicpp_wrapper = get_key_value(profile, "compile", "mpicpp wrapper")
     use_mpi = get_key_value(profile, "compile", "mpi")
+    use_vec = get_key_value(profile, "compile", "vec")
     use_cuda = get_key_value(profile, "compile", "cuda")
     use_openmp = get_key_value(profile, "compile", "openmp")
     use_openacc = get_key_value(profile, "compile", "openacc")
@@ -173,6 +175,9 @@ if __name__=="__main__":
     if use_openacc:
         if use_mpi:
             raise Exception("Cannot combine OpenACC and MPI")
+    if use_vec:
+        if not use_mpi:
+            raise Exception("Cannot combine vec with anything other than MPI")
 
     if use_papi:
         if use_openmp:
@@ -187,6 +192,8 @@ if __name__=="__main__":
             make_target = "mpi_cuda"
         elif use_openmp:
             make_target = "mpi_openmp"
+        elif use_vec:
+            make_target = "mpi_vec"
         else:
             make_target = "mpi"
     else:
