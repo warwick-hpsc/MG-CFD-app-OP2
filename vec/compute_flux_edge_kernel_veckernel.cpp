@@ -443,6 +443,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
   op_timing_realloc(9);
   op_timers_core(&cpu_t1, &wall_t1);
+  long iter_counts=0;
 
   if (OP_diags>2) {
     printf(" kernel routine with indirection: compute_flux_edge_kernel\n");
@@ -550,6 +551,8 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
       }
     }
+
+    iter_counts += exec_size;
     
     #ifdef PAPI
       if (num_events > 0) {
@@ -594,4 +597,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
   OP_kernels[9].transfer += (float)set->size * arg3.size * 2.0f;
   OP_kernels[9].transfer += (float)set->size * arg2.size;
   OP_kernels[9].transfer += (float)set->size * arg0.map->dim * 4.0f;
+
+  if (iter_counts_ptr != NULL)
+      *iter_counts_ptr += iter_counts;
 }
