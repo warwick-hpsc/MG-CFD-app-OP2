@@ -49,7 +49,7 @@
 #define float_ALIGN 64
 #define int_ALIGN 64
 #ifdef VECTORIZE
-#define SIMD_VEC 4
+#define SIMD_VEC 8
 #define ALIGNED_double __attribute__((aligned(double_ALIGN)))
 #define ALIGNED_float __attribute__((aligned(float_ALIGN)))
 #define ALIGNED_int __attribute__((aligned(int_ALIGN)))
@@ -61,6 +61,7 @@
 // Note: two includes below pulled from slope/ subfolder:
 #include "compute_flux_edge_kernel_veckernel.h"
 #include "unstructured_stream_kernel_veckernel.h"
+#include "compute_bnd_node_flux_kernel_veckernel.h"
 #else
 #define ALIGNED_double
 #define ALIGNED_float
@@ -883,7 +884,7 @@ int main(int argc, char** argv)
                     iterations_list& le2n_0 = tile_get_local_map (tile, 0, sl_maps_edge_to_nodes[level]);
                     iterations_list& iterations_0 = tile_get_iterations (tile, 0);
                     loop_size = tile_loop_size (tile, 0);
-                    const double* p_variables_data = (double*)(p_variables[level]->data);
+                    double* p_variables_data = (double*)(p_variables[level]->data);
                     const double* p_edge_weights_data = (double*)(p_edge_weights[level]->data);
                     double* p_fluxes_data    = (double*)(p_fluxes[level]->data);
                     #ifndef VECTORIZE
@@ -964,30 +965,157 @@ int main(int argc, char** argv)
                     #endif
 
                     // loop compute_bnd_node_flux
+                    // iterations_list& lbe2n_1 = tile_get_local_map (tile, 1, sl_maps_bnd_node_to_node[level]);
+                    // iterations_list& iterations_1 = tile_get_iterations (tile, 1);
+                    // loop_size = tile_loop_size (tile, 1);
+                  
+                    // for (int k = 0; k < loop_size; k++) {
+                    //     compute_bnd_node_flux_kernel(
+                    //          (int*)(p_bnd_node_groups[level]->data + ((iterations_1[k] * 1) * sizeof(int))),
+                    //          (double*)(p_bnd_node_weights[level]->data + ((iterations_1[k] * 3) * sizeof(double))),
+                    //          (double*)(p_variables[level]->data + ((lbe2n_1[k + 0] * 5) * sizeof(double))),
+                    //          (double*)(p_fluxes[level]->data + ((lbe2n_1[k + 0] * 5) * sizeof(double))));
+                    // }
+
                     iterations_list& lbe2n_1 = tile_get_local_map (tile, 1, sl_maps_bnd_node_to_node[level]);
                     iterations_list& iterations_1 = tile_get_iterations (tile, 1);
                     loop_size = tile_loop_size (tile, 1);
+
+                    const int* p_bnd_node_groups_data = (int*)(p_bnd_node_groups[level]->data);
+                    const double* p_bnd_node_weights_data = (double*)(p_bnd_node_weights[level]->data);
+
+                    #ifndef VECTORIZE
+                      for (int k = 0; k < loop_size; k++) {
+                          compute_bnd_node_flux_kernel(
+                              &p_bnd_node_groups_data[iterations_1[k] * 1],
+                              &p_bnd_node_weights_data[iterations_1[k] * 3],
+                              &p_variables_data[lbe2n_1[k + 0] * 5],
+                              &p_fluxes_data[lbe2n_1[k + 0] * 5]);
+                      }
+                    #else
+                      simd_end = (loop_size/SIMD_VEC)*SIMD_VEC;
+
+                      ALIGNED_int int dat10[1][SIMD_VEC];
+                      ALIGNED_double double dat11[3][SIMD_VEC];
+                      ALIGNED_double double dat12[5][SIMD_VEC];
+                      ALIGNED_double double dat13[5][SIMD_VEC];
+
+                      for (int n=0 ; n < simd_end; n+=SIMD_VEC) {
+                          // "sl" is SIMD lane:
+                        #pragma omp simd simdlen(SIMD_VEC)
+                        for (int sl=0; sl<SIMD_VEC; sl++ ){
+                          int k = n+sl;
+                          int idx0 = iterations_1[k];
+                          int idx1 = iterations_1[k];
+                          int idx2 = lbe2n_1[k + 0];
+                            
+
+                          dat10[0][sl] = p_bnd_node_groups_data[idx0*1];
+
+                          #pragma unroll
+                          for (int v=0; v<3; v++) {
+                              dat11[v][sl] = p_bnd_node_weights_data[idx1*3 + v];
+                          }
+
+                          #pragma unroll
+                          for (int v=0; v<5; v++) {
+                              dat12[v][sl] = p_variables_data[idx2*5 + v];
+                              dat13[v][sl] = 0.0;
+                          }
+                        }
                   
-                    for (int k = 0; k < loop_size; k++) {
-                        compute_bnd_node_flux_kernel(
-                             (int*)(p_bnd_node_groups[level]->data + ((iterations_1[k] * 1) * sizeof(int))),
-                             (double*)(p_bnd_node_weights[level]->data + ((iterations_1[k] * 3) * sizeof(double))),
-                             (double*)(p_variables[level]->data + ((lbe2n_1[k + 0] * 5) * sizeof(double))),
-                             (double*)(p_fluxes[level]->data + ((lbe2n_1[k + 0] * 5) * sizeof(double))));
-                    }
+                        #pragma omp simd simdlen(SIMD_VEC)
+                        for (int sl=0; sl<SIMD_VEC; sl++ ){
+                          compute_bnd_node_flux_kernel_vec(
+                            dat10,
+                            dat11,
+                            dat12,
+                            dat13,
+                            sl);
+                        }
+
+                        for ( int sl=0; sl<SIMD_VEC; sl++ ){
+                          int k = n+sl;
+                          int idx3 = lbe2n_1[k + 0];
+
+                          #pragma unroll
+                          for (int v=0; v<5; v++) {
+                              p_fluxes_data[idx3*5 + v] += dat13[v][sl];
+                          }
+                        }
+                      }
+                      
+                      // remainder:
+                      for (int n = simd_end ; n < loop_size; n++) {
+                          int k = n;
+                          compute_bnd_node_flux_kernel(
+                              &p_bnd_node_groups_data[iterations_1[k] * 1],
+                              &p_bnd_node_weights_data[iterations_1[k] * 3],
+                              &p_variables_data[lbe2n_1[k + 0] * 5],
+                              &p_fluxes_data[lbe2n_1[k + 0] * 5]);
+                      }
+                    
+                    #endif
 
                     // loop time_step
+                    // iterations_list& iterations_2 = tile_get_iterations (tile, 2);
+                    // loop_size = tile_loop_size (tile, 2);
+                    
+                    // for (int k = 0; k < loop_size; k++) {
+                    //     time_step_kernel(
+                    //         &rkCycle,
+                    //         (double*)(p_step_factors[level]->data + ((iterations_2[k] * 1) * sizeof(double))),
+                    //         (double*)(p_fluxes[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
+                    //         (double*)(p_old_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
+                    //         (double*)(p_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))));
+                    // }
+
                     iterations_list& iterations_2 = tile_get_iterations (tile, 2);
                     loop_size = tile_loop_size (tile, 2);
+
+                    const double* p_step_factors_data = (double*)(p_step_factors[level]->data);
+                    const double* p_old_variables_data = (double*)(p_old_variables[level]->data);
+
+                    #ifndef VECTORIZE
+                      for (int k = 0; k < loop_size; k++) {
+                          time_step_kernel(
+                              &rkCycle,
+                              &p_step_factors_data[iterations_2[k] * 1],
+                              &p_fluxes_data[iterations_2[k] * 5],
+                              &p_old_variables_data[iterations_2[k] * 5],
+                              &p_variables_data[iterations_2[k] * 5]);
+                      }
+                    #else
+                      simd_end = (loop_size/SIMD_VEC)*SIMD_VEC;
+
+                      for (int n=0 ; n < simd_end; n+=SIMD_VEC) {
+                          // "sl" is SIMD lane:
+                        #pragma omp simd simdlen(SIMD_VEC)
+                        for (int sl=0; sl<SIMD_VEC; sl++ ){
+                          int k = n+sl;
+                          int idx0 = iterations_2[k];
+                          time_step_kernel(
+                             &rkCycle,
+                              &p_step_factors_data[idx0],
+                              &p_fluxes_data[idx0 * 5],
+                              &p_old_variables_data[idx0 * 5],
+                              &p_variables_data[idx0 * 5]);
+                        }                        
+                      }
+                      
+                      // remainder:
+                      for (int n = simd_end ; n < loop_size; n++) {
+                          int k = n;
+                          time_step_kernel(
+                              &rkCycle,
+                              &p_step_factors_data[iterations_2[k] * 1],
+                              &p_fluxes_data[iterations_2[k] * 5],
+                              &p_old_variables_data[iterations_2[k] * 5],
+                              &p_variables_data[iterations_2[k] * 5]);
+                      }
                     
-                    for (int k = 0; k < loop_size; k++) {
-                        time_step_kernel(
-                            &rkCycle,
-                            (double*)(p_step_factors[level]->data + ((iterations_2[k] * 1) * sizeof(double))),
-                            (double*)(p_fluxes[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
-                            (double*)(p_old_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
-                            (double*)(p_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))));
-                    }
+                    #endif
+
                 }
                 thr_wall_t2 = omp_get_wtime();
                 OP_kernels[compute_flux_op2_id].name = "fluxes_and_timestep";
@@ -1134,17 +1262,66 @@ int main(int argc, char** argv)
                     #endif
 
                     // time_step
+                    // iterations_list& iterations_2 = tile_get_iterations (tile, 2);
+                    // loop_size = tile_loop_size (tile, 2);
+
+                    // for (int k = 0; k < loop_size; k++) {
+                    //     time_step_kernel(
+                    //         &rkCycle,
+                    //         (double*)(p_step_factors[level]->data + ((iterations_2[k] * 1) * sizeof(double))),
+                    //         (double*)(p_dummy_fluxes[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
+                    //         (double*)(p_old_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
+                    //         (double*)(p_dummy_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))));
+                    // }
+
                     iterations_list& iterations_2 = tile_get_iterations (tile, 2);
                     loop_size = tile_loop_size (tile, 2);
 
-                    for (int k = 0; k < loop_size; k++) {
-                        time_step_kernel(
-                            &rkCycle,
-                            (double*)(p_step_factors[level]->data + ((iterations_2[k] * 1) * sizeof(double))),
-                            (double*)(p_dummy_fluxes[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
-                            (double*)(p_old_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))),
-                            (double*)(p_dummy_variables[level]->data + ((iterations_2[k] * 5) * sizeof(double))));
-                    }
+                    const double* p_step_factors_data = (double*)(p_step_factors[level]->data);
+                    double* p_dummy_fluxes_data = (double*)(p_dummy_fluxes[level]->data);
+                    const double* p_old_variables_data = (double*)(p_old_variables[level]->data);
+                    double* p_dummy_variables_data = (double*)(p_dummy_variables[level]->data);
+
+                    #ifndef VECTORIZE
+                      for (int k = 0; k < loop_size; k++) {
+                          time_step_kernel(
+                              &rkCycle,
+                              &p_step_factors_data[iterations_2[k] * 1],
+                              &p_dummy_fluxes_data[iterations_2[k] * 5],
+                              &p_old_variables_data[iterations_2[k] * 5],
+                              &p_dummy_variables_data[iterations_2[k] * 5]);
+                      }
+                    #else
+                      simd_end = (loop_size/SIMD_VEC)*SIMD_VEC;
+
+                      for (int n=0 ; n < simd_end; n+=SIMD_VEC) {
+                          // "sl" is SIMD lane:
+                        #pragma omp simd simdlen(SIMD_VEC)
+                        for (int sl=0; sl<SIMD_VEC; sl++ ){
+                          int k = n+sl;
+                          int idx0 = iterations_2[k];
+                          time_step_kernel(
+                             &rkCycle,
+                              &p_step_factors_data[idx0],
+                              &p_dummy_fluxes_data[idx0 * 5],
+                              &p_old_variables_data[idx0 * 5],
+                              &p_dummy_variables_data[idx0 * 5]);
+                        }                        
+                      }
+                      
+                      // remainder:
+                      for (int n = simd_end ; n < loop_size; n++) {
+                          int k = n;
+                          time_step_kernel(
+                              &rkCycle,
+                              &p_step_factors_data[iterations_2[k] * 1],
+                              &p_dummy_fluxes_data[iterations_2[k] * 5],
+                              &p_old_variables_data[iterations_2[k] * 5],
+                              &p_dummy_variables_data[iterations_2[k] * 5]);
+                      }
+                    
+                    #endif
+
                 }
                 thr_wall_t2 = omp_get_wtime();
                 OP_kernels[unstructured_stream_op2_id].name = "fluxesRW_and_timestep";
