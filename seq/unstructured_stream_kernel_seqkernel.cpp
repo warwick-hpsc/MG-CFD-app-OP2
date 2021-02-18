@@ -9,6 +9,8 @@
 #include "papi_funcs.h"
 #endif
 
+#include <mpi.h>
+
 // host stub function
 void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg0,
@@ -52,10 +54,6 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
     printf(" kernel routine with indirection: unstructured_stream_kernel\n");
   }
 
-  int set_size = op_mpi_halo_exchanges(set, nargs, args);
-
-  if (set_size >0) {
-
     #ifdef PAPI
       // Init and start PAPI
       long_long* temp_count_stores = NULL;
@@ -66,23 +64,30 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
       }
     #endif
 
+  int set_size = op_mpi_halo_exchanges(set, nargs, args);
+
+  if (set_size >0) {
+    op_mpi_wait_all(nargs, args);
+	MPI_Barrier(MPI_COMM_WORLD);
+    op_timers_core(&cpu_t1, &wall_t1);
+
     for ( int n=0; n<set_size; n++ ){
-      if (n==set->core_size) {
-        #ifdef PAPI
-          if (num_events > 0)
-            my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
-        #endif
+      // if (n==set->core_size) {
+      //   #ifdef PAPI
+      //     if (num_events > 0)
+      //       my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
+      //   #endif
 
-        op_mpi_wait_all(nargs, args);
+      //   op_mpi_wait_all(nargs, args);
 
-        #ifdef PAPI
-          if (num_events > 0) {
-            // Restart PAPI
-            for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
-            my_papi_start(event_set);
-        }
-        #endif
-      }
+      //   #ifdef PAPI
+      //     if (num_events > 0) {
+      //       // Restart PAPI
+      //       for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+      //       my_papi_start(event_set);
+      //   }
+      //   #endif
+      // }
       int map0idx = arg0.map_data[n * arg0.map->dim + 0];
       int map1idx = arg0.map_data[n * arg0.map->dim + 1];
 
@@ -95,15 +100,17 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
         &((double*)arg3.data)[5 * map1idx]);
     }
 
-    #ifdef PAPI
-      if (num_events > 0) {
-        my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
-        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
-        free(temp_count_stores);
-      }
-    #endif
   }
+  op_timers_core(&cpu_t2, &wall_t2);
 
+  #ifdef PAPI
+    if (num_events > 0) {
+      my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
+      for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
+      free(temp_count_stores);
+    }
+  #endif
+	
   if (set_size == 0 || set_size == set->core_size) {
     op_mpi_wait_all(nargs, args);
   }
@@ -111,10 +118,11 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
   op_mpi_set_dirtybit(nargs, args);
 
   // update kernel record
-  op_timers_core(&cpu_t2, &wall_t2);
+  //op_timers_core(&cpu_t2, &wall_t2);
   OP_kernels[12].name      = name;
   OP_kernels[12].count    += 1;
   OP_kernels[12].time     += wall_t2 - wall_t1;
+  OP_kernels[12].mpi_time = 0.0; // Ignore MPI time
   OP_kernels[12].transfer += (float)set->size * arg0.size;
   OP_kernels[12].transfer += (float)set->size * arg3.size * 2.0f;
   OP_kernels[12].transfer += (float)set->size * arg2.size;
