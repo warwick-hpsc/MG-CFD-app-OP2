@@ -1,14 +1,12 @@
 #include "poisson.h"
 #include "structures.h"
+#include "const_op.h"
 #include "petscvec.h"
 #include <stdio.h>
 #include <cmath>
 #include <dolfinx.h>
 #include <dolfinx/fem/petsc.h>
 #include <dolfinx/function/Constant.h>
-
-//need to get sent?
-#define NVAR 5
 
 using namespace dolfinx;
 
@@ -101,7 +99,10 @@ int main_dolfinx(int argc, char* argv[], MPI_Fint comm_int, int instance_number,
     VecScatterCreateToZero(u.vector(),&scat,&send);
 
     //get and send boundary conditions.
-    double nodes_sizes[4] = {7664.0,4129.0,2769.0,2014.0}; //temp fixed size of send and receive
+    int size_u;
+    double nodes_sizes[4] = {0.0, 0.0, 0.0, 0.0};
+    VecGetSize(u.vector(), &size_u);
+    nodes_sizes[0] = round(size_u * 0.025); //TEMP boundary 2.5% of grid.
     
     double *p_variables_data;
     double *p_variables_recv_l0, *p_variables_recv_l1, *p_variables_recv_l2, *p_variables_recv_l3;    
