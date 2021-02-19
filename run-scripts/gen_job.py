@@ -39,7 +39,6 @@ defaults["setup"] = {}
 # Compilation:
 defaults["compile"]["app dirpath"] = None
 defaults["compile"]["debug"] = False
-defaults["compile"]["papi"] = False
 defaults["compile"]["cpp wrapper"] = None
 defaults["compile"]["mpicpp wrapper"] = None
 defaults["compile"]["openmp"] = False
@@ -48,6 +47,8 @@ defaults["compile"]["vec"] = False
 defaults["compile"]["cuda"] = False
 defaults["compile"]["openacc"] = False
 defaults["compile"]["openmp4"] = False
+defaults["compile"]["papi"] = False
+defaults["run"]["papi events"] = None
 # Job scheduling:
 defaults["run"]["unit walltime"] = 0.0
 defaults["run"]["num nodes"] = None
@@ -168,9 +169,11 @@ if __name__=="__main__":
     project_code = get_key_value(profile, "setup", "project code")
     js = get_key_value(profile, "setup", "job scheduler")
 
+    use_papi = get_key_value(profile, "compile", "papi")
+    papi_events = get_key_value(profile, "run", "papi events")
+
     compiler = get_key_value(profile, "compile", "compiler")
     do_debug = get_key_value(profile, "compile", "debug")
-    use_papi = get_key_value(profile, "compile", "papi")
     cpp_wrapper = get_key_value(profile, "compile", "cpp wrapper")
     mpicpp_wrapper = get_key_value(profile, "compile", "mpicpp wrapper")
     use_mpi = get_key_value(profile, "compile", "mpi")
@@ -204,9 +207,6 @@ if __name__=="__main__":
             raise Exception("Cannot combine vec with anything other than MPI")
 
     if use_papi:
-        if use_openmp:
-            print("WARNING: PAPI monitoring not yet implemented in OpenMP codes. Disabling PAPI.")
-            use_papi = False
         if use_openmp4 or use_openacc or use_cuda:
             print("WARNING: PAPI monitoring with accelerator codes is nonsense. Disabling PAPI.")
             use_papi = False
@@ -296,9 +296,13 @@ if __name__=="__main__":
     submit_all_file.write("num_jobs={0}\n\n".format(num_jobs))
 
     if use_papi:
-        with open(os.path.join(jobs_dir, "papi.conf"), "w") as f:
-            f.write("PAPI_TOT_INS\n")
-            f.write("PAPI_TOT_CYC\n")
+        if papi_events is None or len(papi_events)==0:
+            print("WARNING: PAPI requested but no events specified, so disabling")
+            use_papi = False
+        else:
+            with open(os.path.join(jobs_dir, "papi.conf"), "w") as f:
+                for e in papi_events:
+                    f.write("{0}\n".format(e))
 
     n = 0
     for repeat in range(num_repeats):

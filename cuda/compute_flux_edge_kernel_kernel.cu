@@ -290,7 +290,7 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
     #endif
     , NULL
     #ifdef PAPI
-    , NULL, 0, 0
+    , NULL
     #endif
     );
 };
@@ -303,7 +303,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
   #endif
   , long* iter_counts_ptr
   #ifdef PAPI
-  , long_long* restrict event_counts, int event_set, int num_events
+  , long_long** restrict event_counts
   #endif
   )
 {

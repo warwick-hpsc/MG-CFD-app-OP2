@@ -9,6 +9,8 @@
 #include "papi_funcs.h"
 #endif
 
+#include <mpi.h>
+
 // host stub function
 void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg0,
@@ -21,7 +23,7 @@ void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_par_loop_unstructured_stream_kernel_instrumented(name, set, 
     arg0, arg1, arg2, arg3, arg4
     #ifdef PAPI
-    , NULL, 0, 0
+    , NULL
     #endif
     );
 };
@@ -30,7 +32,7 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
   char const *name, op_set set,
   op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
   #ifdef PAPI
-  , long_long* restrict event_counts, int event_set, int num_events
+  , long_long** restrict event_counts
   #endif
   )
 {
@@ -67,38 +69,18 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
 
   if (set_size >0) {
+    op_mpi_wait_all(nargs, args);
+    MPI_Barrier(MPI_COMM_WORLD);
+    op_timers_core(&cpu_t1, &wall_t1);
 
     op_plan *Plan = op_plan_get_stage_upload(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_ALL,0);
-
-    #ifdef PAPI
-      // Init and start PAPI
-      long_long* temp_count_stores = NULL;
-      if (num_events > 0) {
-        temp_count_stores = (long_long*)malloc(sizeof(long_long)*num_events);
-        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
-        my_papi_start(event_set);
-      }
-    #endif
 
     // execute plan
     int block_offset = 0;
     for ( int col=0; col<Plan->ncolors; col++ ){
-      if (col==Plan->ncolors_core) {
-        #ifdef PAPI
-          if (num_events > 0)
-            my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
-        #endif
-
-        op_mpi_wait_all(nargs, args);
-
-        #ifdef PAPI
-          if (num_events > 0) {
-            // Restart PAPI
-            for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
-            my_papi_start(event_set);
-        }
-        #endif
-      }
+      // if (col==Plan->ncolors_core) {
+      //   op_mpi_wait_all(nargs, args);
+      // }
       int nblocks = Plan->ncolblk[col];
 
       // Pause process timing and switch to per-thread timing:
@@ -106,6 +88,10 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
       non_thread_walltime += wall_t2 - wall_t1;
       #pragma omp parallel
       {
+        #ifdef PAPI
+          my_papi_start();
+        #endif
+
         double thr_wall_t1, thr_wall_t2, thr_cpu_t1, thr_cpu_t2;
         op_timers_core(&thr_cpu_t1, &thr_wall_t1);
 
@@ -134,6 +120,10 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
 
         op_timers_core(&thr_cpu_t2, &thr_wall_t2);
         OP_kernels[12].times[thr]  += thr_wall_t2 - thr_wall_t1;
+
+        #ifdef PAPI
+          my_papi_stop(event_counts);
+        #endif
       }
 
       // Revert to process-level timing:
@@ -143,14 +133,6 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
     }
     OP_kernels[12].transfer  += Plan->transfer;
     OP_kernels[12].transfer2 += Plan->transfer2;
-    
-    #ifdef PAPI
-      if (num_events > 0) {
-        my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
-        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
-        free(temp_count_stores);
-      }
-    #endif
   }
 
   if (set_size == 0 || set_size == set->core_size) {

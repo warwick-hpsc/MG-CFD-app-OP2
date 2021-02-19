@@ -22,7 +22,7 @@ void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_par_loop_unstructured_stream_kernel_instrumented(name, set, 
     arg0, arg1, arg2, arg3, arg4
     #ifdef PAPI
-    , NULL, 0, 0
+    , NULL
     #endif
     );
 };
@@ -31,7 +31,7 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
   char const *name, op_set set,
   op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
   #ifdef PAPI
-  , long_long* restrict event_counts, int event_set, int num_events
+  , long_long** restrict event_counts
   #endif
   )
 {
@@ -54,38 +54,25 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
     printf(" kernel routine with indirection: unstructured_stream_kernel\n");
   }
 
-    #ifdef PAPI
-      // Init and start PAPI
-      long_long* temp_count_stores = NULL;
-      if (num_events > 0) {
-        temp_count_stores = (long_long*)malloc(sizeof(long_long)*num_events);
-        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
-        my_papi_start(event_set);
-      }
-    #endif
-
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
 
   if (set_size >0) {
     op_mpi_wait_all(nargs, args);
-	MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
     op_timers_core(&cpu_t1, &wall_t1);
+
+    #ifdef PAPI
+      my_papi_start();
+    #endif
 
     for ( int n=0; n<set_size; n++ ){
       // if (n==set->core_size) {
       //   #ifdef PAPI
-      //     if (num_events > 0)
-      //       my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
+      //     my_papi_stop(event_counts);
       //   #endif
-
       //   op_mpi_wait_all(nargs, args);
-
       //   #ifdef PAPI
-      //     if (num_events > 0) {
-      //       // Restart PAPI
-      //       for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
-      //       my_papi_start(event_set);
-      //   }
+      //     my_papi_start();
       //   #endif
       // }
       int map0idx = arg0.map_data[n * arg0.map->dim + 0];
@@ -100,17 +87,12 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
         &((double*)arg3.data)[5 * map1idx]);
     }
 
+    #ifdef PAPI
+      my_papi_stop(event_counts);
+    #endif
   }
   op_timers_core(&cpu_t2, &wall_t2);
 
-  #ifdef PAPI
-    if (num_events > 0) {
-      my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
-      for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
-      free(temp_count_stores);
-    }
-  #endif
-	
   if (set_size == 0 || set_size == set->core_size) {
     op_mpi_wait_all(nargs, args);
   }

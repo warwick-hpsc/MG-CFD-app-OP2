@@ -71,7 +71,7 @@ job_id_colnames = get_job_id_colnames(op2_data)
 for j in job_id_colnames:
 	vals = Set(op2_data[j])
 	if len(vals) == 1:
-		if j not in ["nranks"]:
+		if j not in ["nranks", "rank"]:
 			op2_data = op2_data.drop(columns=[j])
 # Remove unwanted data columns:
 unwanted_columns = ["plan time", "GB used", "GB total"]
@@ -219,8 +219,9 @@ ustream_data = op2_data.loc[op2_data["loop"]=="ustream"]
 wall_data = op2_data.loc[op2_data["loop"]=="WALLTIME"].copy()
 wall_data["total time"] = wall_data["loop time"] + wall_data["sync"]
 
-flux_with_ustream_data = flux_data.rename(index=str, columns={"loop time":"flux time"})[["nranks", "rank", "flux time"]]
-flux_with_ustream_data = flux_with_ustream_data.merge(ustream_data.rename(index=str, columns={"loop time":"ustream time"})[["nranks", "rank", "ustream time"]])
+cols_to_keep = [c for c in ["nranks", "rank", "thread"] if c in flux_data.columns.values]
+flux_with_ustream_data = flux_data.rename(index=str, columns={"loop time":"flux time"})[cols_to_keep+["flux time"]]
+flux_with_ustream_data = flux_with_ustream_data.merge(ustream_data.rename(index=str, columns={"loop time":"ustream time"})[cols_to_keep+["ustream time"]])
 flux_with_ustream_data["flux_pct_ustream"] = flux_with_ustream_data["flux time"] / flux_with_ustream_data["ustream time"]
 
 if "nranks" in op2_data.columns:

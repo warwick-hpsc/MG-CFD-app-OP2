@@ -86,6 +86,7 @@ def collate_csvs():
 
                             df = df.rename(index=str, columns={"Partitioner":"partitioner"})
                             df = df.rename(index=str, columns={"Rank":"rank"})
+                            df = df.rename(index=str, columns={"Thread":"thread"})
                             df = df.rename(index=str, columns={"kernel name":"kernel"})
 
                             if "level" in df.columns.values:

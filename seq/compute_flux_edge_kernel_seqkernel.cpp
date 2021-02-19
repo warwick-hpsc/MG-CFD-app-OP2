@@ -24,7 +24,7 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
     #endif
     , NULL
     #ifdef PAPI
-    , NULL, 0, 0
+    , NULL
     #endif
     );
 };
@@ -37,7 +37,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
   #endif
   , long* iter_counts_ptr
   #ifdef PAPI
-  , long_long* restrict event_counts, int event_set, int num_events
+  , long_long** event_counts
   #endif
   )
 {
@@ -71,22 +71,13 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
   if (set_size >0) {
 
     #ifdef PAPI
-      // Init and start PAPI
-      long_long* temp_count_stores = NULL;
-      if (num_events > 0) {
-        temp_count_stores = (long_long*)malloc(sizeof(long_long)*num_events);
-        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
-        my_papi_start(event_set);
-      }
+      my_papi_start();
     #endif
 
     op_timers_core(&inner_cpu_t1, &inner_wall_t1);
     for ( int n=0; n<set_size; n++ ){
       if (n==set->core_size) {
-        #ifdef PAPI
-          if (num_events > 0)
-            my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
-        #endif
+        my_papi_stop(event_counts);
 
         op_timers_core(&inner_cpu_t2, &inner_wall_t2);
         compute_time += inner_wall_t2 - inner_wall_t1;
@@ -95,11 +86,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
         sync_time += inner_wall_t1 - inner_wall_t2;
 
         #ifdef PAPI
-          if (num_events > 0) {
-            // Restart PAPI
-            for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
-            my_papi_start(event_set);
-        }
+          my_papi_start();
         #endif
       }
       int map0idx = arg0.map_data[n * arg0.map->dim + 0];
@@ -118,11 +105,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
     iter_counts += set_size;
 
     #ifdef PAPI
-      if (num_events > 0) {
-        my_papi_stop(event_counts, temp_count_stores, event_set, num_events);
-        for (int e=0; e<num_events; e++) temp_count_stores[e] = 0;
-        free(temp_count_stores);
-      }
+      my_papi_stop(event_counts);
     #endif
   }
 
