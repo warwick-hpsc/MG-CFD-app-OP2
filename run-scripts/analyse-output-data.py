@@ -45,9 +45,21 @@ if not os.path.isfile(papidata_filepath):
 else:
 	papi_df = pd.read_csv(papidata_filepath)
 	flux_f = papi_df["kernel"]=="compute_flux_edge_kernel"
-	flux_papi_df = papi_df[flux_f][["PAPI counter", "partitioner", "rank", "nranks", "count"]]
-	if "OFFCORE_RESPONSE_0:ANY_DATA:ANY_RESPONSE" in flux_papi_df["PAPI counter"].values:
-		flux_gb_df = flux_papi_df[flux_papi_df["PAPI counter"]=="OFFCORE_RESPONSE_0:ANY_DATA:ANY_RESPONSE"]
+	flux_papi_df = papi_df[flux_f][["PAPI counter", "partitioner", "rank", "thread", "nranks", "count"]]
+	offcore_dram_read_events = [
+		"OFFCORE_REQUESTS:ALL_DATA_READ",
+		"OFFCORE_RESPONSE_[01]:(DMND_DATA_RD|PF_DATA_RD|ANY_DATA):(DMND_DATA_RD|PF_DATA_RD|ANY_DATA)",
+		"OFFCORE_RESPONSE_[01]:(DMND_DATA_RD|PF_DATA_RD|ANY_DATA)"
+	]
+	f = None
+	for e in offcore_dram_read_events:
+		g = flux_papi_df["PAPI counter"].str.match(r''+e)
+		if f is None:
+			f = g
+		else:
+			f = np.logical_or(f, g)
+	flux_gb_df = flux_papi_df[f]
+	if flux_gb_df.shape[0] > 0:
 		flux_gb_df.drop(columns=["PAPI counter"], inplace=True)
 		flux_gb_df["GB read"] = flux_gb_df["count"]*64/1e9
 		flux_gb_df.drop(columns=["count"], inplace=True)
