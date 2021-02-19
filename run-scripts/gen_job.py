@@ -136,6 +136,7 @@ if __name__=="__main__":
     args = parser.parse_args()
     with open(args.json, 'r') as f:
         profile = json.load(f)
+    validate_json(profile)
 
     ## Read file/folder paths and prepare folders:
     jobs_dir = profile["setup"]["jobs dir"]
