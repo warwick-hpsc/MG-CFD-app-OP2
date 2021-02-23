@@ -77,7 +77,9 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
     op_timers_core(&inner_cpu_t1, &inner_wall_t1);
     for ( int n=0; n<set_size; n++ ){
       if (n==set->core_size) {
-        my_papi_stop(event_counts);
+        #ifdef PAPI
+          my_papi_stop(event_counts);
+        #endif
 
         op_timers_core(&inner_cpu_t2, &inner_wall_t2);
         compute_time += inner_wall_t2 - inner_wall_t1;

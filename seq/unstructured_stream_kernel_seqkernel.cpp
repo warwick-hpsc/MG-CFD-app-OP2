@@ -57,24 +57,28 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
 
   if (set_size >0) {
-    op_mpi_wait_all(nargs, args);
-    MPI_Barrier(MPI_COMM_WORLD);
-    op_timers_core(&cpu_t1, &wall_t1);
+    #ifdef MEASURE_MEM_BW
+      // Need to ensure that MPI complete before timing. 
+      // Not necessary to insert an explicit barrier, at least for 
+      // single node benchmarking.
+      op_mpi_wait_all(nargs, args);
+      op_timers_core(&cpu_t1, &wall_t1);
+    #endif
 
     #ifdef PAPI
       my_papi_start();
     #endif
 
     for ( int n=0; n<set_size; n++ ){
-      // if (n==set->core_size) {
-      //   #ifdef PAPI
-      //     my_papi_stop(event_counts);
-      //   #endif
-      //   op_mpi_wait_all(nargs, args);
-      //   #ifdef PAPI
-      //     my_papi_start();
-      //   #endif
-      // }
+      if (n==set->core_size) {
+        #ifdef PAPI
+          my_papi_stop(event_counts);
+        #endif
+        op_mpi_wait_all(nargs, args);
+        #ifdef PAPI
+          my_papi_start();
+        #endif
+      }
       int map0idx = arg0.map_data[n * arg0.map->dim + 0];
       int map1idx = arg0.map_data[n * arg0.map->dim + 1];
 
@@ -91,7 +95,6 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
       my_papi_stop(event_counts);
     #endif
   }
-  op_timers_core(&cpu_t2, &wall_t2);
 
   if (set_size == 0 || set_size == set->core_size) {
     op_mpi_wait_all(nargs, args);
@@ -100,7 +103,7 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
   op_mpi_set_dirtybit(nargs, args);
 
   // update kernel record
-  //op_timers_core(&cpu_t2, &wall_t2);
+  op_timers_core(&cpu_t2, &wall_t2);
   OP_kernels[12].name      = name;
   OP_kernels[12].count    += 1;
   OP_kernels[12].time     += wall_t2 - wall_t1;

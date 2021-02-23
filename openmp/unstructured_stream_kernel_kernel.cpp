@@ -69,18 +69,22 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
 
   if (set_size >0) {
-    op_mpi_wait_all(nargs, args);
-    MPI_Barrier(MPI_COMM_WORLD);
-    op_timers_core(&cpu_t1, &wall_t1);
+    #ifdef MEASURE_MEM_BW
+      // Need to ensure that MPI complete before timing. 
+	  // Not necessary to insert an explicit barrier, at least for 
+	  // single node benchmarking.
+      op_mpi_wait_all(nargs, args);
+      op_timers_core(&cpu_t1, &wall_t1);
+    #endif
 
     op_plan *Plan = op_plan_get_stage_upload(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_ALL,0);
 
     // execute plan
     int block_offset = 0;
     for ( int col=0; col<Plan->ncolors; col++ ){
-      // if (col==Plan->ncolors_core) {
-      //   op_mpi_wait_all(nargs, args);
-      // }
+      if (col==Plan->ncolors_core) {
+        op_mpi_wait_all(nargs, args);
+      }
       int nblocks = Plan->ncolblk[col];
 
       // Pause process timing and switch to per-thread timing:

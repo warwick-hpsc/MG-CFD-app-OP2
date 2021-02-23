@@ -178,9 +178,13 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
   int exec_size = op_mpi_halo_exchanges(set, nargs, args);
 
   if (exec_size >0) {
-    op_mpi_wait_all(nargs, args);
-    MPI_Barrier(MPI_COMM_WORLD);
-    op_timers_core(&cpu_t1, &wall_t1);
+    #ifdef MEASURE_MEM_BW
+      // Need to ensure that MPI complete before timing. 
+	  // Not necessary to insert an explicit barrier, at least for 
+	  // single node benchmarking.
+      op_mpi_wait_all(nargs, args);
+      op_timers_core(&cpu_t1, &wall_t1);
+    #endif
 
     #ifdef PAPI
       my_papi_start();
@@ -190,13 +194,13 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
      if ((n+SIMD_VEC >= set->core_size) && (n+SIMD_VEC-set->core_size < SIMD_VEC)) {
-       // #ifdef PAPI
-       //   my_papi_stop(event_counts);
-       // #endif
-       // op_mpi_wait_all(nargs, args);
-       // #ifdef PAPI
-       //   my_papi_start();
-       // #endif
+       #ifdef PAPI
+         my_papi_stop(event_counts);
+       #endif
+       op_mpi_wait_all(nargs, args);
+       #ifdef PAPI
+         my_papi_start();
+       #endif
      }
       ALIGNED_double double dat0[5][SIMD_VEC];
       ALIGNED_double double dat1[5][SIMD_VEC];
@@ -290,8 +294,6 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
     #endif
   }
 
-  op_timers_core(&cpu_t2, &wall_t2);
-
   if (exec_size == 0 || exec_size == set->core_size) {
     op_mpi_wait_all(nargs, args);
   }
@@ -299,11 +301,10 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
   op_mpi_set_dirtybit(nargs, args);
 
   // update kernel record
-  //op_timers_core(&cpu_t2, &wall_t2);
+  op_timers_core(&cpu_t2, &wall_t2);
   OP_kernels[12].name      = name;
   OP_kernels[12].count    += 1;
   OP_kernels[12].time     += wall_t2 - wall_t1;
-  OP_kernels[12].mpi_time = 0.0; // Ignore MPI
   OP_kernels[12].transfer += (float)set->size * arg0.size;
   OP_kernels[12].transfer += (float)set->size * arg3.size * 2.0f;
   OP_kernels[12].transfer += (float)set->size * arg2.size;
