@@ -140,12 +140,15 @@ if "flux_iters" in op2_data.columns.values:
 
 	group_cols = [c for c in ["loop", "nranks"] if c in op2_data.columns.values]
 	op2_data_grp = op2_data.groupby(group_cols, as_index=False)
-	op2_data_grp_mean = op2_data_grp.mean()[["loop", "nranks", "loop time"]]
-	op2_data_grp_sum = op2_data_grp.sum()[["loop", "nranks", "effective GB", "effective GB read"]]
+	op2_data_grp_mean = op2_data_grp.mean()[["loop", "nranks", "loop time", "total time"]]
+	op2_data_grp_sum = op2_data_grp.sum()[["loop", "nranks", "effective GB", "effective GB read", "effective GB write"]]
 	gb_sec_data = op2_data_grp_mean.merge(op2_data_grp_sum, validate="one_to_one")
-	gb_sec_data["effective read GB/sec"] = (gb_sec_data["effective GB read"] / gb_sec_data["loop time"]).round(1)
+	#gb_sec_data["memory time"] = gb_sec_data["loop time"]
+	gb_sec_data["memory time"] = gb_sec_data["total time"]
+	gb_sec_data["effective read GB/sec"] = (gb_sec_data["effective GB read"] / gb_sec_data["memory time"]).round(1)
+	gb_sec_data["effective write GB/sec"] = (gb_sec_data["effective GB write"] / gb_sec_data["memory time"]).round(1)
 	gb_sec_data["effective GB/sec"] = (gb_sec_data["effective GB"] / gb_sec_data["loop time"]).round(1)
-	gb_sec_data.drop(columns=["effective GB", "effective GB read", "loop time"], inplace=True)
+	gb_sec_data.drop(columns=["effective GB", "effective GB read", "effective GB write", "total time", "loop time", "memory time"], inplace=True, errors='ignore')
 	bw_df = gb_sec_data
 
 	if "GB read" in op2_data.columns.values:
@@ -167,18 +170,24 @@ if "flux_iters" in op2_data.columns.values:
 		##
 		## For each node, 10 doubles are read and 5 written, so can estimate 'actual nodes GB write':
 		op2_data["nodes GB read"] = op2_data["GB read"] - op2_data["edges effective GB read"]
-		op2_data["nodes estimated GB write"] = op2_data["nodes GB read"] / 2.0
-		# op2_data["nodes estimated GB write"] = op2_data["nodes effective GB write"]
+		# op2_data["nodes estimated GB write"] = op2_data["nodes GB read"] / 2.0
+		## Update: if I estimate write GB/sec as half of node read GB/sec, then read+write exceeds
+		# STREAM benchmark, this is impossible. But if I use effective write GB/sec instead, then
+		# estimate is reasonable - this necessarily assumes that when a modified cache line is flushed to DRAM, 
+		# that all elements have been modified (otherwise that line would have to be loaded again in 
+		# future iterations to modify remaining elements, meaning same line is flushed twice or more). 
+		op2_data["nodes estimated GB write"] = op2_data["nodes effective GB write"]
 		op2_data["estimated GB"] = op2_data["edges effective GB read"] + op2_data["nodes GB read"] + op2_data["nodes estimated GB write"]
 
 		group_cols = [c for c in ["loop", "nranks"] if c in op2_data.columns.values]
 		op2_data_grp = op2_data.groupby(group_cols, as_index=False)
-		op2_data_grp_mean = op2_data_grp.mean()[["loop", "nranks", "loop time"]]
+		op2_data_grp_mean = op2_data_grp.mean()[["loop", "nranks", "total time", "loop time"]]
 		op2_data_grp_sum = op2_data_grp.sum()[["loop", "nranks", "GB read", "estimated GB"]]
 		gb_sec_data = op2_data_grp_mean.merge(op2_data_grp_sum, validate="one_to_one")
-		gb_sec_data["read GB/sec"] = (gb_sec_data["GB read"] / gb_sec_data["loop time"]).round(1)
-		gb_sec_data["estimated GB/sec"] = (gb_sec_data["estimated GB"] / gb_sec_data["loop time"]).round(1)
-		gb_sec_data.drop(columns=["GB read", "estimated GB", "loop time"], inplace=True)
+		gb_sec_data["memory time"] = gb_sec_data["total time"]
+		gb_sec_data["read GB/sec"] = (gb_sec_data["GB read"] / gb_sec_data["memory time"]).round(1)
+		gb_sec_data["estimated GB/sec"] = (gb_sec_data["estimated GB"] / gb_sec_data["memory time"]).round(1)
+		gb_sec_data.drop(columns=["GB read", "estimated GB", "total time", "loop time", "memory time"], inplace=True, errors='ignore')
 		bw_df = bw_df.merge(gb_sec_data, validate="one_to_one")
 
 	op2_data.drop(columns=["flux_iters", "nedges", "nnodes", "nedges/call"], inplace=True, errors='ignore')
