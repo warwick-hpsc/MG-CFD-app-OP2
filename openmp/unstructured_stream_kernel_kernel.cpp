@@ -6,8 +6,10 @@
 #include ".././src/Kernels/unstructured_stream.h"
 
 #ifdef PAPI
-#include <papi.h>
+#include "papi_funcs.h"
 #endif
+
+#include <mpi.h>
 
 // host stub function
 void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
@@ -21,7 +23,7 @@ void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_par_loop_unstructured_stream_kernel_instrumented(name, set, 
     arg0, arg1, arg2, arg3, arg4
     #ifdef PAPI
-    , NULL, 0, 0
+    , NULL
     #endif
     );
 };
@@ -30,7 +32,7 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
   char const *name, op_set set,
   op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
   #ifdef PAPI
-  , long_long* restrict event_counts, int event_set, int num_events
+  , long_long** restrict event_counts
   #endif
   )
 {
@@ -67,6 +69,13 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
 
   if (set_size >0) {
+    #ifdef MEASURE_MEM_BW
+      // Need to ensure that MPI complete before timing. 
+	  // Not necessary to insert an explicit barrier, at least for 
+	  // single node benchmarking.
+      op_mpi_wait_all(nargs, args);
+      op_timers_core(&cpu_t1, &wall_t1);
+    #endif
 
     op_plan *Plan = op_plan_get_stage_upload(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_ALL,0);
 
@@ -83,6 +92,10 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
       non_thread_walltime += wall_t2 - wall_t1;
       #pragma omp parallel
       {
+        #ifdef PAPI
+          my_papi_start();
+        #endif
+
         double thr_wall_t1, thr_wall_t2, thr_cpu_t1, thr_cpu_t2;
         op_timers_core(&thr_cpu_t1, &thr_wall_t1);
 
@@ -111,6 +124,10 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
 
         op_timers_core(&thr_cpu_t2, &thr_wall_t2);
         OP_kernels[12].times[thr]  += thr_wall_t2 - thr_wall_t1;
+
+        #ifdef PAPI
+          my_papi_stop(event_counts);
+        #endif
       }
 
       // Revert to process-level timing:

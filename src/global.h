@@ -10,4 +10,7 @@ extern double ff_flux_contribution_momentum_y[3];
 extern double ff_flux_contribution_momentum_z[3];
 extern double ff_flux_contribution_density_energy[3];
 
+extern int levels;
+extern int current_level;
+
 #endif

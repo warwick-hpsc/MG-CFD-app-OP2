@@ -27,36 +27,45 @@ part_method_defaults["inertial"] = "geom"
 part_method_defaults["parmetis"] = "geom"
 part_method_defaults["ptscotch"] = "kway"
 
+user_defined = {}
+user_defined["compile"] = ["compiler"]
+user_defined["run"] = ["data dirpath"]
+user_defined["setup"] = ["jobs dir", "job scheduler"]
+
 defaults = {}
+defaults["compile"] = {}
+defaults["run"] = {}
+defaults["setup"] = {}
 # Compilation:
-defaults["app dirpath"] = None
-defaults["debug"] = False
-defaults["papi"] = False
-defaults["cpp wrapper"] = None
-defaults["mpicpp wrapper"] = None
-defaults["openmp"] = False
-defaults["mpi"] = False
-defaults["vec"] = False
-defaults["cuda"] = False
-defaults["openacc"] = False
-defaults["openmp4"] = False
+defaults["compile"]["app dirpath"] = None
+defaults["compile"]["debug"] = False
+defaults["compile"]["cpp wrapper"] = None
+defaults["compile"]["mpicpp wrapper"] = None
+defaults["compile"]["openmp"] = False
+defaults["compile"]["mpi"] = False
+defaults["compile"]["vec"] = False
+defaults["compile"]["cuda"] = False
+defaults["compile"]["openacc"] = False
+defaults["compile"]["openmp4"] = False
+defaults["compile"]["papi"] = False
+defaults["run"]["papi events"] = None
 # Job scheduling:
-defaults["unit walltime"] = 0.0
-defaults["project code"] = ""
-defaults["partition"] = ""
-defaults["num nodes"] = None
-defaults["num tasks"] = None
-defaults["num tasks per node"] = None
-defaults["num threads per task"] = None
+defaults["run"]["unit walltime"] = 0.0
+defaults["run"]["num nodes"] = None
+defaults["run"]["num tasks"] = None
+defaults["run"]["num tasks per node"] = None
+defaults["run"]["num threads per task"] = None
+defaults["setup"]["project code"] = ""
+defaults["setup"]["partition"] = ""
 # MG-CFD execution:
-defaults["num threads"] = [1]
-defaults["num repeats"] = 1
-defaults["mg cycles"] = 50
-defaults["output flow interval"] = 0
-defaults["measure mem bound"] = False
+defaults["run"]["num repeats"] = 1
+defaults["run"]["mg cycles"] = 25
+defaults["run"]["output flow interval"] = 0
+defaults["run"]["measure mem bound"] = False
+defaults["run"]["validate solution"] = True
 # Partitioning:
-defaults["partitioners"] = ["parmetis"]
-defaults["partitioner methods"] = None
+defaults["run"]["partitioners"] = ["parmetis"]
+defaults["run"]["partitioner methods"] = None
 
 def get_key_value(profile, cat, key):
     if not cat in profile.keys():
@@ -65,10 +74,21 @@ def get_key_value(profile, cat, key):
     if key in profile[cat]:
         return profile[cat][key]
     else:
-        if key in defaults:
-            return defaults[key]
+        # if key in defaults:
+        if cat in defaults and key in defaults[cat]:
+            return defaults[cat][key]
         else:
             raise Exception("Mandatory key '{0}' not present in cat '{1}' of json".format(key, cat))
+
+def validate_json(profile):
+    cats = profile.keys()
+    for cat in cats:
+        if not cat in defaults.keys():
+            print("WARNING: Unrecognised section '{0}' in JSON".format(cat))
+        entries = profile[cat]
+        for entry in entries:
+            if not entry in defaults[cat] and not entry in user_defined[cat]:
+                print("WARNING: Unrecognised key '{0}' in JSON section '{1}'".format(entry, cat))
 
 def py_sed(filepath, from_str, to_str, delete_line_if_none=False):
     with open(filepath, "r") as f:
@@ -117,6 +137,7 @@ if __name__=="__main__":
     args = parser.parse_args()
     with open(args.json, 'r') as f:
         profile = json.load(f)
+    validate_json(profile)
 
     ## Read file/folder paths and prepare folders:
     jobs_dir = profile["setup"]["jobs dir"]
@@ -139,14 +160,20 @@ if __name__=="__main__":
             raise Exception("Requested app dirpath does not exist")
         template_dirpath = os.path.join(app_dirpath, "run-templates")
 
-    ## Read parameters from json:
+    ################################
+    ## Read parameters from json
+    ## Check for compatibility
+    ## Make inferences
+    ################################
     job_queue = get_key_value(profile, "setup", "partition")
     project_code = get_key_value(profile, "setup", "project code")
     js = get_key_value(profile, "setup", "job scheduler")
 
+    use_papi = get_key_value(profile, "compile", "papi")
+    papi_events = get_key_value(profile, "run", "papi events")
+
     compiler = get_key_value(profile, "compile", "compiler")
     do_debug = get_key_value(profile, "compile", "debug")
-    use_papi = get_key_value(profile, "compile", "papi")
     cpp_wrapper = get_key_value(profile, "compile", "cpp wrapper")
     mpicpp_wrapper = get_key_value(profile, "compile", "mpicpp wrapper")
     use_mpi = get_key_value(profile, "compile", "mpi")
@@ -180,9 +207,6 @@ if __name__=="__main__":
             raise Exception("Cannot combine vec with anything other than MPI")
 
     if use_papi:
-        if use_openmp:
-            print("WARNING: PAPI monitoring not yet implemented in OpenMP codes. Disabling PAPI.")
-            use_papi = False
         if use_openmp4 or use_openacc or use_cuda:
             print("WARNING: PAPI monitoring with accelerator codes is nonsense. Disabling PAPI.")
             use_papi = False
@@ -232,6 +256,9 @@ if __name__=="__main__":
     else:
         num_threads_range = [1]
 
+    ########################################################
+    ## Setup iteration space over parameter combinations
+    ########################################################
     iteration_space = {}
     if not partitioners is None:
         iteration_space["partitioner"] = partitioners
@@ -254,6 +281,9 @@ if __name__=="__main__":
         iterables_labelled.append(item_dict)
     num_jobs = len(iterables_labelled) * num_repeats
 
+    ########################################################
+    ## Create run scipts
+    ########################################################
     submit_all_filepath = os.path.join(jobs_dir, "submit_all.sh")
     submit_all_file = open(submit_all_filepath, "w")
     submit_all_file.write("#!/bin/bash\n")
@@ -266,9 +296,13 @@ if __name__=="__main__":
     submit_all_file.write("num_jobs={0}\n\n".format(num_jobs))
 
     if use_papi:
-        with open(os.path.join(jobs_dir, "papi.conf"), "w") as f:
-            f.write("PAPI_TOT_INS\n")
-            f.write("PAPI_TOT_CYC\n")
+        if papi_events is None or len(papi_events)==0:
+            print("WARNING: PAPI requested but no events specified, so disabling")
+            use_papi = False
+        else:
+            with open(os.path.join(jobs_dir, "papi.conf"), "w") as f:
+                for e in papi_events:
+                    f.write("{0}\n".format(e))
 
     n = 0
     for repeat in range(num_repeats):

@@ -321,11 +321,12 @@ NVCCFLAGS += $(CODE_GEN_CUDA) -m64 -Xptxas -dlcm=ca -Xptxas=-v -use_fast_math -O
 
 
 MGCFD_INCS := -Isrc -Isrc/Kernels
+
+# Enable PAPI flag to enable performance counter monitoring with PAPI library:
 ifdef PAPI
   MGCFD_INCS += -DPAPI
   MGCFD_LIBS := -lpapi -lpfm
 endif
-
 
 ## Enable VERIFY_OP2_TIMING to perform timing measurements external to
 ## those performed by OP2 internally. Intended to verify whether OP2 timers
@@ -333,10 +334,17 @@ endif
 #MGCFD_INCS += -DVERIFY_OP2_TIMING
 
 ## Enable DUMP_EXT_PERF_DATA to write out externally-collected
-## performance data. Included number of loop iterations counts of
+## performance data. Includes number of loop iterations counts of
 ## each kernel, and if VERIFY_OP2_TIMING is enabled then also
 ## its compute and sync times.
-# MGCFD_INCS += -DDUMP_EXT_PERF_DATA
+#MGCFD_INCS += -DDUMP_EXT_PERF_DATA
+
+## Enable MEASURE_MEM_BW to shuffle timers and MPI calls in 
+## 'unstructured_stream' to better measure memory GB/sec. 
+## Useless if you don't also enable PAPI and monitor relevant DRAM event.
+#MGCFD_INCS += -DMEASURE_MEM_BW
+
+
 
 #all: seq openmp mpi mpi_vec mpi_openmp
 all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda sycl
@@ -467,12 +475,12 @@ $(BIN_DIR)/mgcfd_sycl: $(OP2_SYCL_OBJECTS)
 ## OPENMP
 $(OBJ_DIR)/mgcfd_openmp_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) -D_OMP $(OPTIMISE) $(MGCFD_INCS) \
 		$(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) \
 		-c -o $@ $^
 $(OBJ_DIR)/mgcfd_openmp_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(OMP_KERNELS)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) \
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) -D_OMP $(OPTIMISE) $(MGCFD_INCS) \
 		$(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) \
 		-c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
 $(BIN_DIR)/mgcfd_openmp: $(OP2_OMP_OBJECTS)
@@ -501,7 +509,7 @@ $(BIN_DIR)/mgcfd_mpi: $(OP2_MPI_OBJECTS)
 ## MPI_VEC
 $(OBJ_DIR)/mgcfd_mpi_vec_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS)  $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
         -DMPI_ON -c -o $@ $^
 $(OBJ_DIR)/mgcfd_mpi_vec_kernels.o: $(SRC_DIR)/../vec/_veckernels.cpp $(VEC_KERNELS)
 	mkdir -p $(OBJ_DIR)
@@ -517,11 +525,11 @@ $(BIN_DIR)/mgcfd_mpi_vec: $(OP2_MPI_VEC_OBJECTS)
 ## MPI + OPENMP
 $(OBJ_DIR)/mgcfd_mpi_openmp_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) -D_OMP $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	    -DMPI_ON -c -o $@ $^
 $(OBJ_DIR)/mgcfd_mpi_openmp_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(OMP_KERNELS)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) -D_OMP $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	    -DMPI_ON -c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
 $(BIN_DIR)/mgcfd_mpi_openmp: $(OP2_MPI_OMP_OBJECTS)
 	mkdir -p $(BIN_DIR)

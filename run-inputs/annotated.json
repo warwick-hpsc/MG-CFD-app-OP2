@@ -45,6 +45,10 @@
         "validate solution": false,
 
 
+        "papi events comment": "[Optional] If papi enabled, which events to monitor.",
+        "papi events": ["PAPI_TOT_INS"],
+
+
         "comment on list-type parameters": "Python job generator iterates over the cartesian product of them."
     },
 
@@ -55,6 +59,9 @@
         "cpp/mpicpp wrapper comment": "[Optional] If target system requires use of a wrapper around compiler (eg Archer), state that here",
         "cpp wrapper": "",
         "mpicpp wrapper": "",
+
+        "papi comment": "[Optional] Enable PAPI performance counter monitoring",
+        "papi": false,
 
         "general parallelism comment": "If possible, enabled modes below will be combined; if not, gen_job.py will complain. At least one mode should be requested.",
         "mpi comment": "Toggle whether to use MPI",

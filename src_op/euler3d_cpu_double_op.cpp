@@ -25,6 +25,13 @@
 #include "hdf5.h"
 
 #ifdef PAPI
+#include <papi.h>
+long_long** flux_kernel_event_counts = NULL;
+long_long** ustream_kernel_event_counts = NULL;
+long_long** temp_count_store = NULL;
+int* num_events = NULL;
+int* event_set = NULL;
+int** events = NULL;
 #include "papi_funcs.h"
 #endif
 
@@ -99,7 +106,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(char const *, op_set,
   #endif
   , long* // iterations
   #ifdef PAPI
-    , long_long*, int, int
+    , long_long**
   #endif
 );
 
@@ -130,7 +137,7 @@ void op_par_loop_unstructured_stream_kernel_instrumented(char const *, op_set,
   op_arg,
   op_arg
   #ifdef PAPI
-    , long_long*, int, int
+    , long_long**
   #endif
 );
 
@@ -222,10 +229,9 @@ double ff_flux_contribution_momentum_y[NDIM];
 double ff_flux_contribution_momentum_z[NDIM];
 double ff_flux_contribution_density_energy[NDIM];
 int mesh_name;
+int levels;
+int current_level;
 #include "global.h"
-#ifdef PAPI
-int num_events;
-#endif
 config conf;
 
 // MG-CFD kernels:
@@ -258,7 +264,7 @@ int main(int argc, char** argv)
     }
 
     int problem_size = 0;
-    int levels = 0;
+    levels = 0;
     int base_array_index = 1;
     std::string* layers = NULL;
     std::string* mg_connectivity_filename = NULL;
@@ -314,20 +320,8 @@ int main(int argc, char** argv)
         flux_kernel_iter_counts[i] = 0;
     }
     #ifdef PAPI
-        int num_events = 0;
-        init_papi(&num_events);
-        long_long flux_kernel_event_counts[levels*num_events];
-        for (int i=0; i<(levels*num_events); i++) {
-            flux_kernel_event_counts[i] = 0;
-        }
-        long_long ustream_kernel_event_counts[levels*num_events];
-        for (int i=0; i<(levels*num_events); i++) {
-            ustream_kernel_event_counts[i] = 0;
-        }
-
-        int event_set;
-        int* events;
-        load_papi_events(num_events, &event_set, &events);
+        init_papi();
+        load_papi_events();
     #endif
     double file_io_times[levels];
     for (int i=0; i<levels; i++) {
@@ -635,6 +629,8 @@ int main(int argc, char** argv)
             op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
         #endif
 
+        current_level = level;
+
         op_par_loop_copy_double_kernel("copy_double_kernel",op_nodes[level],
                     op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_READ),
                     op_arg_dat(p_old_variables[level],-1,OP_ID,5,"double",OP_WRITE));
@@ -677,7 +673,7 @@ int main(int argc, char** argv)
                         #endif
                         , &flux_kernel_iter_counts[level]
                         #ifdef PAPI
-                        , &flux_kernel_event_counts[level*num_events], event_set, num_events
+                        , flux_kernel_event_counts
                         #endif
                         );
 
@@ -702,7 +698,7 @@ int main(int argc, char** argv)
                             op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
                             op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
                             #ifdef PAPI
-                            , &ustream_kernel_event_counts[level*num_events], event_set, num_events
+                            , ustream_kernel_event_counts
                             #endif
                             );
             }
@@ -971,10 +967,7 @@ int main(int argc, char** argv)
     #endif
     #ifdef PAPI
         dump_papi_counters_to_file(
-            my_rank, 
-            levels, 
-            num_events, 
-            events, 
+            my_rank,
             flux_kernel_event_counts, 
             ustream_kernel_event_counts,
             conf.output_file_prefix);
