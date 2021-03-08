@@ -14,7 +14,6 @@
 #include <fstream>
 #include <cmath>
 #include <string>
-#include <omp.h>
 #include <sys/time.h>
 #include <sstream>
 #include <cstdlib>
@@ -87,22 +86,6 @@ void op_par_loop_compute_flux_edge_kernel(char const *, op_set,
   op_arg,
   op_arg );
 
-void op_par_loop_compute_flux_edge_kernel_instrumented(char const *, op_set,
-  op_arg,
-  op_arg,
-  op_arg,
-  op_arg,
-  op_arg
-  #ifdef VERIFY_OP2_TIMING
-    , double* // compute time
-    , double* // sync time
-  #endif
-  , long* // iterations
-  #ifdef PAPI
-    , long_long*, int, int
-  #endif
-);
-
 void op_par_loop_compute_bnd_node_flux_kernel(char const *, op_set,
   op_arg,
   op_arg,
@@ -122,17 +105,6 @@ void op_par_loop_unstructured_stream_kernel(char const *, op_set,
   op_arg,
   op_arg,
   op_arg );
-
-void op_par_loop_unstructured_stream_kernel_instrumented(char const *, op_set,
-  op_arg,
-  op_arg,
-  op_arg,
-  op_arg,
-  op_arg
-  #ifdef PAPI
-    , long_long*, int, int
-  #endif
-);
 
 void op_par_loop_residual_kernel(char const *, op_set,
   op_arg,
@@ -236,8 +208,23 @@ config conf;
 #include "validation.h"
 #include "unstructured_stream.h"
 
+#ifdef LIKWID_PERFMON
+#include <likwid.h>
+#else
+#define LIKWID_MARKER_INIT
+#define LIKWID_MARKER_THREADINIT
+#define LIKWID_MARKER_SWITCH
+#define LIKWID_MARKER_REGISTER(regionTag)
+#define LIKWID_MARKER_START(regionTag)
+#define LIKWID_MARKER_STOP(regionTag)
+#define LIKWID_MARKER_CLOSE
+#define LIKWID_MARKER_GET(regionTag, nevents, events, time, count)
+#endif
+
+
 int main(int argc, char** argv)
 {
+    LIKWID_MARKER_INIT;
     #ifdef NANCHECK
         feenableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
     #endif
@@ -287,13 +274,13 @@ int main(int argc, char** argv)
     }
 
     #ifdef LOG_PROGRESS
-        // op_init(argc, argv, 7); // Report positive checks in op_plan_check
-        // op_init(argc, argv, 4);
-        op_init(argc, argv, 3); // Report execution of parallel loops
-        // op_init(argc, argv, 2); // Info on plan construction
-        // op_init(argc, argv, 1); // Error-checking
+        // op_init_soa(argc, argv, 7,1); // Report positive checks in op_plan_check
+        // op_init_soa(argc, argv, 4,1);
+        op_init_soa(argc, argv, 3,1); // Report execution of parallel loops
+        // op_init_soa(argc, argv, 2,1); // Info on plan construction
+        // op_init_soa(argc, argv, 1,1); // Error-checking
     #else
-        op_init(argc, argv, 0);
+        op_init_soa(argc, argv, 0,1);
     #endif
 
     // timer
@@ -666,20 +653,12 @@ int main(int argc, char** argv)
                 op_printf(" RK cycle %d / %d\n", rkCycle+1, RK);
             #endif
 
-            op_par_loop_compute_flux_edge_kernel_instrumented("compute_flux_edge_kernel",op_edges[level],
+            op_par_loop_compute_flux_edge_kernel("compute_flux_edge_kernel",op_edges[level],
                         op_arg_dat(p_variables[level],0,p_edge_to_nodes[level],5,"double",OP_READ),
                         op_arg_dat(p_variables[level],1,p_edge_to_nodes[level],5,"double",OP_READ),
                         op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                         op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
-                        #ifdef VERIFY_OP2_TIMING
-                          , &flux_kernel_compute_times[level], &flux_kernel_sync_times[level]
-                        #endif
-                        , &flux_kernel_iter_counts[level]
-                        #ifdef PAPI
-                        , &flux_kernel_event_counts[level*num_events], event_set, num_events
-                        #endif
-                        );
+                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));
 
             op_par_loop_compute_bnd_node_flux_kernel("compute_bnd_node_flux_kernel",op_bnd_nodes[level],
                         op_arg_dat(p_bnd_node_groups[level],-1,OP_ID,1,"int",OP_READ),
@@ -695,16 +674,12 @@ int main(int argc, char** argv)
                         op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_WRITE));
 
             if (conf.measure_mem_bound) {
-                op_par_loop_unstructured_stream_kernel_instrumented("unstructured_stream_kernel",op_edges[level],
+                op_par_loop_unstructured_stream_kernel("unstructured_stream_kernel",op_edges[level],
                             op_arg_dat(p_variables[level],0,p_edge_to_nodes[level],5,"double",OP_READ),
                             op_arg_dat(p_variables[level],1,p_edge_to_nodes[level],5,"double",OP_READ),
                             op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                             op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                            op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
-                            #ifdef PAPI
-                            , &ustream_kernel_event_counts[level*num_events], event_set, num_events
-                            #endif
-                            );
+                            op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));
             }
         }
 
@@ -976,7 +951,6 @@ int main(int argc, char** argv)
             num_events, 
             events, 
             flux_kernel_event_counts, 
-            ustream_kernel_event_counts,
             conf.output_file_prefix);
     #endif
 
@@ -1012,6 +986,7 @@ int main(int argc, char** argv)
     op_printf("-----------------------------------------------------\n");
     op_printf("Winding down OP2\n");
     op_exit();
+LIKWID_MARKER_CLOSE;
 
     return 0;
 }

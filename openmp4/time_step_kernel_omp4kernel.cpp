@@ -3,6 +3,8 @@
 //
 
 //user function
+int direct_time_step_kernel_stride_OP2CONSTANT;
+int direct_time_step_kernel_stride_OP2HOST=-1;
 //user function
 
 void time_step_kernel_omp4_kernel(
@@ -17,7 +19,8 @@ void time_step_kernel_omp4_kernel(
   int dat4size,
   int count,
   int num_teams,
-  int nthread);
+  int nthread,
+  int direct_time_step_kernel_stride_OP2CONSTANT);
 
 // host stub function
 void op_par_loop_time_step_kernel(char const *name, op_set set,
@@ -66,6 +69,11 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
 
   if (set_size >0) {
 
+    if ((OP_kernels[11].count==1) || (direct_time_step_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg2))) {
+      direct_time_step_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg2);
+      direct_time_step_kernel_stride_OP2CONSTANT = direct_time_step_kernel_stride_OP2HOST;
+    }
+
     //Set up typed device pointers for OpenMP
 
     double* data1 = (double*)arg1.data_d;
@@ -88,7 +96,8 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
       dat4size,
       set->size,
       part_size!=0?(set->size-1)/part_size+1:(set->size-1)/nthread,
-      nthread);
+      nthread,
+      direct_time_step_kernel_stride_OP2CONSTANT);
 
   }
 

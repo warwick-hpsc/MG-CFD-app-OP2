@@ -3,6 +3,10 @@
 //
 
 //user function
+int opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT;
+int opDat2_compute_bnd_node_flux_kernel_stride_OP2HOST=-1;
+int direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT;
+int direct_compute_bnd_node_flux_kernel_stride_OP2HOST=-1;
 //user function
 
 void compute_bnd_node_flux_kernel_omp4_kernel(
@@ -21,7 +25,9 @@ void compute_bnd_node_flux_kernel_omp4_kernel(
   int start,
   int end,
   int num_teams,
-  int nthread);
+  int nthread,
+  int opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT,
+  int direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT);
 
 // host stub function
 void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
@@ -72,6 +78,15 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
   if (set_size >0) {
 
+    if ((OP_kernels[10].count==1) || (opDat2_compute_bnd_node_flux_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg2))) {
+      opDat2_compute_bnd_node_flux_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg2);
+      opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT = opDat2_compute_bnd_node_flux_kernel_stride_OP2HOST;
+    }
+    if ((OP_kernels[10].count==1) || (direct_compute_bnd_node_flux_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg1))) {
+      direct_compute_bnd_node_flux_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg1);
+      direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT = direct_compute_bnd_node_flux_kernel_stride_OP2HOST;
+    }
+
     //Set up typed device pointers for OpenMP
     int *map2 = arg2.map_data_d;
      int map2size = arg2.map->dim * set_size1;
@@ -113,7 +128,9 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
         start,
         end,
         part_size!=0?(end-start-1)/part_size+1:(end-start-1)/nthread,
-        nthread);
+        nthread,
+        opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT,
+        direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT);
 
     }
     OP_kernels[10].transfer  += Plan->transfer;

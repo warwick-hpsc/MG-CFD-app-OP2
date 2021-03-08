@@ -10,7 +10,8 @@ void count_non_zeros_omp4_kernel(
   int *arg1,
   int count,
   int num_teams,
-  int nthread){
+  int nthread,
+  int direct_count_non_zeros_stride_OP2CONSTANT){
 
   int arg1_l = *arg1;
   #pragma omp target teams num_teams(num_teams) thread_limit(nthread) map(to:data0[0:dat0size])\
@@ -18,13 +19,13 @@ void count_non_zeros_omp4_kernel(
   #pragma omp distribute parallel for schedule(static,1) reduction(+:arg1_l)
   for ( int n_op=0; n_op<count; n_op++ ){
     //variable mapping
-    const double* value = &data0[5*n_op];
+    const double* value = &data0[n_op];
     int* count = &arg1_l;
 
     //inline function
     
       for (int v=0; v<NVAR; v++) {
-          if (value[v] > 0.0) {
+          if (value[(v)*direct_count_non_zeros_stride_OP2CONSTANT] > 0.0) {
               (*count)++;
           }
       }

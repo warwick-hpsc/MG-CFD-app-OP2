@@ -5,6 +5,8 @@
 //user function
 #include "utils.h"
 
+int direct_residual_kernel_stride_OP2CONSTANT;
+int direct_residual_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void residual_kernel_openacc( 
@@ -12,7 +14,7 @@ inline void residual_kernel_openacc(
     const double* variable,
     double* residual) {
     for (int v=0; v<NVAR; v++) {
-        residual[v] = variable[v] - old_variable[v];
+        residual[(v)*direct_residual_kernel_stride_OP2CONSTANT] = variable[(v)*direct_residual_kernel_stride_OP2CONSTANT] - old_variable[(v)*direct_residual_kernel_stride_OP2CONSTANT];
     }
 }
 
@@ -46,6 +48,10 @@ void op_par_loop_residual_kernel(char const *name, op_set set,
 
   if (set_size >0) {
 
+    if ((OP_kernels[13].count==1) || (direct_residual_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_residual_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_residual_kernel_stride_OP2CONSTANT = direct_residual_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
 
@@ -55,9 +61,9 @@ void op_par_loop_residual_kernel(char const *name, op_set set,
     #pragma acc parallel loop independent deviceptr(data0,data1,data2)
     for ( int n=0; n<set->size; n++ ){
       residual_kernel_openacc(
-        &data0[5*n],
-        &data1[5*n],
-        &data2[5*n]);
+        &data0[n],
+        &data1[n],
+        &data2[n]);
     }
   }
 

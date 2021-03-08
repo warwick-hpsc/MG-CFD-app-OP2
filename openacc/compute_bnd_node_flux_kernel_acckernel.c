@@ -8,6 +8,10 @@
 #include "global.h"
 #include "config.h"
 
+int opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT;
+int opDat2_compute_bnd_node_flux_kernel_stride_OP2HOST=-1;
+int direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT;
+int direct_compute_bnd_node_flux_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void compute_bnd_node_flux_kernel_openacc( 
@@ -78,6 +82,14 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
   if (set_size >0) {
 
+    if ((OP_kernels[10].count==1) || (opDat2_compute_bnd_node_flux_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg2))) {
+      opDat2_compute_bnd_node_flux_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg2);
+      opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT = opDat2_compute_bnd_node_flux_kernel_stride_OP2HOST;
+    }
+    if ((OP_kernels[10].count==1) || (direct_compute_bnd_node_flux_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg1))) {
+      direct_compute_bnd_node_flux_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg1);
+      direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT = direct_compute_bnd_node_flux_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
     int *map2 = arg2.map_data_d;
@@ -103,14 +115,15 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
       #pragma acc parallel loop independent deviceptr(col_reord,map2,data0,data1,data2,data3)
       for ( int e=start; e<end; e++ ){
         int n = col_reord[e];
-        int map2idx = map2[n + set_size1 * 0];
+        int map2idx;
+        map2idx = map2[n + set_size1 * 0];
 
 
         compute_bnd_node_flux_kernel_openacc(
           &data0[1 * n],
-          &data1[3 * n],
-          &data2[5 * map2idx],
-          &data3[5 * map2idx]);
+          &data1[n],
+          &data2[map2idx],
+          &data3[map2idx]);
       }
 
     }

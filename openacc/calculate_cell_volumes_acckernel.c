@@ -8,6 +8,10 @@
 #include "structures.h"
 #include "global.h"
 
+int opDat0_calculate_cell_volumes_stride_OP2CONSTANT;
+int opDat0_calculate_cell_volumes_stride_OP2HOST=-1;
+int direct_calculate_cell_volumes_stride_OP2CONSTANT;
+int direct_calculate_cell_volumes_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void calculate_cell_volumes_openacc( 
@@ -19,14 +23,14 @@ inline void calculate_cell_volumes_openacc(
     double d[NDIM];
     double dist = 0.0;
     for (int i=0; i<NDIM; i++) {
-        d[i] = coords2[i] - coords1[i];
+        d[i] = coords2[(i)*opDat0_calculate_cell_volumes_stride_OP2CONSTANT] - coords1[(i)*opDat0_calculate_cell_volumes_stride_OP2CONSTANT];
         dist += d[i]*d[i];
     }
     dist = sqrt(dist);
 
     double area = 0.0;
     for (int i=0; i<NDIM; i++) {
-        area += ewt[i]*ewt[i];
+        area += ewt[(i)*direct_calculate_cell_volumes_stride_OP2CONSTANT]*ewt[(i)*direct_calculate_cell_volumes_stride_OP2CONSTANT];
     }
     area = sqrt(area);
 
@@ -35,13 +39,13 @@ inline void calculate_cell_volumes_openacc(
     *vol2 += tetra_volume;
 
     for (int i=0; i<NDIM; i++) {
-        ewt[i] = (d[i] / dist) * area;
+        ewt[(i)*direct_calculate_cell_volumes_stride_OP2CONSTANT] = (d[i] / dist) * area;
     }
 
 
 
     for (int i=0; i<NDIM; i++) {
-        ewt[i] /= dist;
+        ewt[(i)*direct_calculate_cell_volumes_stride_OP2CONSTANT] /= dist;
     }
 }
 
@@ -90,6 +94,14 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
 
   if (set_size >0) {
 
+    if ((OP_kernels[3].count==1) || (opDat0_calculate_cell_volumes_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      opDat0_calculate_cell_volumes_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      opDat0_calculate_cell_volumes_stride_OP2CONSTANT = opDat0_calculate_cell_volumes_stride_OP2HOST;
+    }
+    if ((OP_kernels[3].count==1) || (direct_calculate_cell_volumes_stride_OP2HOST != getSetSizeFromOpArg(&arg2))) {
+      direct_calculate_cell_volumes_stride_OP2HOST = getSetSizeFromOpArg(&arg2);
+      direct_calculate_cell_volumes_stride_OP2CONSTANT = direct_calculate_cell_volumes_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
     int *map0 = arg0.map_data_d;
@@ -114,14 +126,16 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
       #pragma acc parallel loop independent deviceptr(col_reord,map0,data2,data0,data3)
       for ( int e=start; e<end; e++ ){
         int n = col_reord[e];
-        int map0idx = map0[n + set_size1 * 0];
-        int map1idx = map0[n + set_size1 * 1];
+        int map0idx;
+        int map1idx;
+        map0idx = map0[n + set_size1 * 0];
+        map1idx = map0[n + set_size1 * 1];
 
 
         calculate_cell_volumes_openacc(
-          &data0[3 * map0idx],
-          &data0[3 * map1idx],
-          &data2[3 * n],
+          &data0[map0idx],
+          &data0[map1idx],
+          &data2[n],
           &data3[1 * map0idx],
           &data3[1 * map1idx]);
       }

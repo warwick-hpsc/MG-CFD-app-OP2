@@ -11,19 +11,20 @@ void copy_double_kernel_omp4_kernel(
   int dat1size,
   int count,
   int num_teams,
-  int nthread){
+  int nthread,
+  int direct_copy_double_kernel_stride_OP2CONSTANT){
 
   #pragma omp target teams num_teams(num_teams) thread_limit(nthread) map(to:data0[0:dat0size],data1[0:dat1size])
   #pragma omp distribute parallel for schedule(static,1)
   for ( int n_op=0; n_op<count; n_op++ ){
     //variable mapping
-    const double* variables = &data0[5*n_op];
-    double* old_variables = &data1[5*n_op];
+    const double* variables = &data0[n_op];
+    double* old_variables = &data1[n_op];
 
     //inline function
     
   	for (int i=0; i<NVAR; i++) {
-  		old_variables[i] = variables[i];
+  		old_variables[(i)*direct_copy_double_kernel_stride_OP2CONSTANT] = variables[(i)*direct_copy_double_kernel_stride_OP2CONSTANT];
   	}
     //end inline func
   }

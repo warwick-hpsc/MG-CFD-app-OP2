@@ -17,14 +17,15 @@ void compute_step_factor_kernel_omp4_kernel(
   int dat3size,
   int count,
   int num_teams,
-  int nthread){
+  int nthread,
+  int direct_compute_step_factor_kernel_stride_OP2CONSTANT){
 
   double arg2_l = *arg2;
   #pragma omp target teams num_teams(num_teams) thread_limit(nthread) map(to:data0[0:dat0size],data1[0:dat1size],data3[0:dat3size])
   #pragma omp distribute parallel for schedule(static,1)
   for ( int n_op=0; n_op<count; n_op++ ){
     //variable mapping
-    const double* variable = &data0[5*n_op];
+    const double* variable = &data0[n_op];
     const double* volume = &data1[1*n_op];
     const double* min_dt = &arg2_l;
     double* step_factor = &data3[1*n_op];

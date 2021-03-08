@@ -12,19 +12,20 @@ void dampen_ewt_omp4_kernel(
   int dat0size,
   int count,
   int num_teams,
-  int nthread){
+  int nthread,
+  int direct_dampen_ewt_stride_OP2CONSTANT){
 
   #pragma omp target teams num_teams(num_teams) thread_limit(nthread) map(to:data0[0:dat0size])
   #pragma omp distribute parallel for schedule(static,1)
   for ( int n_op=0; n_op<count; n_op++ ){
     //variable mapping
-    double* ewt = &data0[3*n_op];
+    double* ewt = &data0[n_op];
 
     //inline function
     
-      ewt[0] *= 1e-7;
-      ewt[1] *= 1e-7;
-      ewt[2] *= 1e-7;
+      ewt[(0)*direct_dampen_ewt_stride_OP2CONSTANT] *= 1e-7;
+      ewt[(1)*direct_dampen_ewt_stride_OP2CONSTANT] *= 1e-7;
+      ewt[(2)*direct_dampen_ewt_stride_OP2CONSTANT] *= 1e-7;
     //end inline func
   }
 

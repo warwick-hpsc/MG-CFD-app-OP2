@@ -161,7 +161,7 @@ ifeq ($(COMPILER),clang)
 else
 ifeq ($(COMPILER),intel)
   CFLAGS = -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -DVECTORIZE -qopt-report=5
-  CFLAGS += -restrict
+  CFLAGS += -restrict -g -qopt-zmm-usage=high -inline-forceinline
   # CFLAGS += -parallel ## This flag intoduces a significant slowdown into 'vec' app
   # CFLAGS += -fno-alias ## This flag causes 'vec' app to fail validation, do not enable
   CFLAGS += -fmax-errors=1
@@ -326,6 +326,10 @@ ifdef PAPI
   MGCFD_LIBS := -lpapi -lpfm
 endif
 
+ifdef LIKWID
+MGCFD_INCS += -DLIKWID_PERFMON
+MGCFD_LIBS := -llikwid -lm -pthread
+endif
 
 ## Enable VERIFY_OP2_TIMING to perform timing measurements external to
 ## those performed by OP2 internally. Intended to verify whether OP2 timers

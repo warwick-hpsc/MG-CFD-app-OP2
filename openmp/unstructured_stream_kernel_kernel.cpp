@@ -5,8 +5,18 @@
 //user function
 #include ".././src/Kernels/unstructured_stream.h"
 
-#ifdef PAPI
-#include <papi.h>
+
+#ifdef LIKWID_PERFMON
+#include <likwid.h>
+#else
+#define LIKWID_MARKER_INIT
+#define LIKWID_MARKER_THREADINIT
+#define LIKWID_MARKER_SWITCH
+#define LIKWID_MARKER_REGISTER(regionTag)
+#define LIKWID_MARKER_START(regionTag)
+#define LIKWID_MARKER_STOP(regionTag)
+#define LIKWID_MARKER_CLOSE
+#define LIKWID_MARKER_GET(regionTag, nevents, events, time, count)
 #endif
 
 // host stub function
@@ -16,24 +26,6 @@ void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg2,
   op_arg arg3,
   op_arg arg4){
-
-  
-  op_par_loop_unstructured_stream_kernel_instrumented(name, set, 
-    arg0, arg1, arg2, arg3, arg4
-    #ifdef PAPI
-    , NULL, 0, 0
-    #endif
-    );
-};
-
-void op_par_loop_unstructured_stream_kernel_instrumented(
-  char const *name, op_set set,
-  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef PAPI
-  , long_long* restrict event_counts, int event_set, int num_events
-  #endif
-  )
-{
 
   int nargs = 5;
   op_arg args[5];
@@ -46,9 +38,10 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc_manytime(12, omp_get_max_threads());
+  op_timing_realloc(12);
+  OP_kernels[12].name      = name;
+  OP_kernels[12].count    += 1;
   op_timers_core(&cpu_t1, &wall_t1);
-  double non_thread_walltime = 0.0;
 
   int  ninds   = 2;
   int  inds[5] = {0,0,-1,1,1};
@@ -70,6 +63,13 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
 
     op_plan *Plan = op_plan_get_stage_upload(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_ALL,0);
 
+if (OP_kernels[12].count == 1) {
+#pragma omp parallel
+{
+LIKWID_MARKER_THREADINIT;
+}
+}
+
     // execute plan
     int block_offset = 0;
     for ( int col=0; col<Plan->ncolors; col++ ){
@@ -78,43 +78,32 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
       }
       int nblocks = Plan->ncolblk[col];
 
-      // Pause process timing and switch to per-thread timing:
-      op_timers_core(&cpu_t2, &wall_t2);
-      non_thread_walltime += wall_t2 - wall_t1;
       #pragma omp parallel
-      {
-        double thr_wall_t1, thr_wall_t2, thr_cpu_t1, thr_cpu_t2;
-        op_timers_core(&thr_cpu_t1, &thr_wall_t1);
-
-        int nthreads = omp_get_num_threads();
-        int thr = omp_get_thread_num();
-        int thr_start = (nblocks * thr) / nthreads;
-        int thr_end = (nblocks * (thr+1)) / nthreads;
-        if (thr_end > nblocks) thr_end = nblocks;
-        for ( int blockIdx=thr_start; blockIdx<thr_end; blockIdx++ ){
-          int blockId  = Plan->blkmap[blockIdx + block_offset];
-          int nelem    = Plan->nelems[blockId];
-          int offset_b = Plan->offset[blockId];
-          for ( int n=offset_b; n<offset_b+nelem; n++ ){
-            int map0idx = arg0.map_data[n * arg0.map->dim + 0];
-            int map1idx = arg0.map_data[n * arg0.map->dim + 1];
+{
+LIKWID_MARKER_START("Compute");
+#pragma omp for
+      for ( int blockIdx=0; blockIdx<nblocks; blockIdx++ ){
+        int blockId  = Plan->blkmap[blockIdx + block_offset];
+        int nelem    = Plan->nelems[blockId];
+        int offset_b = Plan->offset[blockId];
+        for ( int n=offset_b; n<offset_b+nelem; n++ ){
+          int map0idx;
+          int map1idx;
+          map0idx = arg0.map_data[n * arg0.map->dim + 0];
+          map1idx = arg0.map_data[n * arg0.map->dim + 1];
 
 
-            unstructured_stream_kernel(
-              &((double*)arg0.data)[5 * map0idx],
-              &((double*)arg0.data)[5 * map1idx],
-              &((double*)arg2.data)[3 * n],
-              &((double*)arg3.data)[5 * map0idx],
-              &((double*)arg3.data)[5 * map1idx]);
-          }
+          unstructured_stream_kernel(
+            &((double*)arg0.data)[5 * map0idx],
+            &((double*)arg0.data)[5 * map1idx],
+            &((double*)arg2.data)[3 * n],
+            &((double*)arg3.data)[5 * map0idx],
+            &((double*)arg3.data)[5 * map1idx]);
         }
-
-        op_timers_core(&thr_cpu_t2, &thr_wall_t2);
-        OP_kernels[12].times[thr]  += thr_wall_t2 - thr_wall_t1;
       }
 
-      // Revert to process-level timing:
-      op_timers_core(&cpu_t1, &wall_t1);
+LIKWID_MARKER_STOP("Compute");
+}
 
       block_offset += nblocks;
     }
@@ -130,8 +119,5 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  non_thread_walltime += wall_t2 - wall_t1;
-  OP_kernels[12].name      = name;
-  OP_kernels[12].count    += 1;
-  OP_kernels[12].times[0] += non_thread_walltime;
+  OP_kernels[12].time     += wall_t2 - wall_t1;
 }

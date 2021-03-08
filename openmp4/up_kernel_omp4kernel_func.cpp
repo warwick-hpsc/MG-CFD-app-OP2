@@ -19,18 +19,21 @@ void up_kernel_omp4_kernel(
   int start,
   int end,
   int num_teams,
-  int nthread){
+  int nthread,
+  int opDat1_up_kernel_stride_OP2CONSTANT,
+  int direct_up_kernel_stride_OP2CONSTANT){
 
   #pragma omp target teams num_teams(num_teams) thread_limit(nthread) map(to:data0[0:dat0size])\
     map(to:col_reord[0:set_size1],map1[0:map1size],data1[0:dat1size],data2[0:dat2size])
   #pragma omp distribute parallel for schedule(static,1)
   for ( int e=start; e<end; e++ ){
     int n_op = col_reord[e];
-    int map1idx = map1[n_op + set_size1 * 0];
+    int map1idx;
+    map1idx = map1[n_op + set_size1 * 0];
 
     //variable mapping
-    const double* variable = &data0[5*n_op];
-    double* variable_above = &data1[5 * map1idx];
+    const double* variable = &data0[n_op];
+    double* variable_above = &data1[map1idx];
     int* up_scratch = &data2[1 * map1idx];
 
     //inline function

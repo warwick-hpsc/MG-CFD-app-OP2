@@ -6,6 +6,8 @@
 #include <math.h>
 #include "const.h"
 
+int direct_down_v2_kernel_post_stride_OP2CONSTANT;
+int direct_down_v2_kernel_post_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void down_v2_kernel_post_openacc( 
@@ -16,7 +18,7 @@ inline void down_v2_kernel_post_openacc(
 
 
     for (int i=0; i<NVAR; i++) {
-        variables2[i] += residuals2[i] - (residuals1_prolonged[i] / (*residuals1_prolonged_wsum));
+        variables2[(i)*direct_down_v2_kernel_post_stride_OP2CONSTANT] += residuals2[(i)*direct_down_v2_kernel_post_stride_OP2CONSTANT] - (residuals1_prolonged[(i)*direct_down_v2_kernel_post_stride_OP2CONSTANT] / (*residuals1_prolonged_wsum));
     }
 }
 
@@ -52,6 +54,10 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
 
   if (set_size >0) {
 
+    if ((OP_kernels[21].count==1) || (direct_down_v2_kernel_post_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_down_v2_kernel_post_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_down_v2_kernel_post_stride_OP2CONSTANT = direct_down_v2_kernel_post_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
 
@@ -62,10 +68,10 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
     #pragma acc parallel loop independent deviceptr(data0,data1,data2,data3)
     for ( int n=0; n<set->size; n++ ){
       down_v2_kernel_post_openacc(
-        &data0[5*n],
+        &data0[n],
         &data1[1*n],
-        &data2[5*n],
-        &data3[5*n]);
+        &data2[n],
+        &data3[n]);
     }
   }
 

@@ -3,11 +3,10 @@
 //
 
 //user function
-
-#ifdef PAPI
-#include <papi.h>
-#endif
-
+int opDat0_unstructured_stream_kernel_stride_OP2CONSTANT;
+int opDat0_unstructured_stream_kernel_stride_OP2HOST=-1;
+int direct_unstructured_stream_kernel_stride_OP2CONSTANT;
+int direct_unstructured_stream_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void unstructured_stream_kernel_openacc( 
@@ -16,9 +15,9 @@ inline void unstructured_stream_kernel_openacc(
     const double *edge_weight,
     double *fluxes_a,
     double *fluxes_b) {
-    double ex = edge_weight[0];
-    double ey = edge_weight[1];
-    double ez = edge_weight[2];
+    double ex = edge_weight[(0)*direct_unstructured_stream_kernel_stride_OP2CONSTANT];
+    double ey = edge_weight[(1)*direct_unstructured_stream_kernel_stride_OP2CONSTANT];
+    double ez = edge_weight[(2)*direct_unstructured_stream_kernel_stride_OP2CONSTANT];
 
     double p_a, pe_a;
     double3 momentum_a;
@@ -68,23 +67,6 @@ void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg2,
   op_arg arg3,
   op_arg arg4){
-  
-  op_par_loop_unstructured_stream_kernel_instrumented(name, set, 
-    arg0, arg1, arg2, arg3, arg4
-    #ifdef PAPI
-    , NULL, 0, 0
-    #endif
-    );
-};
-
-void op_par_loop_unstructured_stream_kernel_instrumented(
-  char const *name, op_set set,
-  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef PAPI
-  , long_long* restrict event_counts, int event_set, int num_events
-  #endif
-  )
-{
 
   int nargs = 5;
   op_arg args[5];
@@ -123,6 +105,14 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
 
   if (set_size >0) {
 
+    if ((OP_kernels[12].count==1) || (opDat0_unstructured_stream_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      opDat0_unstructured_stream_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      opDat0_unstructured_stream_kernel_stride_OP2CONSTANT = opDat0_unstructured_stream_kernel_stride_OP2HOST;
+    }
+    if ((OP_kernels[12].count==1) || (direct_unstructured_stream_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg2))) {
+      direct_unstructured_stream_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg2);
+      direct_unstructured_stream_kernel_stride_OP2CONSTANT = direct_unstructured_stream_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
     int *map0 = arg0.map_data_d;
@@ -147,16 +137,18 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
       #pragma acc parallel loop independent deviceptr(col_reord,map0,data2,data0,data3)
       for ( int e=start; e<end; e++ ){
         int n = col_reord[e];
-        int map0idx = map0[n + set_size1 * 0];
-        int map1idx = map0[n + set_size1 * 1];
+        int map0idx;
+        int map1idx;
+        map0idx = map0[n + set_size1 * 0];
+        map1idx = map0[n + set_size1 * 1];
 
 
         unstructured_stream_kernel_openacc(
-          &data0[5 * map0idx],
-          &data0[5 * map1idx],
-          &data2[3 * n],
-          &data3[5 * map0idx],
-          &data3[5 * map1idx]);
+          &data0[map0idx],
+          &data0[map1idx],
+          &data2[n],
+          &data3[map0idx],
+          &data3[map1idx]);
       }
 
     }

@@ -13,15 +13,16 @@ void identify_differences_omp4_kernel(
   int dat2size,
   int count,
   int num_teams,
-  int nthread){
+  int nthread,
+  int direct_identify_differences_stride_OP2CONSTANT){
 
   #pragma omp target teams num_teams(num_teams) thread_limit(nthread) map(to:data0[0:dat0size],data1[0:dat1size],data2[0:dat2size])
   #pragma omp distribute parallel for schedule(static,1)
   for ( int n_op=0; n_op<count; n_op++ ){
     //variable mapping
-    const double* test_value = &data0[5*n_op];
-    const double* master_value = &data1[5*n_op];
-    double* difference = &data2[5*n_op];
+    const double* test_value = &data0[n_op];
+    const double* master_value = &data1[n_op];
+    double* difference = &data2[n_op];
 
     //inline function
     
@@ -41,7 +42,7 @@ void identify_differences_omp4_kernel(
       const double acceptable_relative_difference = 10.0e-8;
 
       for (int v=0; v<NVAR; v++) {
-          double acceptable_difference = master_value[v] * acceptable_relative_difference;
+          double acceptable_difference = master_value[(v)*direct_identify_differences_stride_OP2CONSTANT] * acceptable_relative_difference;
           if (acceptable_difference < 0.0) {
               acceptable_difference *= -1.0;
           }
@@ -50,15 +51,15 @@ void identify_differences_omp4_kernel(
               acceptable_difference = 3.0e-19;
           }
 
-          double diff = test_value[v] - master_value[v];
+          double diff = test_value[(v)*direct_identify_differences_stride_OP2CONSTANT] - master_value[(v)*direct_identify_differences_stride_OP2CONSTANT];
           if (diff < 0.0) {
               diff *= -1.0;
           }
 
           if (diff > acceptable_difference) {
-              difference[v] = diff;
+              difference[(v)*direct_identify_differences_stride_OP2CONSTANT] = diff;
           } else {
-              difference[v] = 0.0;
+              difference[(v)*direct_identify_differences_stride_OP2CONSTANT] = 0.0;
           }
       }
     //end inline func

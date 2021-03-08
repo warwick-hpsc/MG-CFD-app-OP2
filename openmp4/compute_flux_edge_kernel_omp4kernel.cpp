@@ -3,6 +3,10 @@
 //
 
 //user function
+int opDat0_compute_flux_edge_kernel_stride_OP2CONSTANT;
+int opDat0_compute_flux_edge_kernel_stride_OP2HOST=-1;
+int direct_compute_flux_edge_kernel_stride_OP2CONSTANT;
+int direct_compute_flux_edge_kernel_stride_OP2HOST=-1;
 //user function
 
 void compute_flux_edge_kernel_omp4_kernel(
@@ -19,7 +23,9 @@ void compute_flux_edge_kernel_omp4_kernel(
   int start,
   int end,
   int num_teams,
-  int nthread);
+  int nthread,
+  int opDat0_compute_flux_edge_kernel_stride_OP2CONSTANT,
+  int direct_compute_flux_edge_kernel_stride_OP2CONSTANT);
 
 // host stub function
 void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
@@ -28,31 +34,6 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   op_arg arg2,
   op_arg arg3,
   op_arg arg4){
-  
-  op_par_loop_compute_flux_edge_kernel_instrumented(name, set, 
-    arg0, arg1, arg2, arg3, arg4
-    #ifdef VERIFY_OP2_TIMING
-      , NULL, NULL
-    #endif
-    , NULL
-    #ifdef PAPI
-    , NULL, 0, 0
-    #endif
-    );
-};
-
-void op_par_loop_compute_flux_edge_kernel_instrumented(
-  char const *name, op_set set,
-  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef VERIFY_OP2_TIMING
-    , double* compute_time_ptr, double* sync_time_ptr
-  #endif
-  , long* iter_counts_ptr
-  #ifdef PAPI
-  , long_long* restrict event_counts, int event_set, int num_events
-  #endif
-  )
-{
 
   int nargs = 5;
   op_arg args[5];
@@ -97,6 +78,15 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
   if (set_size >0) {
 
+    if ((OP_kernels[9].count==1) || (opDat0_compute_flux_edge_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      opDat0_compute_flux_edge_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      opDat0_compute_flux_edge_kernel_stride_OP2CONSTANT = opDat0_compute_flux_edge_kernel_stride_OP2HOST;
+    }
+    if ((OP_kernels[9].count==1) || (direct_compute_flux_edge_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg2))) {
+      direct_compute_flux_edge_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg2);
+      direct_compute_flux_edge_kernel_stride_OP2CONSTANT = direct_compute_flux_edge_kernel_stride_OP2HOST;
+    }
+
     //Set up typed device pointers for OpenMP
     int *map0 = arg0.map_data_d;
      int map0size = arg0.map->dim * set_size1;
@@ -134,7 +124,9 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
         start,
         end,
         part_size!=0?(end-start-1)/part_size+1:(end-start-1)/nthread,
-        nthread);
+        nthread,
+        opDat0_compute_flux_edge_kernel_stride_OP2CONSTANT,
+        direct_compute_flux_edge_kernel_stride_OP2CONSTANT);
 
     }
     OP_kernels[9].transfer  += Plan->transfer;

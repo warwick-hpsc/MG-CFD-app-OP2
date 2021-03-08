@@ -3,6 +3,8 @@
 //
 
 //user function
+int direct_zero_5d_array_kernel_stride_OP2CONSTANT;
+int direct_zero_5d_array_kernel_stride_OP2HOST=-1;
 //user function
 
 void zero_5d_array_kernel_omp4_kernel(
@@ -10,7 +12,8 @@ void zero_5d_array_kernel_omp4_kernel(
   int dat0size,
   int count,
   int num_teams,
-  int nthread);
+  int nthread,
+  int direct_zero_5d_array_kernel_stride_OP2CONSTANT);
 
 // host stub function
 void op_par_loop_zero_5d_array_kernel(char const *name, op_set set,
@@ -49,6 +52,11 @@ void op_par_loop_zero_5d_array_kernel(char const *name, op_set set,
 
   if (set_size >0) {
 
+    if ((OP_kernels[1].count==1) || (direct_zero_5d_array_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_zero_5d_array_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_zero_5d_array_kernel_stride_OP2CONSTANT = direct_zero_5d_array_kernel_stride_OP2HOST;
+    }
+
     //Set up typed device pointers for OpenMP
 
     double* data0 = (double*)arg0.data_d;
@@ -58,7 +66,8 @@ void op_par_loop_zero_5d_array_kernel(char const *name, op_set set,
       dat0size,
       set->size,
       part_size!=0?(set->size-1)/part_size+1:(set->size-1)/nthread,
-      nthread);
+      nthread,
+      direct_zero_5d_array_kernel_stride_OP2CONSTANT);
 
   }
 
