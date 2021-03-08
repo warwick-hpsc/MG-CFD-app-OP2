@@ -5,6 +5,20 @@
 //user function
 #include ".././src/Kernels/unstructured_stream.h"
 
+#ifdef LIKWID_PERFMON
+#include <likwid.h>
+#else
+#define LIKWID_MARKER_INIT
+#define LIKWID_MARKER_THREADINIT
+#define LIKWID_MARKER_SWITCH
+#define LIKWID_MARKER_REGISTER(regionTag)
+#define LIKWID_MARKER_START(regionTag)
+#define LIKWID_MARKER_STOP(regionTag)
+#define LIKWID_MARKER_CLOSE
+#define LIKWID_MARKER_GET(regionTag, nevents, events, time, count)
+#endif
+
+
 // host stub function
 void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg0,
@@ -35,10 +49,9 @@ void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
 
   if (set_size > 0) {
 
-    for ( int n=0; n<set_size; n++ ){
-      if (n==set->core_size) {
         op_mpi_wait_all(nargs, args);
-      }
+LIKWID_MARKER_START("Compute");
+    for ( int n=0; n<set_size; n++ ){
       int map0idx;
       int map1idx;
       map0idx = arg0.map_data[n * arg0.map->dim + 0];
@@ -52,6 +65,7 @@ void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
         &((double*)arg3.data)[5 * map0idx],
         &((double*)arg3.data)[5 * map1idx]);
     }
+LIKWID_MARKER_STOP("Compute");
   }
 
   if (set_size == 0 || set_size == set->core_size) {

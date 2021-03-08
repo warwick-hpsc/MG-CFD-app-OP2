@@ -983,10 +983,10 @@ int main(int argc, char** argv)
         }
     #endif
 
+LIKWID_MARKER_CLOSE;
     op_printf("-----------------------------------------------------\n");
     op_printf("Winding down OP2\n");
     op_exit();
-LIKWID_MARKER_CLOSE;
 
     return 0;
 }
