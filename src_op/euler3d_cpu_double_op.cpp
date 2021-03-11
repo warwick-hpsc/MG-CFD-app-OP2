@@ -34,6 +34,13 @@ int* event_set = NULL;
 int** events = NULL;
 #include "papi_funcs.h"
 #endif
+#ifdef LIKWID
+#include "likwid_funcs.h"
+long_long** flux_kernel_event_counts = NULL;
+long_long** ustream_kernel_event_counts = NULL;
+int n_events;
+int likwid_gid;
+#endif
 
 // #define LOG_PROGRESS
 
@@ -105,7 +112,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(char const *, op_set,
     , double* // sync time
   #endif
   , long* // iterations
-  #ifdef PAPI
+  #if defined PAPI || defined LIKWID
     , long_long**
   #endif
 );
@@ -136,7 +143,7 @@ void op_par_loop_unstructured_stream_kernel_instrumented(char const *, op_set,
   op_arg,
   op_arg,
   op_arg
-  #ifdef PAPI
+  #if defined PAPI || defined LIKWID
     , long_long**
   #endif
 );
@@ -323,6 +330,12 @@ int main(int argc, char** argv)
         init_papi();
         load_papi_events();
     #endif
+    #ifdef LIKWID
+        init_likwid();
+        load_likwid_events();
+    #endif
+    printf("FIN\n");
+    return 0;
     double file_io_times[levels];
     for (int i=0; i<levels; i++) {
       file_io_times[i] = 0.0;
@@ -672,7 +685,7 @@ int main(int argc, char** argv)
                           , &flux_kernel_compute_times[level], &flux_kernel_sync_times[level]
                         #endif
                         , &flux_kernel_iter_counts[level]
-                        #ifdef PAPI
+                        #if defined PAPI || defined LIKWID
                         , flux_kernel_event_counts
                         #endif
                         );
@@ -697,7 +710,7 @@ int main(int argc, char** argv)
                             op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                             op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
                             op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
-                            #ifdef PAPI
+                            #if defined PAPI || defined LIKWID
                             , ustream_kernel_event_counts
                             #endif
                             );
@@ -972,6 +985,13 @@ int main(int argc, char** argv)
             ustream_kernel_event_counts,
             conf.output_file_prefix);
     #endif
+    // #ifdef LIKWID
+    //     dump_likwid_counters_to_file(
+    //         my_rank,
+    //         flux_kernel_event_counts, 
+    //         ustream_kernel_event_counts,
+    //         conf.output_file_prefix);
+    // #endif
 
     #ifdef DUMP_EXT_PERF_DATA
         dump_perf_data_to_file(

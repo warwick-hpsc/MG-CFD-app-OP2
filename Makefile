@@ -324,8 +324,21 @@ MGCFD_INCS := -Isrc -Isrc/Kernels
 
 # Enable PAPI flag to enable performance counter monitoring with PAPI library:
 ifdef PAPI
+	ifdef LIKWID
+		$(error Don't enable both PAPI and Likwid)
+	endif
+endif
+ifdef PAPI
   MGCFD_INCS += -DPAPI
-  MGCFD_LIBS := -lpapi -lpfm
+  MGCFD_LIBS += -lpapi -lpfm
+endif
+ifdef LIKWID
+  MGCFD_INCS += -DLIKWID
+  MGCFD_LIBS += -llikwid -lm -pthread
+  ifdef LIKWID_INSTALL_PATH
+    MGCFD_INCS += -I$(LIKWID_INSTALL_PATH)/include
+    MGCFD_LIBS += -L$(LIKWID_INSTALL_PATH)/lib
+  endif
 endif
 
 
