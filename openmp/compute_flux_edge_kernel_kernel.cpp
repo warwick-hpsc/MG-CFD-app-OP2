@@ -84,26 +84,14 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
     op_plan *Plan = op_plan_get_stage_upload(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_ALL,0);
 
-    // #ifdef PAPI
-    //   my_papi_start();
-    // #endif
-
     // execute plan
     int block_offset = 0;
     for ( int col=0; col<Plan->ncolors; col++ ){
       if (col==Plan->ncolors_core) {
-        // #ifdef PAPI
-        //   my_papi_stop(event_counts);
-        // #endif
-
         op_timers_core(&inner_cpu_t1, &inner_wall_t1);
         op_mpi_wait_all(nargs, args);
         op_timers_core(&inner_cpu_t2, &inner_wall_t2);
         sync_time += inner_wall_t2 - inner_wall_t1;
-
-        // #ifdef PAPI
-        //   my_papi_start();
-        // #endif
       }
       int nblocks = Plan->ncolblk[col];
 
@@ -172,10 +160,6 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
     OP_kernels[9].transfer  += Plan->transfer;
     OP_kernels[9].transfer2 += Plan->transfer2;
-    
-    // #ifdef PAPI
-    //   my_papi_stop(event_counts);
-    // #endif
   }
 
   op_timers_core(&inner_cpu_t1, &inner_wall_t1);

@@ -328,6 +328,7 @@ ifdef PAPI
   MGCFD_LIBS := -lpapi -lpfm
 endif
 
+
 ## Enable VERIFY_OP2_TIMING to perform timing measurements external to
 ## those performed by OP2 internally. Intended to verify whether OP2 timers
 ## are correct, particularly for MPI sync time.
