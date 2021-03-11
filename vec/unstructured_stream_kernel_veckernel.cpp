@@ -10,8 +10,6 @@
 #include "papi_funcs.h"
 #endif
 
-#include <mpi.h>
-
 // Unstructured stream kernel
 // - performs same data movement as compute_flux_edge() but with minimal arithmetic. 
 //   Measures upper bound on performance achievable by compute_flux_edge()
@@ -175,6 +173,7 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
   if (OP_diags>2) {
     printf(" kernel routine with indirection: unstructured_stream_kernel\n");
   }
+
   int exec_size = op_mpi_halo_exchanges(set, nargs, args);
 
   if (exec_size >0) {
