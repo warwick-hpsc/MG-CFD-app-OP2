@@ -58,7 +58,7 @@ inline void my_likwid_start()
 	}
 	int err = perfmon_startCounters();
 	if (err < 0) {
-		printf("Failed to start counters for group %d for thread %d\n", likwid_gid, (-1*err)-1);
+		op_printf("Failed to start counters for group %d for thread %d\n", likwid_gid, (-1*err)-1);
 		exit(EXIT_FAILURE);
 	}
 }
@@ -70,7 +70,7 @@ inline void my_likwid_stop(long_long** restrict event_counts)
 	}
 	int err = perfmon_stopCounters();
 	if (err < 0) {
-		printf("Failed to stop counters for group %d for thread %d\n",likwid_gid, (-1*err)-1);
+		op_printf("Failed to stop counters for group %d for thread %d\n",likwid_gid, (-1*err)-1);
 		exit(EXIT_FAILURE);
 	}
 	for (int e=0; e<n_events; e++) {
@@ -87,7 +87,7 @@ inline void init_likwid()
     int err, j;
     err = topology_init();
     if (err < 0) {
-        printf("Failed to initialize LIKWID's topology module\n");
+        op_printf("Failed to initialize LIKWID's topology module\n");
         exit(EXIT_FAILURE);
     }
     CpuInfo_t info = get_cpuInfo();
@@ -104,7 +104,7 @@ inline void init_likwid()
 
     err = perfmon_init(likwid_topo->numHWThreads, cpus);
     if (err < 0) {
-        printf("Failed to initialize LIKWID's performance monitoring module\n");
+        op_printf("Failed to initialize LIKWID's performance monitoring module\n");
         topology_finalize();
         exit(EXIT_FAILURE);
     }
@@ -165,14 +165,14 @@ inline void load_likwid_events()
 		// Setup Likwid
 		likwid_gid = perfmon_addEventSet(estr);
 		if (likwid_gid < 0) {
-			printf("Failed to add event string %s to LIKWID's performance monitoring module\n", estr);
+			op_printf("Failed to add event string %s to LIKWID's performance monitoring module\n", estr);
 			perfmon_finalize();
 			topology_finalize();
 			exit(EXIT_FAILURE);
 		}
 		err = perfmon_setupCounters(likwid_gid);
 		if (err < 0) {
-			printf("Failed to setup group %d in LIKWID's performance monitoring module\n", likwid_gid);
+			op_printf("Failed to setup group %d in LIKWID's performance monitoring module\n", likwid_gid);
 			perfmon_finalize();
 			topology_finalize();
 			exit(EXIT_FAILURE);
@@ -192,7 +192,7 @@ inline void load_likwid_events()
 	        }
     	}
 
-		printf("LIKWID initialised, monitoring '%s'\n", estr);
+		op_printf("LIKWID initialised, monitoring '%s'\n", estr);
     }
 }
 
