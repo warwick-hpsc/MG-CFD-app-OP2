@@ -39,7 +39,9 @@ int** events = NULL;
 long_long** flux_kernel_event_counts = NULL;
 long_long** ustream_kernel_event_counts = NULL;
 int n_events;
+char** event_names = NULL;
 int likwid_gid;
+CpuTopology_t likwid_topo;
 #endif
 
 // #define LOG_PROGRESS
@@ -334,8 +336,6 @@ int main(int argc, char** argv)
         init_likwid();
         load_likwid_events();
     #endif
-    printf("FIN\n");
-    return 0;
     double file_io_times[levels];
     for (int i=0; i<levels; i++) {
       file_io_times[i] = 0.0;
@@ -985,13 +985,13 @@ int main(int argc, char** argv)
             ustream_kernel_event_counts,
             conf.output_file_prefix);
     #endif
-    // #ifdef LIKWID
-    //     dump_likwid_counters_to_file(
-    //         my_rank,
-    //         flux_kernel_event_counts, 
-    //         ustream_kernel_event_counts,
-    //         conf.output_file_prefix);
-    // #endif
+    #ifdef LIKWID
+        dump_likwid_counters_to_file(
+            my_rank,
+            flux_kernel_event_counts, 
+            ustream_kernel_event_counts,
+            conf.output_file_prefix);
+    #endif
 
     #ifdef DUMP_EXT_PERF_DATA
         dump_perf_data_to_file(
