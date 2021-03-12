@@ -14,6 +14,10 @@ args = parser.parse_args()
 mg_cfd_output_dirpaths = args.data_dirpaths
 prepared_output_dirpath = args.output_dirpath
 
+for d in mg_cfd_output_dirpaths:
+    if prepared_output_dirpath == d:
+        raise Exception("Output dirpath must not also be in list of data dirpaths")
+
 import imp
 imp.load_source('data_utils', os.path.join(script_dirpath, "data-utils.py"))
 from data_utils import *
