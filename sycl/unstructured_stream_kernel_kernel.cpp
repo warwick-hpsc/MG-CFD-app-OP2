@@ -13,7 +13,7 @@ class unstructured_stream_kernel_kernel;
 void op_par_loop_unstructured_stream_kernel_instrumented(
   char const *name, op_set set,
   op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef PAPI
+  #if defined PAPI || defined LIKWID
   , long_long** restrict event_counts
   #endif
   ) {
@@ -57,6 +57,9 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
     #ifdef PAPI
       my_papi_start();
     #endif
+    #ifdef LIKWID
+      my_likwid_start();
+    #endif
 
     cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
     cl::sycl::buffer<double,1> *arg3_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg3.data_d);
@@ -73,15 +76,7 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
     int block_offset = 0;
     for ( int col=0; col<Plan->ncolors; col++ ){
       if (col==Plan->ncolors_core) {
-        #ifdef PAPI
-          my_papi_stop(event_counts);
-        #endif
-
         op_mpi_wait_all_cuda(nargs, args);
-
-        #ifdef PAPI
-          my_papi_start();
-        #endif
       }
       int nthread = SIMD_VEC;
 
@@ -245,6 +240,9 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
     #ifdef PAPI
       my_papi_stop(event_counts);
     #endif
+    #ifdef LIKWID
+      my_likwid_stop(event_counts);
+    #endif
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   op2_queue->wait();
@@ -263,7 +261,7 @@ void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
 
   op_par_loop_unstructured_stream_kernel_instrumented(name, set,
     arg0, arg1, arg2, arg3, arg4
-    #ifdef PAPI
+    #if defined PAPI || defined LIKWID
     , NULL
     #endif
     );

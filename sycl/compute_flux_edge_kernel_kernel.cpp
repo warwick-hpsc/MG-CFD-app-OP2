@@ -121,6 +121,9 @@ class compute_flux_edge_kernel_kernel;
 #ifdef PAPI
 #include "papi_funcs.h"
 #endif
+#ifdef LIKWID
+#include "likwid_funcs.h"
+#endif
 
 void op_par_loop_compute_flux_edge_kernel_instrumented(
   char const *name, op_set set,
@@ -129,7 +132,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
     , double* compute_time_ptr, double* sync_time_ptr
   #endif
   , long* iter_counts_ptr
-  #ifdef PAPI
+  #if defined PAPI || defined LIKWID
   , long_long** restrict event_counts
   #endif
   )
@@ -174,6 +177,9 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
     #ifdef PAPI
       my_papi_start();
     #endif
+    #ifdef LIKWID
+      my_likwid_start();
+    #endif
 
     cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
     cl::sycl::buffer<double,1> *arg3_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg3.data_d);
@@ -190,15 +196,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
     int block_offset = 0;
     for ( int col=0; col<Plan->ncolors; col++ ){
       if (col==Plan->ncolors_core) {
-        #ifdef PAPI
-          my_papi_stop(event_counts);
-        #endif
-
         op_mpi_wait_all_cuda(nargs, args);
-
-        #ifdef PAPI
-          my_papi_start();
-        #endif
       }
       int nthread = SIMD_VEC;
 
@@ -478,6 +476,9 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
     #ifdef PAPI
       my_papi_stop(event_counts);
     #endif
+    #ifdef LIKWID
+      my_likwid_stop(event_counts);
+    #endif
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   op2_queue->wait();
@@ -500,7 +501,7 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
       , NULL, NULL
     #endif
     , NULL
-    #ifdef PAPI
+    #if defined PAPI || defined LIKWID
     , NULL
     #endif
     );
