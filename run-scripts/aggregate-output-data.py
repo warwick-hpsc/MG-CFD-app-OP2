@@ -37,8 +37,59 @@ def infer_partitioner(slurm_filepath):
 
     return ""
 
+def get_run_csv(run_root, cat):
+    run_filenames = [i for i in os.listdir(run_root) if os.path.isfile(os.path.join(run_root, i))]
+
+    ## Try to infer partitioner for op2_performance_data.csv:
+    partitioner = "Unknown"
+    batch_fp = ""
+    for f in run_filenames:
+        if f.endswith(".batch") or (f.startswith("run") and f.endswith(".sh")):
+            batch_fp = os.path.join(run_root, f)
+            partitioner = infer_partitioner(batch_fp)
+
+    op2_perf_data_filepath = os.path.join(run_root, "op2_performance_data.csv")
+    if not os.path.isfile(op2_perf_data_filepath):
+        print("WARNING: Job {0} failed, skipping".format(d))
+        return None
+
+    nranks = infer_nranks(op2_perf_data_filepath)
+    if nranks == -1:
+        raise Exception("Failed to infer nranks in: " + op2_perf_data_filepath)
+
+    df_all = None
+    for f in run_filenames:
+        if f.endswith("."+cat+".csv") or (f == cat+".csv"):
+            df_filepath = os.path.join(run_root, f)
+            df = clean_pd_read_csv(df_filepath)
+            df["nranks"] = nranks
+            if not "partitioner" in df.columns.values and not "Partitioner" in df.columns.values:
+                df["partitioner"] = partitioner
+
+            df = df.rename(index=str, columns={"Partitioner":"partitioner"})
+            df = df.rename(index=str, columns={"Rank":"rank"})
+            df = df.rename(index=str, columns={"Thread":"thread"})
+            df = df.rename(index=str, columns={"kernel name":"kernel"})
+
+            if "level" in df.columns.values:
+                ## Currently, OP2 cannot measure performance of individual
+                ## multigrid levels. Until that changes, I must aggregate 
+                ## my externally-collected per-level measurements:
+                job_id_colnames = get_job_id_colnames(df)
+                job_id_colnames.remove("level")
+                df_agg = df.groupby([c for c in job_id_colnames if c!="level"], as_index=False)
+                df = df_agg.sum()
+                df = df.drop(columns=["level"])
+
+            if df_all is None:
+                df_all = df
+            else:
+                df_all = df_all.append(df, sort=True)
+    return df_all
+
+
 def collate_csvs():
-    cats = ["PerfData", "PAPI", "op2_performance_data", "FileIoTimes"]
+    cats = ["PerfData", "PAPI", "Likwid", "op2_performance_data", "FileIoTimes"]
 
     dirpaths = mg_cfd_output_dirpaths
 
@@ -48,62 +99,25 @@ def collate_csvs():
 
         for mg_cfd_output_dirpath in dirpaths:
             sub_dirnames = [i for i in os.listdir(mg_cfd_output_dirpath) if os.path.isdir(os.path.join(mg_cfd_output_dirpath, i))]
+
             if len(sub_dirnames) == 0:
-                raise Exception("No subfolders detected in job directory: " + mg_cfd_output_dirpath)
+                # raise Exception("No subfolders detected in job directory: " + mg_cfd_output_dirpath)
+                # print("mg_cfd_output_dirpath:" + mg_cfd_output_dirpath)
+                df = get_run_csv(mg_cfd_output_dirpath, cat)
+                if df_all is None:
+                    df_all = df
+                else:
+                    df_all = df_all.append(df, sort=True)
 
             for d in sub_dirnames:
                 dp = os.path.join(mg_cfd_output_dirpath, d)
 
                 for run_root, run_dirnames, run_filenames in os.walk(dp):
-                    nranks = -1
-                    ## Need to infer partitioner for op2_performance_data.csv:
-                    partitioner = ""
-                    batch_fp = ""
-                    for f in run_filenames:
-                        if f.endswith(".batch") or (f.startswith("run") and f.endswith(".sh")):
-                            batch_fp = os.path.join(dp, f)
-                            partitioner = infer_partitioner(batch_fp)
-
-                    if batch_fp == "":
-                        raise Exception("Failed to find batch file in: " + dp)
-                    if partitioner == "":
-                        raise Exception("Failed to infer partitioner in: " + batch_fp)
-                    op2_perf_data_filepath = os.path.join(dp, "op2_performance_data.csv")
-                    if not os.path.isfile(op2_perf_data_filepath):
-                        print("WARNING: Job {0} failed, skipping".format(d))
-                        continue
-                    nranks = infer_nranks(op2_perf_data_filepath)
-                    if nranks == -1:
-                        raise Exception("Failed to infer nranks in: " + op2_perf_data_filepath)
-
-                    for f in run_filenames:
-                        if f.endswith("."+cat+".csv") or (f == cat+".csv"):
-                            df_filepath = os.path.join(dp, f)
-                            df = clean_pd_read_csv(df_filepath)
-                            df["nranks"] = nranks
-                            if not "partitioner" in df.columns.values and not "Partitioner" in df.columns.values:
-                                df["partitioner"] = partitioner
-
-                            df = df.rename(index=str, columns={"Partitioner":"partitioner"})
-                            df = df.rename(index=str, columns={"Rank":"rank"})
-                            df = df.rename(index=str, columns={"Thread":"thread"})
-                            df = df.rename(index=str, columns={"kernel name":"kernel"})
-
-                            if "level" in df.columns.values:
-                                ## Currently, OP2 cannot measure performance of individual
-                                ## multigrid levels. Until that changes, I must aggregate 
-                                ## my externally-collected per-level measurements:
-                                job_id_colnames = get_job_id_colnames(df)
-                                job_id_colnames.remove("level")
-                                df_agg = df.groupby([c for c in job_id_colnames if c!="level"], as_index=False)
-                                df = df_agg.sum()
-                                df = df.drop(columns=["level"])
-
-                            if df_all is None:
-                                df_all = df
-                            else:
-                                df_all = df_all.append(df, sort=True)
-                                # df_all = df_all.append(df)
+                    df = get_run_csv(run_root, cat)
+                    if df_all is None:
+                        df_all = df
+                    else:
+                        df_all = df_all.append(df, sort=True)
 
         if not df_all is None:
             agg_fp = os.path.join(prepared_output_dirpath,cat+".csv")
@@ -124,6 +138,10 @@ def aggregate():
         ## Compute per-rank average across repeat runs:
         df_agg = df.groupby(job_id_colnames, as_index=False)
         df_mean = df_agg.mean()
+        if df_mean.shape == df.shape:
+            ## There is no duplicate data, so not point calculating statistics
+            print("WARNING: No duplicate run data detected, so will not calculate statistics")
+            return
         df_mean_out_filepath = os.path.join(prepared_output_dirpath, cat+".mean.csv")
         df_mean.to_csv(df_mean_out_filepath, index=False)
 
