@@ -19,6 +19,9 @@
 #ifdef PAPI
 #include "papi_funcs.h"
 #endif
+#ifdef LIKWID
+#include "likwid_funcs.h"
+#endif
 
 inline void compute_bnd_node_flux_kernel(
   const int *g, 
@@ -400,7 +403,7 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
       , NULL, NULL
     #endif
     , NULL
-    #ifdef PAPI
+    #if defined PAPI || defined LIKWID
     , NULL
     #endif
     );
@@ -413,7 +416,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
     , double* compute_time_ptr, double* sync_time_ptr
   #endif
   , long* iter_counts_ptr
-  #ifdef PAPI
+  #if defined PAPI || defined LIKWID
   , long_long** restrict event_counts
   #endif
   )
@@ -453,6 +456,9 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
   if (exec_size >0) {
 
+    #ifdef LIKWID
+      my_likwid_start();
+    #endif
     #ifdef PAPI
       my_papi_start();
     #endif
@@ -464,9 +470,19 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
         #ifdef PAPI
           my_papi_stop(event_counts);
         #endif
+        #ifdef LIKWID
+          my_likwid_stop(event_counts);
+        #endif
+        // TODO: test whether pausing performance counters during 
+        //       MPI is really necessary
+
         op_mpi_wait_all(nargs, args);
+        
         #ifdef PAPI
           my_papi_start();
+        #endif
+        #ifdef LIKWID
+          my_likwid_start();
         #endif
       }
       ALIGNED_double double dat0[5][SIMD_VEC];
@@ -562,6 +578,9 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
   #ifdef PAPI
     my_papi_stop(event_counts);
+  #endif
+  #ifdef LIKWID
+    my_likwid_stop(event_counts);
   #endif
 
   if (exec_size == 0 || exec_size == set->core_size) {
