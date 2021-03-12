@@ -8,6 +8,9 @@
 #ifdef PAPI
 #include "papi_funcs.h"
 #endif
+#ifdef LIKWID
+#include "likwid_funcs.h"
+#endif
 
 // host stub function
 void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
@@ -24,7 +27,7 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
       , NULL, NULL
     #endif
     , NULL
-    #ifdef PAPI
+    #if defined PAPI || defined LIKWID
     , NULL
     #endif
     );
@@ -37,7 +40,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
     , double* compute_time_ptr, double* sync_time_ptr
   #endif
   , long* iter_counts_ptr
-  #ifdef PAPI
+  #if defined PAPI || defined LIKWID
   , long_long** restrict event_counts
   #endif
   )
@@ -99,6 +102,12 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
       // Pause process timing and switch to per-thread timing:
       op_timers_core(&cpu_t2, &wall_t2);
       non_thread_walltime += wall_t2 - wall_t1;
+
+      // Note: PAPI must be started inside parallel region, but
+      //       Likwid outside.
+      #ifdef LIKWID
+        my_likwid_start();
+      #endif
       #pragma omp parallel
       {
         #ifdef PAPI
@@ -138,6 +147,9 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
           my_papi_stop(event_counts);
         #endif
       }
+      #ifdef LIKWID
+        my_likwid_stop(event_counts);
+      #endif
 
       // Revert to process-level timing:
       op_timers_core(&cpu_t1, &wall_t1);
