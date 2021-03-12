@@ -8,6 +8,9 @@
 #ifdef PAPI
 #include "papi_funcs.h"
 #endif
+#ifdef LIKWID
+#include "likwid_funcs.h"
+#endif
 
 #include <mpi.h>
 
@@ -21,7 +24,7 @@ void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   
   op_par_loop_unstructured_stream_kernel_instrumented(name, set, 
     arg0, arg1, arg2, arg3, arg4
-    #ifdef PAPI
+    #if defined PAPI || defined LIKWID
     , NULL
     #endif
     );
@@ -30,7 +33,7 @@ void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
 void op_par_loop_unstructured_stream_kernel_instrumented(
   char const *name, op_set set,
   op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef PAPI
+  #if defined PAPI || defined LIKWID
   , long_long** restrict event_counts
   #endif
   )
@@ -65,6 +68,9 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
       op_timers_core(&cpu_t1, &wall_t1);
     #endif
 
+    #ifdef LIKWID
+      my_likwid_start();
+    #endif
     #ifdef PAPI
       my_papi_start();
     #endif
@@ -74,9 +80,19 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
         #ifdef PAPI
           my_papi_stop(event_counts);
         #endif
+        #ifdef LIKWID
+          my_likwid_stop(event_counts);
+        #endif
+        // TODO: test whether pausing performance counters during 
+        //       MPI is really necessary
+
         op_mpi_wait_all(nargs, args);
+        
         #ifdef PAPI
           my_papi_start();
+        #endif
+        #ifdef LIKWID
+          my_likwid_start();
         #endif
       }
       int map0idx = arg0.map_data[n * arg0.map->dim + 0];
@@ -93,6 +109,9 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
 
     #ifdef PAPI
       my_papi_stop(event_counts);
+    #endif
+    #ifdef LIKWID
+      my_likwid_stop(event_counts);
     #endif
   }
 

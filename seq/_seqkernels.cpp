@@ -28,7 +28,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 void op_par_loop_unstructured_stream_kernel_instrumented(
   char const *name, op_set set,
   op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef PAPI
+  #if defined PAPI || defined LIKWID
   , long_long** restrict event_counts
   #endif
 );

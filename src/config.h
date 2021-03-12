@@ -311,11 +311,11 @@ inline void read_config() {
     //     set_config_param(&conf, "input_file_directory", input_file_directory_corrected.c_str());
     // }
 
-    // #if defined PAPI || defined LIKWID
+    #if defined PAPI || defined LIKWID
     if (conf.papi_config_file != std::string("") && conf.papi_config_file[0] != '/') {
         set_config_param("papi-config-file", (std::string(conf.input_file_directory) + "/" + conf.papi_config_file).c_str());
     }
-    // #endif
+    #endif
 }
 
 inline void print_help(void)
@@ -341,8 +341,13 @@ inline void print_help(void)
     fprintf(stderr, "        directory path to input files\n");
     fprintf(stderr, "-o, --output-file-prefix=STRING\n");
     fprintf(stderr, "        string to prepend to output filenames\n");
+    #ifdef PAPI
     fprintf(stderr, "-p, --papi-config-file=FILEPATH\n");
     fprintf(stderr, "        file containing list of PAPI events to monitor\n");
+    #elif defined LIKWID
+    fprintf(stderr, "-p, --papi-config-file=FILEPATH\n");
+    fprintf(stderr, "        file containing list of Likwid events to monitor (syntax = EVENT:REGISTER)\n");
+    #endif
     fprintf(stderr, "\n");
     fprintf(stderr, "-g, --num-cycles=INT\n");
     fprintf(stderr, "        number of multigrid V-cycles to perform\n");

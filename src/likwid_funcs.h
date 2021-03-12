@@ -233,9 +233,6 @@ inline void dump_likwid_counters_to_file(
     outfile.open(filepath.c_str(), std::ios_base::app);
     if (write_header) outfile << header.str() << std::endl;
 
-    printf("nt = %d\n", nt);
-    printf("n_events = %d\n", n_events);
-    printf("levels = %d\n", levels);
     for (int tid=0; tid<nt; tid++) {
         for (int eid=0; eid<n_events; eid++) {
             for (int l=0; l<levels; l++) {
@@ -252,6 +249,24 @@ inline void dump_likwid_counters_to_file(
                 event_data_line << ',' << flux_kernel_event_counts[tid][idx];
 
                 outfile << event_data_line.str() << std::endl;
+            }
+
+            if (conf.measure_mem_bound) {
+                for (int l=0; l<levels; l++) {
+                    std::ostringstream event_data_line;
+                    event_data_line << rank;
+                    event_data_line << "," << tid;
+                    event_data_line << "," << conf.partitioner_string;
+                    event_data_line << "," << event_names[eid];
+
+                    event_data_line << "," << "unstructured_stream_kernel";
+                    event_data_line << "," << l;
+
+                    const int idx = l*n_events + eid;
+                    event_data_line << ',' << ustream_kernel_event_counts[tid][idx];
+
+                    outfile << event_data_line.str() << std::endl;
+                }
             }
         }
     }
