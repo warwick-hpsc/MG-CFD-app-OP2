@@ -29,6 +29,15 @@ int* event_set = NULL;
 int** events = NULL;
 #include "papi_funcs.h"
 #endif
+#ifdef LIKWID
+#include "likwid_funcs.h"
+long_long** flux_kernel_event_counts = NULL;
+long_long** ustream_kernel_event_counts = NULL;
+int n_events;
+char** event_names = NULL;
+int likwid_gid;
+CpuTopology_t likwid_topo;
+#endif
 
 // #define LOG_PROGRESS
 
@@ -146,6 +155,10 @@ int main(int argc, char** argv)
     #ifdef PAPI
         init_papi();
         load_papi_events();
+    #endif
+    #ifdef LIKWID
+        init_likwid();
+        load_likwid_events();
     #endif
     double file_io_times[levels];
     for (int i=0; i<levels; i++) {
@@ -777,6 +790,13 @@ int main(int argc, char** argv)
     #endif
     #ifdef PAPI
         dump_papi_counters_to_file(
+            my_rank,
+            flux_kernel_event_counts, 
+            ustream_kernel_event_counts,
+            conf.output_file_prefix);
+    #endif
+    #ifdef LIKWID
+        dump_likwid_counters_to_file(
             my_rank, 
             flux_kernel_event_counts, 
             ustream_kernel_event_counts,

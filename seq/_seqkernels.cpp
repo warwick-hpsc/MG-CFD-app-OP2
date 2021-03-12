@@ -11,6 +11,9 @@
 #include <papi.h>
 #include "const.h"
 #endif
+#ifdef LIKWID
+#include "likwid_funcs.h"
+#endif
 void op_par_loop_compute_flux_edge_kernel_instrumented(
   char const *name, op_set set,
   op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
@@ -18,7 +21,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
     , double* compute_time_ptr, double* sync_time_ptr
   #endif
   , long* iter_counts_ptr
-  #ifdef PAPI
+  #if defined PAPI || defined LIKWID
   , long_long** restrict event_counts
   #endif
 );

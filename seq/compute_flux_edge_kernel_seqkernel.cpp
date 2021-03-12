@@ -8,6 +8,9 @@
 #ifdef PAPI
 #include "papi_funcs.h"
 #endif
+#ifdef LIKWID
+#include "likwid_funcs.h"
+#endif
 
 // host stub function
 void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
@@ -23,7 +26,7 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
       , NULL, NULL
     #endif
     , NULL
-    #ifdef PAPI
+    #if defined PAPI || defined LIKWID
     , NULL
     #endif
     );
@@ -36,7 +39,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
     , double* compute_time_ptr, double* sync_time_ptr
   #endif
   , long* iter_counts_ptr
-  #ifdef PAPI
+  #if defined PAPI || defined LIKWID
   , long_long** event_counts
   #endif
   )
@@ -70,6 +73,9 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
   if (set_size >0) {
 
+    #ifdef LIKWID
+      my_likwid_start();
+    #endif
     #ifdef PAPI
       my_papi_start();
     #endif
@@ -80,6 +86,11 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
         #ifdef PAPI
           my_papi_stop(event_counts);
         #endif
+        #ifdef LIKWID
+          my_likwid_stop(event_counts);
+        #endif
+        // TODO: test whether pausing performance counters during 
+        //       MPI is really necessary
 
         op_timers_core(&inner_cpu_t2, &inner_wall_t2);
         compute_time += inner_wall_t2 - inner_wall_t1;
@@ -89,6 +100,9 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
         #ifdef PAPI
           my_papi_start();
+        #endif
+        #ifdef LIKWID
+          my_likwid_start();
         #endif
       }
       int map0idx = arg0.map_data[n * arg0.map->dim + 0];
@@ -108,6 +122,9 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
     #ifdef PAPI
       my_papi_stop(event_counts);
+    #endif
+    #ifdef LIKWID
+      my_likwid_stop(event_counts);
     #endif
   }
 
