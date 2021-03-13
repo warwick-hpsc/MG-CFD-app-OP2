@@ -740,6 +740,9 @@ int main(int argc, char** argv)
             if (bad_val_count > 0) {
                 op_printf("Bad variable values detected, aborting\n");
                 op_exit();
+                #ifdef LIKWID
+                    clear_likwid();
+                #endif
                 return 1;
             }
             op_printf("\n");
@@ -1020,6 +1023,10 @@ int main(int argc, char** argv)
         conf.output_file_prefix);
     #ifndef DUMP_EXT_PERF_DATA
         }
+    #endif
+
+    #ifdef LIKWID
+        clear_likwid();
     #endif
 
     op_printf("-----------------------------------------------------\n");

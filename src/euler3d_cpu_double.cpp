@@ -832,6 +832,10 @@ int main(int argc, char** argv)
         }
     #endif
 
+    #ifdef LIKWID
+        clear_likwid();
+    #endif
+
     op_printf("-----------------------------------------------------\n");
     op_printf("Winding down OP2\n");
     op_exit();

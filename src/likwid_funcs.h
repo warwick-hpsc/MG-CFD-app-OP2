@@ -53,33 +53,33 @@ inline int likwid_get_num_threads() {
 
 inline void my_likwid_start()
 {
-	if (n_events == 0) {
-		return;
-	}
-	int err = perfmon_startCounters();
-	if (err < 0) {
-		op_printf("Failed to start counters for group %d for thread %d\n", likwid_gid, (-1*err)-1);
-		exit(EXIT_FAILURE);
-	}
+    if (n_events == 0) {
+        return;
+    }
+    int err = perfmon_startCounters();
+    if (err < 0) {
+        op_printf("Failed to start counters for group %d for thread %d\n", likwid_gid, (-1*err)-1);
+        exit(EXIT_FAILURE);
+    }
 }
 
 inline void my_likwid_stop(long_long** restrict event_counts)
 {
-	if (n_events == 0) {
-		return;
-	}
-	int err = perfmon_stopCounters();
-	if (err < 0) {
-		op_printf("Failed to stop counters for group %d for thread %d\n",likwid_gid, (-1*err)-1);
-		exit(EXIT_FAILURE);
-	}
-	for (int e=0; e<n_events; e++) {
-		for (int t=0; t<likwid_topo->numHWThreads; t++) {
-			double result_f = perfmon_getResult(likwid_gid, e, t);
-			long_long result = (long_long)result_f;
-			event_counts[t][current_level*n_events + e] += result;
-		}
-	}
+    if (n_events == 0) {
+        return;
+    }
+    int err = perfmon_stopCounters();
+    if (err < 0) {
+        op_printf("Failed to stop counters for group %d for thread %d\n",likwid_gid, (-1*err)-1);
+        exit(EXIT_FAILURE);
+    }
+    for (int e=0; e<n_events; e++) {
+        for (int t=0; t<likwid_topo->numHWThreads; t++) {
+            double result_f = perfmon_getResult(likwid_gid, e, t);
+            long_long result = (long_long)result_f;
+            event_counts[t][current_level*n_events + e] += result;
+        }
+    }
 }
 
 inline void init_likwid()
@@ -117,6 +117,13 @@ inline void init_likwid()
     likwid_gid = 0;
 }
 
+inline void clear_likwid()
+{
+    perfmon_finalize();
+    affinity_finalize();
+    topology_finalize();
+}
+
 inline void load_likwid_events()
 {
     std::vector<std::string> events;
@@ -137,72 +144,70 @@ inline void load_likwid_events()
 
     n_events = events.size();
     if (n_events > 0) {
-    	int j, err, n;
+        int j, err, n;
 
-    	// Store event names
-    	event_names = (char**)malloc(n_events*sizeof(char*));
-    	for (j=0; j<n_events; j++) {
-    		n = strlen(events[j].c_str()) + 1;
-    		event_names[j] = (char*)malloc(n*sizeof(char));
-    		strcpy(event_names[j], events[j].c_str());
-    	}
+        const int nt = likwid_topo->numHWThreads;
+        flux_kernel_event_counts = (long_long**)malloc(sizeof(long_long*)*nt);
+        ustream_kernel_event_counts = (long_long**)malloc(sizeof(long_long*)*nt);
+        for (int tid=0; tid<nt; tid++) {
+            flux_kernel_event_counts[tid] = (long_long*)malloc(sizeof(long_long)*levels*n_events);
+            for (int i=0; i<levels*n_events; i++) {
+                flux_kernel_event_counts[tid][i] = 0;
+            }
+            ustream_kernel_event_counts[tid] = (long_long*)malloc(sizeof(long_long)*levels*n_events);
+            for (int i=0; i<levels*n_events; i++) {
+                ustream_kernel_event_counts[tid][i] = 0;
+            }
+        }
 
-    	// Construct comma-delimited event string
-    	int estr_length = strlen(events[0].c_str());
-		for (j=1; j<n_events; j++) {
-			estr_length += 1 + strlen(events[j].c_str());
-		}
-		char* estr = (char*)malloc(estr_length*sizeof(char));
-		strcpy(estr, events[0].c_str());
-		int i = 0;
-		for (j=1; j<n_events; j++) {
-			i += strlen(events[j-1].c_str());
-			estr[i] = ',';
-			i++;
-			strcpy(estr+i, events[j].c_str());
-		}
+        // Store event names
+        event_names = (char**)malloc(n_events*sizeof(char*));
+        for (j=0; j<n_events; j++) {
+            n = strlen(events[j].c_str()) + 1;
+            event_names[j] = (char*)malloc(n*sizeof(char));
+            strcpy(event_names[j], events[j].c_str());
+        }
 
-		// Setup Likwid
-		likwid_gid = perfmon_addEventSet(estr);
-		if (likwid_gid < 0) {
-			op_printf("Failed to add event string %s to LIKWID's performance monitoring module\n", estr);
-			perfmon_finalize();
-			topology_finalize();
-			exit(EXIT_FAILURE);
-		}
-		err = perfmon_setupCounters(likwid_gid);
-		if (err < 0) {
-			op_printf("Failed to setup group %d in LIKWID's performance monitoring module\n", likwid_gid);
-			perfmon_finalize();
-			topology_finalize();
-			exit(EXIT_FAILURE);
-		}
+        // Construct comma-delimited event string
+        int estr_length = strlen(events[0].c_str());
+        for (j=1; j<n_events; j++) {
+            estr_length += 1 + strlen(events[j].c_str());
+        }
+        char* estr = (char*)malloc(estr_length*sizeof(char));
+        strcpy(estr, events[0].c_str());
+        int i = 0;
+        for (j=1; j<n_events; j++) {
+            i += strlen(events[j-1].c_str());
+            estr[i] = ',';
+            i++;
+            strcpy(estr+i, events[j].c_str());
+        }
 
-	    const int nt = likwid_topo->numHWThreads;
-	    flux_kernel_event_counts = (long_long**)malloc(sizeof(long_long*)*nt);
-    	ustream_kernel_event_counts = (long_long**)malloc(sizeof(long_long*)*nt);
-    	for (int tid=0; tid<nt; tid++) {
-	        flux_kernel_event_counts[tid] = (long_long*)malloc(sizeof(long_long)*levels*n_events);
-	        for (int i=0; i<levels*n_events; i++) {
-	            flux_kernel_event_counts[tid][i] = 0;
-	        }
-	        ustream_kernel_event_counts[tid] = (long_long*)malloc(sizeof(long_long)*levels*n_events);
-	        for (int i=0; i<levels*n_events; i++) {
-	            ustream_kernel_event_counts[tid][i] = 0;
-	        }
-    	}
+        // Setup Likwid
+        likwid_gid = perfmon_addEventSet(estr);
+        if (likwid_gid < 0) {
+            op_printf("Failed to add event string %s to LIKWID's performance monitoring module\n", estr);
+            n_events = 0;
+            return;
+        }
+        err = perfmon_setupCounters(likwid_gid);
+        if (err < 0) {
+            op_printf("Failed to setup group %d in LIKWID's performance monitoring module\n", likwid_gid);
+            n_events = 0;
+            return;
+        }
 
-		op_printf("LIKWID initialised, monitoring '%s'\n", estr);
+        op_printf("LIKWID initialised, monitoring '%s'\n", estr);
     }
 }
 
 inline void dump_likwid_counters_to_file(
-	int rank, 
+    int rank, 
     long_long** flux_kernel_event_counts, 
     long_long** ustream_kernel_event_counts, 
     char* output_file_prefix)
 {
-	std::string filepath = std::string(output_file_prefix);
+    std::string filepath = std::string(output_file_prefix);
     if (filepath.length() > 1 && filepath.at(filepath.size()-1) != '/') {
         filepath += ".";
     }
