@@ -66,9 +66,9 @@ typedef struct {
     char* input_file_directory;
     char* output_file_prefix;
 
-    // #if defined PAPI || defined LIKWID
+    #if defined PAPI || defined LIKWID
     char* papi_config_file;
-    // #endif
+    #endif
 
     bool legacy_mode;
 
@@ -135,10 +135,10 @@ inline void set_config_defaults() {
     conf.output_file_prefix = (char*)malloc(sizeof(char));
     conf.output_file_prefix[0] = '\0';
 
-    // #if defined PAPI || defined LIKWID
+    #if defined PAPI || defined LIKWID
     conf.papi_config_file = (char*)malloc(sizeof(char));
     conf.papi_config_file[0] = '\0';
-    // #endif
+    #endif
 
     conf.legacy_mode = false;
 
@@ -177,11 +177,11 @@ inline void set_config_param(const char* const key, const char* const value) {
         conf.output_file_prefix = strdup(value);
     }
 
-    // #if defined PAPI || defined LIKWID
+    #if defined PAPI || defined LIKWID
     else if (strcmp(key,"papi-config-file")==0) {
         conf.papi_config_file = strdup(value);
     }
-    // #endif
+    #endif
 
     else if (strcmp(key,"validate_result")==0) {
         if (strcmp(value, "Y")==0) {

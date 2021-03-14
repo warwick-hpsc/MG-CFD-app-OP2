@@ -37,6 +37,8 @@ int n_events;
 char** event_names = NULL;
 int likwid_gid;
 CpuTopology_t likwid_topo;
+int n_cpus_monitored;
+int last_cpu_id;
 #endif
 
 // #define LOG_PROGRESS
@@ -466,6 +468,8 @@ int main(int argc, char** argv)
             op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
         #endif
 
+        current_level = level;
+
         op_par_loop(copy_double_kernel, "copy_double_kernel", op_nodes[level],
                     op_arg_dat(p_variables[level],     -1, OP_ID, NVAR, "double", OP_READ),
                     op_arg_dat(p_old_variables[level], -1, OP_ID, NVAR, "double", OP_WRITE));
@@ -550,6 +554,9 @@ int main(int argc, char** argv)
             if (bad_val_count > 0) {
                 op_printf("Bad variable values detected, aborting\n");
                 op_exit();
+                #ifdef LIKWID
+                    clear_likwid();
+                #endif
                 return 1;
             }
             op_printf("\n");
