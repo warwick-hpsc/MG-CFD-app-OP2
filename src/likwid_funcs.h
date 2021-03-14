@@ -484,18 +484,19 @@ inline void dump_likwid_counters_to_file_mpi(
     int err;
 
     // Create MPI_Datatype MPI_LikwidRowType
-    const int n_cols = 6;
-    int types[n_cols] = { MPI_INT, MPI_INT, MPI_CHAR, MPI_CHAR, MPI_INT, MPI_LONG_LONG_INT};
-    int blocklengths[n_cols] = { 1, 1, TABLE_STRING_LENGTH, TABLE_STRING_LENGTH, 1, 1 };
-    int type_sizes[n_cols] = { sizeof(int), sizeof(int), sizeof(char), sizeof(char), sizeof(int), sizeof(long long int) };
-    MPI_Aint displacements[n_cols];
-    displacements[0] = 0;
-    for (int i=1; i<n_cols; i++) {
-        displacements[i] = displacements[i-1] + (type_sizes[i-1]*blocklengths[i-1]);
-    }
+    int types[6] = { MPI_INT, MPI_INT, MPI_CHAR, MPI_CHAR, MPI_INT, MPI_LONG_LONG_INT};
+    int blocklengths[6] = { 1, 1, TABLE_STRING_LENGTH, TABLE_STRING_LENGTH, 1, 1 };
+    int type_sizes[6] = { sizeof(int), sizeof(int), sizeof(char), sizeof(char), sizeof(int), sizeof(long long int) };
+    MPI_Aint displacements[6];
+    displacements[0] = offsetof(likwid_row, thread_id);
+    displacements[1] = offsetof(likwid_row, cpu_id);
+    displacements[2] = offsetof(likwid_row, event_name);
+    displacements[3] = offsetof(likwid_row, kernel_name);
+    displacements[4] = offsetof(likwid_row, level);
+    displacements[5] = offsetof(likwid_row, count);
     MPI_Datatype MPI_LikwidRowType;
     err = MPI_Type_create_struct(
-        n_cols,
+        6,
         blocklengths,
         displacements,
         types,
@@ -534,56 +535,64 @@ inline void dump_likwid_counters_to_file_mpi(
         MPI_Request* reqs = (MPI_Request*)malloc((nranks-1)*sizeof(MPI_Request));
 
         for (int r=1; r<nranks; r++) {
-            // err = MPI_Irecv(likwid_tables[r], n_rows_each[r], MPI_LikwidRowType, r, 0, MPI_COMM_WORLD, &reqs[r-1]);
-            err = MPI_Recv(likwid_tables[r], n_rows_each[r], MPI_LikwidRowType, r, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            err = MPI_Irecv(likwid_tables[r], n_rows_each[r], MPI_LikwidRowType, r, 0, MPI_COMM_WORLD, &reqs[r-1]);
             if (err != MPI_SUCCESS) {
                 op_printf("ERROR: MPI_Irecv() failed\n");
                 op_exit();
                 exit(EXIT_FAILURE);
             }
-        // }
-        // int num_reqs_pending = (nranks-1);
-        // while (num_reqs_pending > 0) {
-        //     int req_idx = -1;
-        //     err = MPI_Waitany(nranks-1, reqs, &req_idx, MPI_STATUS_IGNORE);
-        //     if (err != MPI_SUCCESS) {
-        //         op_printf("ERROR: MPI_Waitany() failed\n");
-        //         op_exit();
-        //         exit(EXIT_FAILURE);
-        //     }
-        //     int r = req_idx+1;
-        //     if (r < 0 || r > (nranks-1)) {
-        //         op_printf("ERROR: MPI_Waitany() has selected invalid r=%d\n", r);
-        //         op_exit();
-        //         exit(EXIT_FAILURE);
-        //     }
-        //     num_reqs_pending--;
-
-            printf("Root received table from rank %d:\n", r);
-            printf("----------------------------\n");
-            printf("Thread, CpuId , Event , Kernel , Level , Count\n");
-            for (int i=0; i<n_rows; i++) {
-                printf("%d , %d , %s , %s , %d , %lld\n", likwid_tables[r][i].thread_id, likwid_tables[r][i].cpu_id, likwid_tables[r][i].event_name, likwid_tables[r][i].kernel_name, likwid_tables[r][i].level, likwid_tables[r][i].count);
+        }
+        int num_reqs_pending = (nranks-1);
+        while (num_reqs_pending > 0) {
+            int req_idx = -1;
+            err = MPI_Waitany(nranks-1, reqs, &req_idx, MPI_STATUS_IGNORE);
+            if (err != MPI_SUCCESS) {
+                op_printf("ERROR: MPI_Waitany() failed\n");
+                op_exit();
+                exit(EXIT_FAILURE);
             }
-            printf("----------------------------\n");
+            int r = req_idx+1;
+            if (r < 0 || r > (nranks-1)) {
+                op_printf("ERROR: MPI_Waitany() has selected invalid r=%d\n", r);
+                op_exit();
+                exit(EXIT_FAILURE);
+            }
+            num_reqs_pending--;
+
+            // printf("Root received table from rank %d:\n", r);
+            // printf("----------------------------\n");
+            // printf("Thread, CpuId , Event , Kernel , Level , Count\n");
+            // for (int i=0; i<n_rows_each[r]; i++) {
+            //     printf("R%d | %d , %d , %s , %s , %d , %lld\n", 
+            //         r, 
+            //         likwid_tables[r][i].thread_id, 
+            //         likwid_tables[r][i].cpu_id, 
+            //         likwid_tables[r][i].event_name, likwid_tables[r][i].kernel_name, 
+            //         likwid_tables[r][i].level, likwid_tables[r][i].count);
+            // }
+            // printf("R%d |----------------------------\n", r);
         }
     } else {
-        printf("Rank %d sending table:\n", rank);
-        printf("----------------------------\n");
-        printf("Thread, CpuId , Event , Kernel , Level , Count\n");
-        for (int i=0; i<n_rows; i++) {
-            printf("%d , %d , %s , %s , %d , %lld\n", my_table[i].thread_id, my_table[i].cpu_id, my_table[i].event_name, my_table[i].kernel_name, my_table[i].level, my_table[i].count);
-        }
-        printf("----------------------------\n");
+        // printf("Rank %d sending table:\n", rank);
+        // printf("----------------------------\n");
+        // printf("R%d | Thread, CpuId , Event , Kernel , Level , Count\n", rank);
+        // for (int i=0; i<n_rows; i++) {
+        //     printf("R%d | %d , %d , %s , %s , %d , %lld\n", 
+        //         rank, 
+        //         my_table[i].thread_id, 
+        //         my_table[i].cpu_id, 
+        //         my_table[i].event_name, my_table[i].kernel_name, 
+        //         my_table[i].level, my_table[i].count);
+        // }
+        // printf("R%d |----------------------------\n", rank);
         MPI_Request req;
-        // err = MPI_Isend(my_table, n_rows, MPI_LikwidRowType, 0, 0, MPI_COMM_WORLD, &req);
-        err = MPI_Send(my_table, n_rows, MPI_LikwidRowType, 0, 0, MPI_COMM_WORLD);
+        err = MPI_Isend(my_table, n_rows, MPI_LikwidRowType, 0, 0, MPI_COMM_WORLD, &req);
         if (err != MPI_SUCCESS) {
             op_printf("ERROR: MPI_Isend() failed\n");
             op_exit();
             exit(EXIT_FAILURE);
         }
-        // MPI_Wait(&req, MPI_STATUS_IGNORE);
+        MPI_Wait(&req, MPI_STATUS_IGNORE);
     }
 
     // Write out data:
