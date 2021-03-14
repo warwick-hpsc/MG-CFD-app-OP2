@@ -18,6 +18,8 @@
 
 #ifdef __clang__
 #define restrict __restrict__
+#elif defined __GNUC__
+#define restrict __restrict__
 #endif
 
 /*

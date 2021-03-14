@@ -21,43 +21,6 @@ static inline OP_FUN_PREFIX void zero_array(int nelr, double* variables)
         variables[i] = 0.0;
     }
 }
-static inline OP_FUN_PREFIX void zero_edges(int nelr, edge* mx, edge* my, edge* mz, edge* p, edge* pe)
-{
-    #ifdef OMP
-    #pragma omp parallel
-    {
-    #endif
-        #ifdef VERITAS
-            pdump_start_profile();
-        #endif
-        #ifdef OMP
-        #pragma omp for schedule(static)
-        #endif
-        #ifdef SIMD
-        #pragma simd vectorlength(SIMD)
-        #else
-        #pragma novector
-        #endif
-        for(int i = 0; i < nelr; i++)
-        {
-            mx[i].a = 0.0;
-            mx[i].b = 0.0;
-            my[i].a = 0.0;
-            my[i].b = 0.0;
-            mz[i].a = 0.0;
-            mz[i].b = 0.0;
-            p[i].a = 0.0;
-            p[i].b = 0.0;
-            pe[i].a = 0.0;
-            pe[i].b = 0.0;
-        }
-        #ifdef VERITAS
-            pdump_end_profile();
-        #endif
-    #ifdef OMP
-    }
-    #endif
-}
 static inline OP_FUN_PREFIX void compute_flux_contribution(
     double& density, double3& momentum, 
     double& density_energy, 

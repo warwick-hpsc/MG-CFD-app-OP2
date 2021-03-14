@@ -138,6 +138,7 @@ endif
 #
 ifeq ($(COMPILER),gnu)
   CFLAGS	= -fPIC -DUNIX -Wall -Wextra
+  CFLAGS  += -Wno-unused
   ## Disable C math function error checking, as prevents SIMD:
   CFLAGS += -fno-math-errno
   CPPFLAGS 	= $(CFLAGS)
@@ -146,9 +147,10 @@ ifeq ($(COMPILER),gnu)
 else
 ifeq ($(COMPILER),clang)
   CFLAGS	= -fPIC -DUNIX -DVECTORIZE
+  CFLAGS += -ferror-limit=1
   OPT_REPORT_OPTIONS := 
-  OPT_REPORT_OPTIONS += -Rpass-missed=loop-vec ## Report vectorisation failures
-  OPT_REPORT_OPTIONS += -Rpass="loop-(unroll|vec)" ## Report loop transformations
+  # OPT_REPORT_OPTIONS += -Rpass-missed=loop-vec ## Report vectorisation failures
+  # OPT_REPORT_OPTIONS += -Rpass="loop-(unroll|vec)" ## Report loop transformations
   # OPT_REPORT_OPTIONS += -Rpass-analysis=loop-vectorize ## Report WHY vectorize failed
   OPT_REPORT_OPTIONS += -fsave-optimization-record -gline-tables-only -gcolumn-info
   CFLAGS += $(OPT_REPORT_OPTIONS)
@@ -507,11 +509,11 @@ $(BIN_DIR)/mgcfd_openmp: $(OP2_OMP_OBJECTS)
 ## MPI
 $(OBJ_DIR)/mgcfd_mpi_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CPPFLAGS) -D_MPI $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	     -DMPI_ON -c -o $@ $^
 $(OBJ_DIR)/mgcfd_mpi_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(SEQ_KERNELS)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CPPFLAGS) -D_MPI $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	     -DMPI_ON -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
 $(BIN_DIR)/mgcfd_mpi: $(OP2_MPI_OBJECTS)
 	mkdir -p $(BIN_DIR)
@@ -523,11 +525,11 @@ $(BIN_DIR)/mgcfd_mpi: $(OP2_MPI_OBJECTS)
 ## MPI_VEC
 $(OBJ_DIR)/mgcfd_mpi_vec_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS)  $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CPPFLAGS) -D_MPI $(OMPFLAGS)  $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
         -DMPI_ON -c -o $@ $^
 $(OBJ_DIR)/mgcfd_mpi_vec_kernels.o: $(SRC_DIR)/../vec/_veckernels.cpp $(VEC_KERNELS)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CPPFLAGS) -D_MPI $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
         -DMPI_ON -c -o $@ $(SRC_DIR)/../vec/_veckernels.cpp 2>&1 | tee $@.log
 $(BIN_DIR)/mgcfd_mpi_vec: $(OP2_MPI_VEC_OBJECTS)
 	mkdir -p $(BIN_DIR)
@@ -539,11 +541,11 @@ $(BIN_DIR)/mgcfd_mpi_vec: $(OP2_MPI_VEC_OBJECTS)
 ## MPI + OPENMP
 $(OBJ_DIR)/mgcfd_mpi_openmp_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) -D_OMP $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) -D_MPI -D_OMP $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	    -DMPI_ON -c -o $@ $^
 $(OBJ_DIR)/mgcfd_mpi_openmp_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(OMP_KERNELS)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) -D_OMP $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) -D_MPI -D_OMP $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	    -DMPI_ON -c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
 $(BIN_DIR)/mgcfd_mpi_openmp: $(OP2_MPI_OMP_OBJECTS)
 	mkdir -p $(BIN_DIR)
@@ -571,11 +573,11 @@ $(BIN_DIR)/mgcfd_cuda: $(OP2_CUDA_OBJECTS)
 ## MPI CUDA
 $(OBJ_DIR)/mgcfd_mpi_kernels_cu.o: $(SRC_DIR)/../cuda/_kernels.cu $(CUDA_KERNELS)
 	mkdir -p $(OBJ_DIR)
-	nvcc $(NVCCFLAGS) $(MGCFD_INCS) $(OP2_INC) -I $(MPI_INSTALL_PATH)/include \
+	nvcc $(NVCCFLAGS) -D_MPI $(MGCFD_INCS) $(OP2_INC) -I $(MPI_INSTALL_PATH)/include \
         -c -o $@ $(SRC_DIR)/../cuda/_kernels.cu
 $(OBJ_DIR)/mgcfd_mpi_cuda_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	$(MPICPP) $(CFLAGS) -D_MPI $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
         -DCUDA_ON -c -o $@ $^
 $(BIN_DIR)/mgcfd_mpi_cuda: $(OP2_MPI_CUDA_OBJECTS)
 	mkdir -p $(BIN_DIR)

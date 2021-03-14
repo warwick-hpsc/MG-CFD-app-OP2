@@ -86,9 +86,9 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
         #ifdef PAPI
           my_papi_stop(event_counts);
         #endif
-        #ifdef LIKWID
-          my_likwid_stop(event_counts);
-        #endif
+        // #ifdef LIKWID
+        //   my_likwid_stop(event_counts);
+        // #endif
         // TODO: test whether pausing performance counters during 
         //       MPI is really necessary
 
@@ -101,9 +101,9 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
         #ifdef PAPI
           my_papi_start();
         #endif
-        #ifdef LIKWID
-          my_likwid_start();
-        #endif
+        // #ifdef LIKWID
+        //   my_likwid_start();
+        // #endif
       }
       int map0idx = arg0.map_data[n * arg0.map->dim + 0];
       int map1idx = arg0.map_data[n * arg0.map->dim + 1];

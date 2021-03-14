@@ -26,8 +26,6 @@
 #include <likwid.h>
 #include <vector>
 
-#define long_long long long
-
 // OP2:
 #include "op_seq.h"
 
@@ -40,8 +38,30 @@ extern char** event_names;
 extern int likwid_gid;
 extern CpuTopology_t likwid_topo;
 
+extern int n_cpus_monitored;
+extern int last_cpu_id;
+
+#define long_long long long
 extern long_long** flux_kernel_event_counts;
 extern long_long** ustream_kernel_event_counts;
+
+#define TABLE_STRING_LENGTH 128
+typedef struct likwid_row_t
+{
+    int thread_id;
+    char event_name[TABLE_STRING_LENGTH];
+    char kernel_name[TABLE_STRING_LENGTH];
+    int level;
+    long long int count;
+} likwid_row;
+
+#ifdef _MPI
+#include <mpi.h>
+inline void dump_likwid_counters_to_file_mpi(
+    int rank, 
+    likwid_row* my_table, int n_rows, 
+    char* output_file_prefix);
+#endif
 
 inline int likwid_get_num_threads() {
     #ifdef _OMP
@@ -51,11 +71,30 @@ inline int likwid_get_num_threads() {
     #endif
 }
 
+inline void clear_likwid()
+{
+    perfmon_finalize();
+    affinity_finalize();
+    topology_finalize();
+}
+
 inline void my_likwid_start()
 {
     if (n_events == 0) {
         return;
     }
+
+    if (last_cpu_id == -1) {
+        last_cpu_id = sched_getcpu();
+    } else {
+        if (last_cpu_id != sched_getcpu()) {
+            op_printf("ERROR: Process has moved to a different processor (%d -> %d), this invalidates Likwid counts. Try again with pinning.\n", sched_getcpu(), last_cpu_id);
+            clear_likwid();
+            op_exit();
+            exit(EXIT_FAILURE);
+        }
+    }
+
     int err = perfmon_startCounters();
     if (err < 0) {
         op_printf("Failed to start counters for group %d for thread %d\n", likwid_gid, (-1*err)-1);
@@ -65,21 +104,27 @@ inline void my_likwid_start()
 
 inline void my_likwid_stop(long_long** restrict event_counts)
 {
-    if (n_events == 0) {
-        return;
-    }
-    int err = perfmon_stopCounters();
-    if (err < 0) {
-        op_printf("Failed to stop counters for group %d for thread %d\n",likwid_gid, (-1*err)-1);
-        exit(EXIT_FAILURE);
-    }
-    for (int e=0; e<n_events; e++) {
-        for (int t=0; t<likwid_topo->numHWThreads; t++) {
-            double result_f = perfmon_getResult(likwid_gid, e, t);
-            long_long result = (long_long)result_f;
-            event_counts[t][current_level*n_events + e] += result;
-        }
-    }
+	if (n_events == 0) {
+		return;
+	}
+	int err = perfmon_stopCounters();
+	if (err < 0) {
+		op_printf("Failed to stop counters for group %d for thread %d\n",likwid_gid, (-1*err)-1);
+		exit(EXIT_FAILURE);
+	}
+	for (int e=0; e<n_events; e++) {
+		// for (int t=0; t<likwid_topo->numHWThreads; t++) {
+        // for (int t=0; t<likwid_get_num_threads(); t++) {
+        for (int t=0; t<n_cpus_monitored; t++) {
+			double result_f = perfmon_getResult(likwid_gid, e, t);
+            // printf("perfmon_getResult(gid=%d, e=%d, t=%d) = %.2e (current_level=%d)\n", likwid_gid, e, t, result_f, current_level);
+			// long_long result = (long_long)result_f;
+			// event_counts[t][current_level*n_events + e] += result;
+            event_counts[t][current_level*n_events + e] += result_f;
+            // printf("event_counts[t][current_level*n_events + e] = %f\n", event_counts[t][current_level*n_events + e]);
+            // event_counts[t][current_level*n_events + e] = result_f;
+		}
+	}
 }
 
 inline void init_likwid()
@@ -88,23 +133,44 @@ inline void init_likwid()
     err = topology_init();
     if (err < 0) {
         op_printf("Failed to initialize LIKWID's topology module\n");
+        op_exit();
         exit(EXIT_FAILURE);
     }
     CpuInfo_t info = get_cpuInfo();
     likwid_topo = get_cpuTopology();
     affinity_init();
 
-    int* cpus = (int*)malloc(likwid_topo->numHWThreads * sizeof(int));
-    if (!cpus) {
-        exit(EXIT_FAILURE);
-    }
-    for (j=0; j<likwid_topo->numHWThreads;j++) {
-        cpus[j] = likwid_topo->threadPool[j].apicId;
-    }
+    // n_cpus_monitored = likwid_topo->numHWThreads;
+    // int* cpus = (int*)malloc(n_cpus_monitored * sizeof(int));
+    // for (j=0; j<n_cpus_monitored;j++) {
+    //     cpus[j] = likwid_topo->threadPool[j].apicId;
+    // }
 
-    err = perfmon_init(likwid_topo->numHWThreads, cpus);
+    #ifdef _OMP
+        n_cpus_monitored = likwid_get_num_threads();
+        int* cpus = (int*)malloc(n_cpus_monitored * sizeof(int));
+        #pragma omp parallel
+        {
+            cpus[omp_get_thread_num()] = sched_getcpu();
+        }
+    #else
+        n_cpus_monitored = 1;
+        int* cpus = (int*)malloc(n_cpus_monitored * sizeof(int));
+        cpus[0] = sched_getcpu();
+    #endif
+
+    // std::ostringstream cores;
+    // cores << "Rank has these physical cpus: ";
+    // for (j=0; j<n_cpus_monitored; j++) {
+    //     cores << cpus[j] << ",";
+    // }
+    // cores << std::endl;
+    // std::cout << cores.str() << std::endl;
+
+    err = perfmon_init(n_cpus_monitored, cpus);
     if (err < 0) {
         op_printf("Failed to initialize LIKWID's performance monitoring module\n");
+        op_exit();
         topology_finalize();
         exit(EXIT_FAILURE);
     }
@@ -115,13 +181,7 @@ inline void init_likwid()
 
     n_events = 0;
     likwid_gid = 0;
-}
-
-inline void clear_likwid()
-{
-    perfmon_finalize();
-    affinity_finalize();
-    topology_finalize();
+    last_cpu_id = -1;
 }
 
 inline void load_likwid_events()
@@ -132,6 +192,7 @@ inline void load_likwid_events()
     std::ifstream file_if(conf.papi_config_file);
     if(!file_if.is_open()) {
         op_printf("WARNING: Failed to open Likwid config: '%s'\n", conf.papi_config_file);
+        op_exit();
         exit(EXIT_FAILURE);
     } else {
         while(std::getline(file_if, line)) {
@@ -142,11 +203,99 @@ inline void load_likwid_events()
         }
     }
 
+    int err;
+    #ifdef _MPI
+        // TODO: library Likwid does not prevent processes in same socket read/writing same
+        //       uncore MSRs. So need to prevent this manually, somewhat like likwid-mpirun does:
+
+        // Create communicator for ranks in same node:
+        MPI_Comm skt_comm;
+        err =  MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, 0, &skt_comm);
+        if (err != MPI_SUCCESS) {
+            op_printf("ERROR: Failed to create per-node communicator\n");
+            op_exit();
+            exit(EXIT_FAILURE);
+        }
+
+        // Determine if this rank has lowest-count CPU:
+        int node_size = 0;
+        MPI_Comm_size(skt_comm, &node_size);
+        if (node_size == 0) {
+            op_printf("ERROR: MPI_Comm_size() has returned 0 for my node comm\n");
+            op_exit();
+            exit(EXIT_FAILURE);
+        }
+
+        int skt_rank = -1;
+        MPI_Comm_rank(skt_comm, &skt_rank);
+        if (skt_rank == -1) {
+            op_printf("ERROR: MPI_Comm_rank() has returned -1 for my node rank\n");
+            op_exit();
+            exit(EXIT_FAILURE);
+        }
+
+        uint my_cpu = sched_getcpu();
+        uint* node_occupied_cpus = (uint*)malloc(node_size*sizeof(uint));
+        // for (int i=0; i<node_size; i++) node_occupied_cpus[i] = 999;
+        node_occupied_cpus[skt_rank] = sched_getcpu();
+        err = MPI_Allgather(&my_cpu, 1, MPI_INT, node_occupied_cpus, 1, MPI_INT, skt_comm);
+        // for (int r=0; r<node_size; r++) {
+        //     if (r == skt_rank) {
+        //         printf("Rank %d: CPU map = ", r);
+        //         for (int i=0; i<node_size; i++) {
+        //             printf("%d-%d ,", i, node_occupied_cpus[i]);
+        //         }
+        //         printf("\n");
+        //     }
+        //     MPI_Barrier(skt_comm);
+        // }
+
+        // int* thread_to_skt = (int*)malloc(likwid_topo->numHWThreads*sizeof(int));
+        // for (uint j=0; j<likwid_topo->numHWThreads; j++) {
+        //     thread_to_skt[j] = likwid_topo->threadPool[j].packageId;
+        // }
+        uint num_cpus = likwid_topo->numCoresPerSocket * likwid_topo->numSockets;
+        uint* cpu_to_skt = (uint*)malloc(num_cpus * sizeof(uint));
+        for (uint i=0; i<num_cpus; i++) cpu_to_skt[i] = 99;
+        for (uint j=0; j<likwid_topo->numHWThreads; j++) {
+            if (cpu_to_skt[likwid_topo->threadPool[j].coreId] == 99) {
+                cpu_to_skt[likwid_topo->threadPool[j].coreId] = likwid_topo->threadPool[j].packageId;
+            }
+            else {
+                if (cpu_to_skt[likwid_topo->threadPool[j].coreId] != likwid_topo->threadPool[j].packageId) {
+                    op_printf("ERROR: Likwid CpuTopology is corrupt, mapping CPU %d to different sockets (%d, %d)\n", 
+                        likwid_topo->threadPool[j].coreId, 
+                        cpu_to_skt[likwid_topo->threadPool[j].coreId], 
+                        likwid_topo->threadPool[j].packageId);
+                    op_exit();
+                    clear_likwid();
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+
+        bool permit_uncore_access = true;
+        uint my_skt = cpu_to_skt[my_cpu];
+        // for (uint i=0; i<num_cpus; i++) {
+        for (int i=0; i<node_size; i++) {
+            const uint cpu = node_occupied_cpus[i];
+            if (cpu_to_skt[cpu] == my_skt && cpu < my_cpu) {
+                permit_uncore_access = false;
+            }
+        }
+        if (permit_uncore_access)
+            op_printf("Rank %d on socket %d permitted uncore access\n", skt_rank, my_skt);
+
+        op_printf("Aborting early\n");
+        op_exit();
+        exit(EXIT_FAILURE);
+    #endif
+
     n_events = events.size();
     if (n_events > 0) {
-        int j, err, n;
+        int j, n;
 
-        const int nt = likwid_topo->numHWThreads;
+        const int nt = n_cpus_monitored;
         flux_kernel_event_counts = (long_long**)malloc(sizeof(long_long*)*nt);
         ustream_kernel_event_counts = (long_long**)malloc(sizeof(long_long*)*nt);
         for (int tid=0; tid<nt; tid++) {
@@ -207,24 +356,212 @@ inline void dump_likwid_counters_to_file(
     long_long** ustream_kernel_event_counts, 
     char* output_file_prefix)
 {
-    std::string filepath = std::string(output_file_prefix);
-    if (filepath.length() > 1 && filepath.at(filepath.size()-1) != '/') {
-        filepath += ".";
+    // #ifdef _MPI
+    //     dump_likwid_counters_to_file_mpi(rank, flux_kernel_event_counts, ustream_kernel_event_counts, output_file_prefix);
+    //     return;
+    // #endif
+
+    const int nt = n_cpus_monitored;
+
+    int n_rows = nt * n_events * levels;
+    if (conf.measure_mem_bound) {
+        n_rows *= 2;
     }
-    filepath += std::string("P=") + number_to_string(rank);
-    filepath += ".Likwid.csv";
+    likwid_row* my_table = (likwid_row*)malloc(n_rows*sizeof(likwid_row));
+    int row_idx = 0;
+    for (int tid=0; tid<nt; tid++) {
+        for (int eid=0; eid<n_events; eid++) {
+            for (int l=0; l<levels; l++) {
+                my_table[row_idx].thread_id = tid;
+                strncpy(my_table[row_idx].event_name, event_names[eid], TABLE_STRING_LENGTH);
+                strncpy(my_table[row_idx].kernel_name, "compute_flux_edge_kernel", TABLE_STRING_LENGTH);
+                my_table[row_idx].level = l;
+                const int idx = l*n_events + eid;
+                my_table[row_idx].count = flux_kernel_event_counts[tid][idx];
+                row_idx++;
+            }
 
-    bool write_header = false;
-    std::ifstream f(filepath.c_str());
-    if (!f || f.peek() == std::ifstream::traits_type::eof()) {
-        write_header = true;
+            if (conf.measure_mem_bound) {
+                for (int l=0; l<levels; l++) {
+                    my_table[row_idx].thread_id = tid;
+                    strncpy(my_table[row_idx].event_name, event_names[eid], TABLE_STRING_LENGTH);
+                    strncpy(my_table[row_idx].kernel_name, "unstructured_stream_kernel", TABLE_STRING_LENGTH);
+                    my_table[row_idx].level = l;
+                    const int idx = l*n_events + eid;
+                    my_table[row_idx].count = ustream_kernel_event_counts[tid][idx];
+                    row_idx++;
+                }
+            }
+        }
     }
-    f.close();
 
-    std::ostringstream header;
 
-    const int nt = likwid_get_num_threads();
-    if (write_header) {
+    if (rank == 0) {
+        printf("Rank %d table:\n", rank);
+        printf("----------------------------\n");
+        printf("Thread , Event , Kernel , Level , Count\n");
+        for (int i=0; i<n_rows; i++) {
+            printf("%d , %s , %s , %d , %lld\n", my_table[i].thread_id, my_table[i].event_name, my_table[i].kernel_name, my_table[i].level, my_table[i].count);
+        }
+        printf("----------------------------\n");
+    }
+    return;
+
+    #ifdef _MPI
+        dump_likwid_counters_to_file_mpi(rank, my_table, n_rows, output_file_prefix);
+    #endif
+}
+
+// Functionality below should be moved into OP2
+#ifdef _MPI
+#include <mpi.h>
+inline void dump_likwid_counters_to_file_mpi(
+	int rank, 
+    // long_long** flux_kernel_event_counts, 
+    // long_long** ustream_kernel_event_counts, 
+    likwid_row* my_table, int n_rows, 
+    char* output_file_prefix)
+{
+    // Non-root ranks send data to root, which writes to file.
+
+    // const int nt = likwid_get_num_threads();
+    // // const int nt = likwid_topo->numHWThreads;
+
+    // int n_rows = nt * n_events * levels;
+    // if (conf.measure_mem_bound) {
+    //     n_rows *= 2;
+    // }
+    // likwid_row* my_table = (likwid_row*)malloc(n_rows*sizeof(likwid_row));
+    // int row_idx = 0;
+    // for (int tid=0; tid<nt; tid++) {
+    //     for (int eid=0; eid<n_events; eid++) {
+    //         for (int l=0; l<levels; l++) {
+    //             my_table[row_idx].thread_id = tid;
+    //             strncpy(my_table[row_idx].event_name, event_names[eid], TABLE_STRING_LENGTH);
+    //             strncpy(my_table[row_idx].kernel_name, "compute_flux_edge_kernel", TABLE_STRING_LENGTH);
+    //             my_table[row_idx].level = l;
+    //             const int idx = l*n_events + eid;
+    //             my_table[row_idx].count = flux_kernel_event_counts[tid][idx];
+    //             row_idx++;
+    //         }
+
+    //         if (conf.measure_mem_bound) {
+    //             for (int l=0; l<levels; l++) {
+    //                 my_table[row_idx].thread_id = tid;
+    //                 strncpy(my_table[row_idx].event_name, event_names[eid], TABLE_STRING_LENGTH);
+    //                 strncpy(my_table[row_idx].kernel_name, "unstructured_stream_kernel", TABLE_STRING_LENGTH);
+    //                 my_table[row_idx].level = l;
+    //                 const int idx = l*n_events + eid;
+    //                 my_table[row_idx].count = ustream_kernel_event_counts[tid][idx];
+    //                 row_idx++;
+    //             }
+    //         }
+    //     }
+    // }
+
+    int err;
+
+    // Create MPI_Datatype MPI_LikwidRowType
+    int types[5] = { MPI_INT, MPI_CHAR, MPI_CHAR, MPI_INT, MPI_LONG_LONG_INT};
+    int blocklengths[5] = { 1, TABLE_STRING_LENGTH, TABLE_STRING_LENGTH, 1, 1 };
+    int type_sizes[5] = { sizeof(int), sizeof(char), sizeof(char), sizeof(int), sizeof(long long int) };
+    MPI_Aint displacements[5];
+    displacements[0] = 0;
+    for (int i=1; i<5; i++) {
+        displacements[i] = displacements[i-1] + (type_sizes[i-1]*blocklengths[i-1]);
+    }
+    MPI_Datatype MPI_LikwidRowType;
+    err = MPI_Type_create_struct(
+        5,
+        blocklengths,
+        displacements,
+        types,
+        &MPI_LikwidRowType);
+    if (err != MPI_SUCCESS) {
+        op_printf("ERROR: Failed to create custom MPI 'Likwid table' type\n");
+        op_exit();
+        exit(EXIT_FAILURE);
+    }
+    err = MPI_Type_commit(&MPI_LikwidRowType);
+    if (err != MPI_SUCCESS) {
+        op_printf("ERROR: Failed to commit custom MPI 'Likwid row' type\n");
+        op_exit();
+        exit(EXIT_FAILURE);
+    }
+
+    // Send/receive tables
+    likwid_row** likwid_tables = NULL;
+    int nranks;
+    if (rank == 0) {
+        MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+        likwid_tables = (likwid_row**)malloc(nranks*sizeof(likwid_row*));
+        for (int r=0; r<nranks; r++) {
+            likwid_tables[r] = (likwid_row*)malloc(n_rows*sizeof(likwid_row));
+        }
+        MPI_Request* reqs = (MPI_Request*)malloc((nranks-1)*sizeof(MPI_Request));
+
+        for (int r=1; r<nranks; r++) {
+            err = MPI_Irecv(likwid_tables[r], n_rows, MPI_LikwidRowType, r, 0, MPI_COMM_WORLD, &reqs[r-1]);
+            if (err != MPI_SUCCESS) {
+                op_printf("ERROR: MPI_Irecv() failed\n");
+                op_exit();
+                exit(EXIT_FAILURE);
+            }
+        }
+        int num_reqs_pending = (nranks-1);
+        while (num_reqs_pending > 0) {
+            int req_idx = -1;
+            err = MPI_Waitany(nranks-1, reqs, &req_idx, MPI_STATUS_IGNORE);
+            if (err != MPI_SUCCESS) {
+                op_printf("ERROR: MPI_Waitany() failed\n");
+                op_exit();
+                exit(EXIT_FAILURE);
+            }
+            int r = req_idx+1;
+            if (r < 0 || r > (nranks-1)) {
+                op_printf("ERROR: MPI_Waitany() has selected r=%d\n", r);
+                op_exit();
+                exit(EXIT_FAILURE);
+            }
+            num_reqs_pending--;
+
+            // printf("Root received table from rank %d:\n", r);
+            // printf("----------------------------\n");
+            // printf("Thread , Event , Kernel , Level , Count\n");
+            // for (int i=0; i<n_rows; i++) {
+            //     printf("%d , %s , %s , %d , %lld\n", likwid_tables[r][i].thread_id, likwid_tables[r][i].event_name, likwid_tables[r][i].kernel_name, likwid_tables[r][i].level, likwid_tables[r][i].count);
+            // }
+            // printf("----------------------------\n");
+        }
+    } else {
+        // printf("Rank %d sending table:\n", rank);
+        // printf("----------------------------\n");
+        // printf("Thread , Event , Kernel , Level , Count\n");
+        // for (int i=0; i<n_rows; i++) {
+        //     printf("%d , %s , %s , %d , %lld\n", my_table[i].thread_id, my_table[i].event_name, my_table[i].kernel_name, my_table[i].level, my_table[i].count);
+        // }
+        // printf("----------------------------\n");
+        MPI_Request req;
+        err = MPI_Isend(my_table, n_rows, MPI_LikwidRowType, 0, 0, MPI_COMM_WORLD, &req);
+        if (err != MPI_SUCCESS) {
+            op_printf("ERROR: MPI_Isend() failed\n");
+            op_exit();
+            exit(EXIT_FAILURE);
+        }
+        MPI_Wait(&req, MPI_STATUS_IGNORE);
+    }
+
+    // Write out data:
+    if (rank == 0) {
+        std::string filepath = std::string(output_file_prefix);
+        if (filepath.length() > 1 && filepath.at(filepath.size()-1) != '/') {
+            filepath += ".";
+        }
+        filepath += "Likwid.csv";
+
+        std::ofstream outfile;
+        outfile.open(filepath.c_str(), std::ios_base::out);
+        std::ostringstream header;
         header << "Rank";
         header << ",Thread";
         header << ",Partitioner";
@@ -232,50 +569,39 @@ inline void dump_likwid_counters_to_file(
         header << ",kernel";
         header << ",level";
         header << ",count";
-    }
+        outfile << header.str() << std::endl;
 
-    std::ofstream outfile;
-    outfile.open(filepath.c_str(), std::ios_base::app);
-    if (write_header) outfile << header.str() << std::endl;
-
-    for (int tid=0; tid<nt; tid++) {
-        for (int eid=0; eid<n_events; eid++) {
-            for (int l=0; l<levels; l++) {
+        for (int row_idx=0; row_idx<n_rows; row_idx++) {
+            std::ostringstream event_data_line;
+            event_data_line << 0;
+            event_data_line << "," << my_table[row_idx].thread_id;
+            event_data_line << "," << conf.partitioner_string;
+            event_data_line << "," << my_table[row_idx].event_name;
+            event_data_line << "," << my_table[row_idx].kernel_name;
+            event_data_line << "," << my_table[row_idx].level;
+            event_data_line << "," << my_table[row_idx].count;
+            outfile << event_data_line.str() << std::endl;
+        }
+        for (int r=1; r<nranks; r++) {
+            for (int row_idx=0; row_idx<n_rows; row_idx++) {
                 std::ostringstream event_data_line;
-                event_data_line << rank;
-                event_data_line << "," << tid;
+                event_data_line << r;
+                event_data_line << "," << likwid_tables[r][row_idx].thread_id;
                 event_data_line << "," << conf.partitioner_string;
-                event_data_line << "," << event_names[eid];
-
-                event_data_line << "," << "compute_flux_edge_kernel";
-                event_data_line << "," << l;
-
-                const int idx = l*n_events + eid;
-                event_data_line << ',' << flux_kernel_event_counts[tid][idx];
-
+                event_data_line << "," << likwid_tables[r][row_idx].event_name;
+                event_data_line << "," << likwid_tables[r][row_idx].kernel_name;
+                event_data_line << "," << likwid_tables[r][row_idx].level;
+                event_data_line << "," << likwid_tables[r][row_idx].count;
                 outfile << event_data_line.str() << std::endl;
             }
-
-            if (conf.measure_mem_bound) {
-                for (int l=0; l<levels; l++) {
-                    std::ostringstream event_data_line;
-                    event_data_line << rank;
-                    event_data_line << "," << tid;
-                    event_data_line << "," << conf.partitioner_string;
-                    event_data_line << "," << event_names[eid];
-
-                    event_data_line << "," << "unstructured_stream_kernel";
-                    event_data_line << "," << l;
-
-                    const int idx = l*n_events + eid;
-                    event_data_line << ',' << ustream_kernel_event_counts[tid][idx];
-
-                    outfile << event_data_line.str() << std::endl;
-                }
-            }
         }
+
+        outfile.close();
+
     }
-    outfile.close();
+
+    op_printf("dump_likwid_counters_to_file() complete\n");
 }
+#endif
 
 #endif
