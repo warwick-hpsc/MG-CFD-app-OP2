@@ -159,13 +159,13 @@ inline void init_likwid()
         cpus[0] = sched_getcpu();
     #endif
 
-    // std::ostringstream cores;
-    // cores << "Rank has these physical cpus: ";
-    // for (j=0; j<n_cpus_monitored; j++) {
-    //     cores << cpus[j] << ",";
-    // }
-    // cores << std::endl;
-    // std::cout << cores.str() << std::endl;
+    std::ostringstream cores;
+    cores << "Rank has these physical cpus: ";
+    for (j=0; j<n_cpus_monitored; j++) {
+        cores << cpus[j] << ",";
+    }
+    cores << std::endl;
+    std::cout << cores.str() << std::endl;
 
     err = perfmon_init(n_cpus_monitored, cpus);
     if (err < 0) {
@@ -209,8 +209,8 @@ inline void load_likwid_events()
         //       uncore MSRs. So need to prevent this manually, somewhat like likwid-mpirun does:
 
         // Create communicator for ranks in same node:
-        MPI_Comm skt_comm;
-        err =  MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, 0, &skt_comm);
+        MPI_Comm node_comm;
+        err =  MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, 0, &node_comm);
         if (err != MPI_SUCCESS) {
             op_printf("ERROR: Failed to create per-node communicator\n");
             op_exit();
@@ -219,16 +219,16 @@ inline void load_likwid_events()
 
         // Determine if this rank has lowest-count CPU:
         int node_size = 0;
-        MPI_Comm_size(skt_comm, &node_size);
+        MPI_Comm_size(node_comm, &node_size);
         if (node_size == 0) {
             op_printf("ERROR: MPI_Comm_size() has returned 0 for my node comm\n");
             op_exit();
             exit(EXIT_FAILURE);
         }
 
-        int skt_rank = -1;
-        MPI_Comm_rank(skt_comm, &skt_rank);
-        if (skt_rank == -1) {
+        int my_node_rank = -1;
+        MPI_Comm_rank(node_comm, &my_node_rank);
+        if (my_node_rank == -1) {
             op_printf("ERROR: MPI_Comm_rank() has returned -1 for my node rank\n");
             op_exit();
             exit(EXIT_FAILURE);
@@ -236,56 +236,102 @@ inline void load_likwid_events()
 
         uint my_cpu = sched_getcpu();
         uint* node_occupied_cpus = (uint*)malloc(node_size*sizeof(uint));
-        // for (int i=0; i<node_size; i++) node_occupied_cpus[i] = 999;
-        node_occupied_cpus[skt_rank] = sched_getcpu();
-        err = MPI_Allgather(&my_cpu, 1, MPI_INT, node_occupied_cpus, 1, MPI_INT, skt_comm);
-        // for (int r=0; r<node_size; r++) {
-        //     if (r == skt_rank) {
-        //         printf("Rank %d: CPU map = ", r);
-        //         for (int i=0; i<node_size; i++) {
-        //             printf("%d-%d ,", i, node_occupied_cpus[i]);
-        //         }
-        //         printf("\n");
-        //     }
-        //     MPI_Barrier(skt_comm);
-        // }
+        for (int i=0; i<node_size; i++) node_occupied_cpus[i] = 999;
+        node_occupied_cpus[my_node_rank] = sched_getcpu();
+        err = MPI_Allgather(&my_cpu, 1, MPI_INT, node_occupied_cpus, 1, MPI_INT, node_comm);
+        //for (int r=0; r<node_size; r++) {
+        //    if (r == my_node_rank) {
+        //        printf("Rank %d: CPU map = ", r);
+        //        for (int i=0; i<node_size; i++) {
+        //            printf("%d-%d ,", i, node_occupied_cpus[i]);
+        //        }
+        //        printf("\n");
+        //    }
+        //    fflush(stdout);
+        //    MPI_Barrier(node_comm);
+        //}
+
+        //if (my_node_rank == 0) {
+        //    for (uint j=0; j<likwid_topo->numHWThreads; j++) {
+        //    uint apicId = likwid_topo->threadPool[j].apicId;
+        //    uint threadId = likwid_topo->threadPool[j].threadId;
+        //    uint coreId = likwid_topo->threadPool[j].coreId;
+        //    uint packageId = likwid_topo->threadPool[j].packageId;
+        //    printf("Package %d: core %d, threadId %d, apicId %d\n", packageId, coreId, threadId, apicId);
+        //    }
+        //}
+        MPI_Barrier(node_comm);
 
         // int* thread_to_skt = (int*)malloc(likwid_topo->numHWThreads*sizeof(int));
         // for (uint j=0; j<likwid_topo->numHWThreads; j++) {
         //     thread_to_skt[j] = likwid_topo->threadPool[j].packageId;
         // }
-        uint num_cpus = likwid_topo->numCoresPerSocket * likwid_topo->numSockets;
+        uint num_cpus = likwid_topo->numCoresPerSocket * likwid_topo->numSockets * likwid_topo->numThreadsPerCore;
+		//printf("num_cpus = %d\n", num_cpus); fflush(stdout);
         uint* cpu_to_skt = (uint*)malloc(num_cpus * sizeof(uint));
         for (uint i=0; i<num_cpus; i++) cpu_to_skt[i] = 99;
         for (uint j=0; j<likwid_topo->numHWThreads; j++) {
-            if (cpu_to_skt[likwid_topo->threadPool[j].coreId] == 99) {
-                cpu_to_skt[likwid_topo->threadPool[j].coreId] = likwid_topo->threadPool[j].packageId;
+            uint apicId = likwid_topo->threadPool[j].apicId;
+            uint threadId = likwid_topo->threadPool[j].threadId;
+            uint coreId = likwid_topo->threadPool[j].coreId; 
+            uint packageId = likwid_topo->threadPool[j].packageId; 
+            //if (apicId != threadId) {
+            //   op_printf("ERROR: For core %d, apicId=%d != threadId=%d, need to handle\n", coreId, apicId, threadId);
+            //   op_exit();
+            //   exit(EXIT_FAILURE);
+            //}
+            uint cpuId = apicId;
+            if (cpu_to_skt[cpuId] == 99) {
+                cpu_to_skt[cpuId] = packageId;
             }
             else {
-                if (cpu_to_skt[likwid_topo->threadPool[j].coreId] != likwid_topo->threadPool[j].packageId) {
+                if (cpu_to_skt[cpuId] != packageId) {
                     op_printf("ERROR: Likwid CpuTopology is corrupt, mapping CPU %d to different sockets (%d, %d)\n", 
-                        likwid_topo->threadPool[j].coreId, 
-                        cpu_to_skt[likwid_topo->threadPool[j].coreId], 
-                        likwid_topo->threadPool[j].packageId);
+                        cpuId, 
+                        cpu_to_skt[cpuId], 
+                        packageId);
                     op_exit();
                     clear_likwid();
                     exit(EXIT_FAILURE);
                 }
             }
         }
+        //for (int r=0; r<node_size; r++) {
+        //    if (r == my_node_rank) {
+        //        printf("Rank %d: socket map = ", r);
+        //        for (int i=0; i<num_cpus; i++) {
+        //            printf("%d-%d ,", i, cpu_to_skt[i]);
+        //        }
+        //        printf("\n");
+        //    }
+        //    fflush(stdout);
+        //    MPI_Barrier(node_comm);
+        //}
+
 
         bool permit_uncore_access = true;
         uint my_skt = cpu_to_skt[my_cpu];
+        for (int r=0; r<node_size; r++) {
+            if (r == my_node_rank) {
+                printf("Rank %d: socket = %d\n", r, my_skt); fflush(stdout);
+            }
+            MPI_Barrier(node_comm);
+        }
         // for (uint i=0; i<num_cpus; i++) {
         for (int i=0; i<node_size; i++) {
             const uint cpu = node_occupied_cpus[i];
             if (cpu_to_skt[cpu] == my_skt && cpu < my_cpu) {
+                //printf("Rank %d: on CPU %d, but CPU %d in same socket is occupied\n", my_node_rank, my_cpu, cpu);
+                //fflush(stdout);
                 permit_uncore_access = false;
             }
         }
-        if (permit_uncore_access)
-            op_printf("Rank %d on socket %d permitted uncore access\n", skt_rank, my_skt);
-
+        if (permit_uncore_access) {
+            printf("Rank %d on socket %d permitted uncore access\n", my_node_rank, my_skt); fflush(stdout);
+        } else {
+            printf("Rank %d on socket %d DENIED uncore access\n", my_node_rank, my_skt); fflush(stdout);
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
         op_printf("Aborting early\n");
         op_exit();
         exit(EXIT_FAILURE);
