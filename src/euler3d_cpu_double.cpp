@@ -815,11 +815,13 @@ int main(int argc, char** argv)
             conf.output_file_prefix);
     #endif
 
+    if (number_of_file_io_writes > 0) {
     dump_file_io_perf_data_to_file(
         walltime, 
         file_io_times, 
         number_of_file_io_writes, 
         conf.output_file_prefix);
+    }
 
     #ifdef LIKWID
         clear_likwid();
