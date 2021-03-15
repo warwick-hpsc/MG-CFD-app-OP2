@@ -23,6 +23,8 @@
 #ifndef LIKWID_FUNCS_H
 #define LIKWID_FUNCS_H
 
+#ifdef LIKWID
+
 #include <likwid.h>
 #include <vector>
 #include <regex>
@@ -60,7 +62,6 @@ typedef struct likwid_row_t
 #ifdef _MPI
 #include <mpi.h>
 inline void dump_likwid_counters_to_file_mpi(
-    int rank, 
     likwid_row* my_table, int n_rows, 
     char* output_file_prefix);
 #endif
@@ -75,6 +76,7 @@ inline int likwid_get_num_threads() {
 
 inline void clear_likwid()
 {
+    perfmon_stopCounters();
     perfmon_finalize();
     affinity_finalize();
     topology_finalize();
@@ -85,6 +87,7 @@ inline void my_likwid_start()
     if (n_events == 0) {
         return;
     }
+    int err;
 
     if (last_cpu_id == -1) {
         last_cpu_id = sched_getcpu();
@@ -97,36 +100,32 @@ inline void my_likwid_start()
         }
     }
 
-    int err = perfmon_startCounters();
+    err = perfmon_readCounters();
     if (err < 0) {
-        op_printf("Failed to start counters for group %d for thread %d\n", likwid_gid, (-1*err)-1);
+        op_printf("Failed to read counters for group %d for thread %d\n", likwid_gid, (-1*err)-1);
         exit(EXIT_FAILURE);
     }
 }
 
 inline void my_likwid_stop(long_long** restrict event_counts)
 {
-	if (n_events == 0) {
-		return;
-	}
-	int err = perfmon_stopCounters();
-	if (err < 0) {
-		op_printf("Failed to stop counters for group %d for thread %d\n",likwid_gid, (-1*err)-1);
-		exit(EXIT_FAILURE);
-	}
-	for (int e=0; e<n_events; e++) {
-		// for (int t=0; t<likwid_topo->numHWThreads; t++) {
-        // for (int t=0; t<likwid_get_num_threads(); t++) {
+    if (n_events == 0) {
+        return;
+    }
+    int err = perfmon_readCounters();
+    if (err < 0) {
+        op_printf("Failed to read counters for group %d for thread %d\n", likwid_gid, (-1*err)-1);
+        exit(EXIT_FAILURE);
+    }
+    for (int e=0; e<n_events; e++) {
         for (int t=0; t<n_cpus_monitored; t++) {
-			double result_f = perfmon_getResult(likwid_gid, e, t);
-            // printf("perfmon_getResult(gid=%d, e=%d, t=%d) = %.2e (current_level=%d)\n", likwid_gid, e, t, result_f, current_level);
-			// long_long result = (long_long)result_f;
-			// event_counts[t][current_level*n_events + e] += result;
-            event_counts[t][current_level*n_events + e] += result_f;
-            // printf("event_counts[t][current_level*n_events + e] = %f\n", event_counts[t][current_level*n_events + e]);
-            // event_counts[t][current_level*n_events + e] = result_f;
-		}
-	}
+            double result_f;
+            result_f = perfmon_getLastResult(likwid_gid, e, t);
+            // printf("perfmon_getLastResult(gid=%d, e=%d, t=%d) = %.2e (current_level=%d)\n", likwid_gid, e, t, result_f, current_level);
+            long_long result = (long_long)result_f;
+            event_counts[t][current_level*n_events + e] += result;
+        }
+    }
 }
 
 inline void init_likwid()
@@ -179,6 +178,9 @@ inline void init_likwid()
         topology_finalize();
         exit(EXIT_FAILURE);
     }
+
+    // perfmon_setVerbosity(DEBUGLEV_DEVELOP);
+    // perfmon_setVerbosity(DEBUGLEV_DETAIL);
 
     // numa_init();
     // perfmon_init_maps();
@@ -375,12 +377,17 @@ inline void load_likwid_events()
             return;
         }
 
+        err = perfmon_startCounters();
+        if (err < 0) {
+            op_printf("Failed to start counters for group %d for thread %d\n", likwid_gid, (-1*err)-1);
+            exit(EXIT_FAILURE);
+        }
+
         op_printf("LIKWID initialised, monitoring '%s'\n", estr);
     }
 }
 
 inline void dump_likwid_counters_to_file(
-    int rank, 
     long_long** flux_kernel_event_counts, 
     long_long** ustream_kernel_event_counts, 
     char* output_file_prefix)
@@ -431,7 +438,7 @@ inline void dump_likwid_counters_to_file(
     }
 
     #ifdef _MPI
-        dump_likwid_counters_to_file_mpi(rank, my_table, n_rows, output_file_prefix);
+        dump_likwid_counters_to_file_mpi(my_table, n_rows, output_file_prefix);
         return;
     #endif
 
@@ -445,9 +452,10 @@ inline void dump_likwid_counters_to_file(
     std::ofstream outfile;
     outfile.open(filepath.c_str(), std::ios_base::out);
     std::ostringstream header;
-    header << "Rank";
-    header << ",Thread";
-    header << ",CpuId";
+    if (nt > 1) {
+        header << ",Thread";
+        header << ",CpuId";
+    }
     header << ",Partitioner";
     header << ",Likwid event";
     header << ",kernel";
@@ -457,9 +465,10 @@ inline void dump_likwid_counters_to_file(
 
     for (int row_idx=0; row_idx<n_rows; row_idx++) {
         std::ostringstream event_data_line;
-        event_data_line << 0;
-        event_data_line << "," << my_table[row_idx].thread_id;
-        event_data_line << "," << my_table[row_idx].cpu_id;
+        if (nt > 1) {
+            event_data_line << "," << my_table[row_idx].thread_id;
+            event_data_line << "," << my_table[row_idx].cpu_id;
+        }
         event_data_line << "," << conf.partitioner_string;
         event_data_line << "," << my_table[row_idx].event_name;
         event_data_line << "," << my_table[row_idx].kernel_name;
@@ -475,7 +484,6 @@ inline void dump_likwid_counters_to_file(
 #ifdef _MPI
 #include <mpi.h>
 inline void dump_likwid_counters_to_file_mpi(
-	int rank, 
     likwid_row* my_table, int n_rows, 
     char* output_file_prefix)
 {
@@ -514,7 +522,8 @@ inline void dump_likwid_counters_to_file_mpi(
     }
 
     // Send/receive tables
-    int nranks;
+    int nranks, rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nranks);
 
     likwid_row** likwid_tables = NULL;
@@ -645,9 +654,9 @@ inline void dump_likwid_counters_to_file_mpi(
 
         outfile.close();
     }
-
-    op_printf("dump_likwid_counters_to_file() complete\n");
 }
-#endif
+#endif // End MPI
 
-#endif
+#endif // End LIKWID
+
+#endif // End header

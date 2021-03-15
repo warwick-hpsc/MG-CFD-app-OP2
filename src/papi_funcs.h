@@ -45,6 +45,24 @@ extern long_long** flux_kernel_event_counts;
 extern long_long** ustream_kernel_event_counts;
 extern long_long** temp_count_store;
 
+#define TABLE_STRING_LENGTH 128
+typedef struct papi_row_t
+{
+    int thread_id;
+    int cpu_id;
+    char event_name[TABLE_STRING_LENGTH];
+    char kernel_name[TABLE_STRING_LENGTH];
+    int level;
+    long long int count;
+} papi_row;
+
+#ifdef _MPI
+#include <mpi.h>
+inline void dump_papi_counters_to_file_mpi(
+    papi_row* my_table, int n_rows, 
+    char* output_file_prefix);
+#endif
+
 inline unsigned long omp_get_thread_num_ul() {
     #ifdef _OMP
         return (unsigned long)omp_get_thread_num();
@@ -166,8 +184,6 @@ inline void load_papi_events()
         std::string line;
         std::ifstream file_if(conf.papi_config_file);
         if(!file_if.is_open()) {
-            // op_printf("ERROR: Failed to open PAPI config: '%s'\n", conf.papi_config_file);
-            // exit(EXIT_FAILURE);
             op_printf("WARNING: Failed to open PAPI config: '%s'\n", conf.papi_config_file);
             event_set[tid] = PAPI_NULL;
         } else { 
@@ -258,7 +274,6 @@ inline void load_papi_events()
     for (int tid=0; tid<papi_get_num_threads(); tid++) {
         int n = num_events[tid];
 
-        // thread_events.at(tid).resize(n);
         events[tid] = (int*)malloc(sizeof(int)*n);
         int* temp_thread_events = (int*)malloc(sizeof(int)*n);
         if (PAPI_list_events(event_set[tid], temp_thread_events, &n) != PAPI_OK) {
@@ -284,8 +299,6 @@ inline void load_papi_events()
         for (int e=0; e<n; e++) {
             temp_count_store[tid][e] = 0;
         }
-
-        // printf("Thread %d: PAPI arrays allocated\n", tid);
     }
 
     #ifdef _OMP
@@ -294,7 +307,6 @@ inline void load_papi_events()
             const int tid = papi_get_thread_id();
             int n = num_events[tid];
     #endif
-        // printf("Testing thread %d with %d events\n", tid, n);
         if (event_set[tid] != PAPI_NULL) {
             if (PAPI_start(event_set[tid]) != PAPI_OK) {
                 fprintf(stderr, "ERROR: Thread %d failed to start PAPI\n", tid);
@@ -314,42 +326,31 @@ inline void load_papi_events()
 }
 
 inline void dump_papi_counters_to_file(
-	int rank, 
     long_long** flux_kernel_event_counts, 
     long_long** ustream_kernel_event_counts, 
     char* output_file_prefix)
 {
-    std::string filepath = std::string(output_file_prefix);
-    if (filepath.length() > 1 && filepath.at(filepath.size()-1) != '/') {
-        filepath += ".";
-    }
-    filepath += std::string("P=") + number_to_string(rank);
-    filepath += ".PAPI.csv";
-
-    bool write_header = false;
-    std::ifstream f(filepath.c_str());
-    if (!f || f.peek() == std::ifstream::traits_type::eof()) {
-        write_header = true;
-    }
-    f.close();
-
-    std::ostringstream header;
-
     const int nt = papi_get_num_threads();
-    if (write_header) {
-        header << "Rank";
-        header << ",Thread";
-        header << ",Partitioner";
-        header << ",PAPI counter";
-        header << ",kernel";
-        header << ",level";
-        header << ",count";
+    int n_events = 0;
+    for (int tid=0; tid<nt; tid++) {
+        n_events += num_events[tid];
     }
+    int n_rows = nt * n_events * levels;
+    if (conf.measure_mem_bound) {
+        n_rows *= 2;
+    }
+    papi_row* my_table = (papi_row*)malloc(n_rows*sizeof(papi_row));
+    int* cpu_ids = (int*)malloc(nt*sizeof(int));
+    #ifdef _OMP
+        #pragma omp parallel
+        {
+            cpu_ids[omp_get_thread_num()] = sched_getcpu();
+        }
+    #else
+        cpu_ids[0] = sched_getcpu();
+    #endif
 
-    std::ofstream outfile;
-    outfile.open(filepath.c_str(), std::ios_base::app);
-    if (write_header) outfile << header.str() << std::endl;
-
+    int row_idx = 0;
     for (int tid=0; tid<nt; tid++) {
         for (int eid=0; eid<num_events[tid]; eid++) {
             char eventName[PAPI_MAX_STR_LEN] = "";
@@ -359,43 +360,253 @@ inline void dump_papi_counters_to_file(
             }
 
             for (int l=0; l<levels; l++) {
-                std::ostringstream event_data_line;
-                event_data_line << rank;
-                event_data_line << "," << tid;
-                event_data_line << "," << conf.partitioner_string;
-                event_data_line << "," << eventName;
-
-                event_data_line << "," << "compute_flux_edge_kernel";
-                event_data_line << "," << l;
+                my_table[row_idx].thread_id = tid;
+                my_table[row_idx].cpu_id = cpu_ids[tid];
+                strncpy(my_table[row_idx].event_name, eventName, TABLE_STRING_LENGTH);
+                strncpy(my_table[row_idx].kernel_name, "compute_flux_edge_kernel", TABLE_STRING_LENGTH);
+                my_table[row_idx].level = l;
 
                 const int idx = l*num_events[tid] + eid;
-                event_data_line << ',' << flux_kernel_event_counts[tid][idx];
-
-                outfile << event_data_line.str() << std::endl;
+                my_table[row_idx].count = flux_kernel_event_counts[tid][idx];
+                row_idx++;
             }
 
             if (conf.measure_mem_bound) {
                 for (int l=0; l<levels; l++) {
-                    std::ostringstream event_data_line;
-                    event_data_line << rank;
-                    event_data_line << "," << tid;
-                    event_data_line << "," << conf.partitioner_string;
-                    event_data_line << "," << eventName;
-
-                    event_data_line << "," << "unstructured_stream_kernel";
-                    event_data_line << "," << l;
+                    my_table[row_idx].thread_id = tid;
+                    my_table[row_idx].cpu_id = cpu_ids[tid];
+                    strncpy(my_table[row_idx].event_name, eventName, TABLE_STRING_LENGTH);
+                    strncpy(my_table[row_idx].kernel_name, "unstructured_stream_kernel", TABLE_STRING_LENGTH);
+                    my_table[row_idx].level = l;
 
                     const int idx = l*num_events[tid] + eid;
-                    event_data_line << ',' << ustream_kernel_event_counts[tid][idx];
-
-                    outfile << event_data_line.str() << std::endl;
+                    my_table[row_idx].count = ustream_kernel_event_counts[tid][idx];
+                    row_idx++;
                 }
             }
         }
     }
+
+    #ifdef _MPI
+        dump_papi_counters_to_file_mpi(my_table, n_rows, output_file_prefix);
+        return;
+    #endif
+
+    // Write out data:
+    std::string filepath = std::string(output_file_prefix);
+    if (filepath.length() > 1 && filepath.at(filepath.size()-1) != '/') {
+        filepath += ".";
+    }
+    filepath += "PAPI.csv";
+
+    std::ofstream outfile;
+    outfile.open(filepath.c_str(), std::ios_base::out);
+    std::ostringstream header;
+    if (nt > 1) {
+        header << ",Thread";
+        header << ",CpuId";
+    }
+    header << ",Partitioner";
+    header << ",PAPI counter";
+    header << ",kernel";
+    header << ",level";
+    header << ",count";
+    outfile << header.str() << std::endl;
+
+    for (int row_idx=0; row_idx<n_rows; row_idx++) {
+        std::ostringstream event_data_line;
+        if (nt > 1) {
+            event_data_line << "," << my_table[row_idx].thread_id;
+            event_data_line << "," << my_table[row_idx].cpu_id;
+        }
+        event_data_line << "," << conf.partitioner_string;
+        event_data_line << "," << my_table[row_idx].event_name;
+        event_data_line << "," << my_table[row_idx].kernel_name;
+        event_data_line << "," << my_table[row_idx].level;
+        event_data_line << "," << my_table[row_idx].count;
+        outfile << event_data_line.str() << std::endl;
+    }
+
     outfile.close();
 }
 
-#endif
+// Functionality below should be moved into OP2
+#ifdef _MPI
+#include <mpi.h>
+inline void dump_papi_counters_to_file_mpi(
+    papi_row* my_table, int n_rows, 
+    char* output_file_prefix)
+{
+    // Non-root ranks send data to root, which writes to file.
 
-#endif
+    int err;
+
+    // Create MPI_Datatype MPI_PapiRowType
+    int types[6] = { MPI_INT, MPI_INT, MPI_CHAR, MPI_CHAR, MPI_INT, MPI_LONG_LONG_INT};
+    int blocklengths[6] = { 1, 1, TABLE_STRING_LENGTH, TABLE_STRING_LENGTH, 1, 1 };
+    int type_sizes[6] = { sizeof(int), sizeof(int), sizeof(char), sizeof(char), sizeof(int), sizeof(long long int) };
+    MPI_Aint displacements[6];
+    displacements[0] = offsetof(papi_row, thread_id);
+    displacements[1] = offsetof(papi_row, cpu_id);
+    displacements[2] = offsetof(papi_row, event_name);
+    displacements[3] = offsetof(papi_row, kernel_name);
+    displacements[4] = offsetof(papi_row, level);
+    displacements[5] = offsetof(papi_row, count);
+    MPI_Datatype MPI_PapiRowType;
+    err = MPI_Type_create_struct(
+        6,
+        blocklengths,
+        displacements,
+        types,
+        &MPI_PapiRowType);
+    if (err != MPI_SUCCESS) {
+        op_printf("ERROR: Failed to create custom MPI 'PAPI table' type\n");
+        op_exit();
+        exit(EXIT_FAILURE);
+    }
+    err = MPI_Type_commit(&MPI_PapiRowType);
+    if (err != MPI_SUCCESS) {
+        op_printf("ERROR: Failed to commit custom MPI 'PAPI row' type\n");
+        op_exit();
+        exit(EXIT_FAILURE);
+    }
+
+    // Send/receive tables
+    int nranks, rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+
+    papi_row** papi_tables = NULL;
+    int* n_rows_each = (int*)malloc(nranks * sizeof(int));
+    err = MPI_Gather(&n_rows, 1, MPI_INT, n_rows_each, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    if (err != MPI_SUCCESS) {
+        op_printf("ERROR: MPI_Irecv() failed\n");
+        op_exit();
+        exit(EXIT_FAILURE);
+    }
+
+    if (rank == 0) {
+        papi_tables = (papi_row**)malloc(nranks*sizeof(papi_row*));
+        for (int r=0; r<nranks; r++) {
+            papi_tables[r] = (papi_row*)malloc(n_rows_each[r]*sizeof(papi_row));
+        }
+
+        MPI_Request* reqs = (MPI_Request*)malloc((nranks-1)*sizeof(MPI_Request));
+
+        for (int r=1; r<nranks; r++) {
+            err = MPI_Irecv(papi_tables[r], n_rows_each[r], MPI_PapiRowType, r, 0, MPI_COMM_WORLD, &reqs[r-1]);
+            if (err != MPI_SUCCESS) {
+                op_printf("ERROR: MPI_Irecv() failed\n");
+                op_exit();
+                exit(EXIT_FAILURE);
+            }
+        }
+        int num_reqs_pending = (nranks-1);
+        while (num_reqs_pending > 0) {
+            int req_idx = -1;
+            err = MPI_Waitany(nranks-1, reqs, &req_idx, MPI_STATUS_IGNORE);
+            if (err != MPI_SUCCESS) {
+                op_printf("ERROR: MPI_Waitany() failed\n");
+                op_exit();
+                exit(EXIT_FAILURE);
+            }
+            int r = req_idx+1;
+            if (r < 0 || r > (nranks-1)) {
+                op_printf("ERROR: MPI_Waitany() has selected invalid r=%d\n", r);
+                op_exit();
+                exit(EXIT_FAILURE);
+            }
+            num_reqs_pending--;
+
+            // printf("Root received table from rank %d:\n", r);
+            // printf("----------------------------\n");
+            // printf("Thread, CpuId , Event , Kernel , Level , Count\n");
+            // for (int i=0; i<n_rows_each[r]; i++) {
+            //     printf("R%d | %d , %d , %s , %s , %d , %lld\n", 
+            //         r, 
+            //         papi_tables[r][i].thread_id, 
+            //         papi_tables[r][i].cpu_id, 
+            //         papi_tables[r][i].event_name, papi_tables[r][i].kernel_name, 
+            //         papi_tables[r][i].level, papi_tables[r][i].count);
+            // }
+            // printf("R%d |----------------------------\n", r);
+        }
+    } else {
+        // printf("Rank %d sending table:\n", rank);
+        // printf("----------------------------\n");
+        // printf("R%d | Thread, CpuId , Event , Kernel , Level , Count\n", rank);
+        // for (int i=0; i<n_rows; i++) {
+        //     printf("R%d | %d , %d , %s , %s , %d , %lld\n", 
+        //         rank, 
+        //         my_table[i].thread_id, 
+        //         my_table[i].cpu_id, 
+        //         my_table[i].event_name, my_table[i].kernel_name, 
+        //         my_table[i].level, my_table[i].count);
+        // }
+        // printf("R%d |----------------------------\n", rank);
+        MPI_Request req;
+        err = MPI_Isend(my_table, n_rows, MPI_PapiRowType, 0, 0, MPI_COMM_WORLD, &req);
+        if (err != MPI_SUCCESS) {
+            op_printf("ERROR: MPI_Isend() failed\n");
+            op_exit();
+            exit(EXIT_FAILURE);
+        }
+        MPI_Wait(&req, MPI_STATUS_IGNORE);
+    }
+
+    // Write out data:
+    if (rank == 0) {
+        std::string filepath = std::string(output_file_prefix);
+        if (filepath.length() > 1 && filepath.at(filepath.size()-1) != '/') {
+            filepath += ".";
+        }
+        filepath += "PAPI.csv";
+
+        std::ofstream outfile;
+        outfile.open(filepath.c_str(), std::ios_base::out);
+        std::ostringstream header;
+        header << "Rank";
+        header << ",Thread";
+        header << ",CpuId";
+        header << ",Partitioner";
+        header << ",PAPI event";
+        header << ",kernel";
+        header << ",level";
+        header << ",count";
+        outfile << header.str() << std::endl;
+
+        for (int row_idx=0; row_idx<n_rows; row_idx++) {
+            std::ostringstream event_data_line;
+            event_data_line << 0;
+            event_data_line << "," << my_table[row_idx].thread_id;
+            event_data_line << "," << my_table[row_idx].cpu_id;
+            event_data_line << "," << conf.partitioner_string;
+            event_data_line << "," << my_table[row_idx].event_name;
+            event_data_line << "," << my_table[row_idx].kernel_name;
+            event_data_line << "," << my_table[row_idx].level;
+            event_data_line << "," << my_table[row_idx].count;
+            outfile << event_data_line.str() << std::endl;
+        }
+        for (int r=1; r<nranks; r++) {
+            for (int row_idx=0; row_idx<n_rows_each[r]; row_idx++) {
+                std::ostringstream event_data_line;
+                event_data_line << r;
+                event_data_line << "," << papi_tables[r][row_idx].thread_id;
+                event_data_line << "," << papi_tables[r][row_idx].cpu_id;
+                event_data_line << "," << conf.partitioner_string;
+                event_data_line << "," << papi_tables[r][row_idx].event_name;
+                event_data_line << "," << papi_tables[r][row_idx].kernel_name;
+                event_data_line << "," << papi_tables[r][row_idx].level;
+                event_data_line << "," << papi_tables[r][row_idx].count;
+                outfile << event_data_line.str() << std::endl;
+            }
+        }
+
+        outfile.close();
+    }
+}
+#endif // End MPI
+
+#endif // End PAPI
+
+#endif // End header

@@ -358,7 +358,6 @@ inline void dump_perf_data_to_file(
 }
 
 inline void dump_file_io_perf_data_to_file(
-    int rank, 
     int num_levels, 
     double walltime, 
     double* file_io_times,
@@ -369,8 +368,15 @@ inline void dump_file_io_perf_data_to_file(
     if (filepath.length() > 1 && filepath.at(filepath.size()-1) != '/') {
         filepath += ".";
     }
-    filepath += std::string("P=") + number_to_string(rank);
-    filepath += ".FileIoTimes.csv";
+    #ifdef _MPI
+        int rank;
+        MPI_Comm_rank(MPI_COMM_SIZE, &rank);
+        filepath += std::string("P=") + number_to_string(rank);
+        filepath += ".FileIoTimes.csv";
+    #else
+        int rank = 0;
+        filepath += "FileIoTimes.csv";
+    #endif
 
     bool write_header = false;
     std::ifstream f(filepath.c_str());

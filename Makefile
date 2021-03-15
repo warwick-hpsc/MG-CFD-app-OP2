@@ -510,11 +510,11 @@ $(BIN_DIR)/mgcfd_openmp: $(OP2_OMP_OBJECTS)
 $(OBJ_DIR)/mgcfd_mpi_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) -D_MPI $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-	     -DMPI_ON -c -o $@ $^
+	     -c -o $@ $^
 $(OBJ_DIR)/mgcfd_mpi_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(SEQ_KERNELS)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) -D_MPI $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-	     -DMPI_ON -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
+	     -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
 $(BIN_DIR)/mgcfd_mpi: $(OP2_MPI_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
@@ -526,11 +526,11 @@ $(BIN_DIR)/mgcfd_mpi: $(OP2_MPI_OBJECTS)
 $(OBJ_DIR)/mgcfd_mpi_vec_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) -D_MPI $(OMPFLAGS)  $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-        -DMPI_ON -c -o $@ $^
+        -c -o $@ $^
 $(OBJ_DIR)/mgcfd_mpi_vec_kernels.o: $(SRC_DIR)/../vec/_veckernels.cpp $(VEC_KERNELS)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) -D_MPI $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-        -DMPI_ON -c -o $@ $(SRC_DIR)/../vec/_veckernels.cpp 2>&1 | tee $@.log
+        -c -o $@ $(SRC_DIR)/../vec/_veckernels.cpp 2>&1 | tee $@.log
 $(BIN_DIR)/mgcfd_mpi_vec: $(OP2_MPI_VEC_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
@@ -542,11 +542,11 @@ $(BIN_DIR)/mgcfd_mpi_vec: $(OP2_MPI_VEC_OBJECTS)
 $(OBJ_DIR)/mgcfd_mpi_openmp_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) -D_MPI -D_OMP $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-	    -DMPI_ON -c -o $@ $^
+	    -c -o $@ $^
 $(OBJ_DIR)/mgcfd_mpi_openmp_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(OMP_KERNELS)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) -D_MPI -D_OMP $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
-	    -DMPI_ON -c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
+	    -c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
 $(BIN_DIR)/mgcfd_mpi_openmp: $(OP2_MPI_OMP_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
