@@ -29,7 +29,7 @@
 #include <vector>
 #include <regex>
 
-// OP2:
+// OP2 op_printf
 #include "op_seq.h"
 
 #include "config.h"
@@ -48,7 +48,6 @@ extern int last_cpu_id;
 extern long_long** flux_kernel_event_counts;
 extern long_long** ustream_kernel_event_counts;
 
-#define TABLE_STRING_LENGTH 128
 typedef struct likwid_row_t
 {
     int thread_id;

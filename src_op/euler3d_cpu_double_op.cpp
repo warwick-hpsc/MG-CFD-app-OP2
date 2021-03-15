@@ -14,7 +14,6 @@
 #include <fstream>
 #include <cmath>
 #include <string>
-#include <omp.h>
 #include <sys/time.h>
 #include <sstream>
 #include <cstdlib>
@@ -24,6 +23,7 @@
 
 #include "hdf5.h"
 
+#include "perf_funcs.h"
 #ifdef PAPI
 #include <papi.h>
 long_long** flux_kernel_event_counts = NULL;
@@ -428,11 +428,11 @@ int main(int argc, char** argv)
               op_decl_const2("ff_flux_contribution_density_energy",3,"double",ff_flux_contribution_density_energy);
               op_decl_const2("mesh_name",1,"int",&mesh_name);
 
-        // op_printf("-----------------------------------------------------\n");
-        // op_printf("Loading from HDF5 files ...\n");
+        op_printf("-----------------------------------------------------\n");
+        op_printf("Loading from HDF5 files ...\n");
 
         for (int i=0; i<levels; i++) {
-            // op_printf("Loading level %d / %d\n", i+1, levels);
+            op_printf("Loading level %d / %d\n", i+1, levels);
             
             sprintf(op_name, "op_nodes_L%d", i);
             if (conf.legacy_mode) {
@@ -526,8 +526,8 @@ int main(int argc, char** argv)
             }
         }
 
-        // op_printf("-----------------------------------------------------\n");
-        // op_printf("Partitioning ...\n");
+        op_printf("-----------------------------------------------------\n");
+        op_printf("Partitioning ...\n");
         if (conf.partitioner == Partitioners::Parmetis) {
             if (conf.partitioner_method == PartitionerMethods::Geom) {
                 op_partition("PARMETIS", "GEOM", op_nodes[0], OP_ID, p_node_coords[0]);
@@ -553,7 +553,7 @@ int main(int argc, char** argv)
         else if (conf.partitioner == Partitioners::Inertial) {
             op_partition("INERTIAL", "", op_nodes[0], OP_ID, p_node_coords[0]);
         }
-        // op_printf("PARTITIONING COMPLETE\n");
+        op_printf("PARTITIONING COMPLETE\n");
         if (conf.renumber) op_renumber(p_edge_to_nodes[0]);
 
         for (int i=0; i<levels; i++) {
@@ -637,12 +637,12 @@ int main(int argc, char** argv)
     double min_dt = std::numeric_limits<double>::max();
     while(i < conf.num_cycles)
     {
-        // #ifdef LOG_PROGRESS
-        //     op_printf("Performing MG cycle %d / %d\n", i+1, conf.num_cycles);
-        // #else
-        //     if (level==0)
-        //     op_printf("Performing MG cycle %d / %d\n", i+1, conf.num_cycles);
-        // #endif
+        #ifdef LOG_PROGRESS
+            op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
+        #else
+            if (level==0)
+            op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
+        #endif
 
         current_level = level;
 
@@ -673,9 +673,9 @@ int main(int argc, char** argv)
         int rkCycle;
         for (rkCycle=0; rkCycle<RK; rkCycle++)
         {
-            // #ifdef LOG_PROGRESS
-            //     op_printf(" RK cycle %d / %d\n", rkCycle+1, RK);
-            // #endif
+            #ifdef LOG_PROGRESS
+                op_printf(" RK cycle %d / %d\n", rkCycle+1, RK);
+            #endif
 
             op_par_loop_compute_flux_edge_kernel_instrumented("compute_flux_edge_kernel",op_edges[level],
                         op_arg_dat(p_variables[level],0,p_edge_to_nodes[level],5,"double",OP_READ),
@@ -717,10 +717,7 @@ int main(int argc, char** argv)
                             #endif
                             );
             }
-
-            // break;
         }
-        // break;
 
         op_par_loop_residual_kernel("residual_kernel",op_nodes[level],
                     op_arg_dat(p_old_variables[level],-1,OP_ID,5,"double",OP_READ),
@@ -750,7 +747,7 @@ int main(int argc, char** argv)
                 #endif
                 return 1;
             }
-            // op_printf("\n");
+            op_printf("\n");
         }
 
         if (conf.output_flow_interval > 0 &&
@@ -843,20 +840,20 @@ int main(int argc, char** argv)
             }
         }
     }
-    // op_printf("\n");
-	// op_printf("Compute complete\n");
+    op_printf("\n");
+	op_printf("Compute complete\n");
 
     op_timers(&cpu_t2, &wall_t2);
     double walltime = wall_t2 - wall_t1;
-    // op_printf("Max total runtime = %f\n", walltime);
+    op_printf("Max total runtime = %f\n", walltime);
 
     // Write summary performance data to stdout:
-    // op_timing_output();
+    op_timing_output();
 
     // Write full performance data to file:
     std::string csv_out_filepath(conf.output_file_prefix);
     csv_out_filepath += "op2_performance_data.csv";
-    // op_printf("Writing OP2 timings to file: %s\n", csv_out_filepath.c_str());
+    op_printf("Writing OP2 timings to file: %s\n", csv_out_filepath.c_str());
     op_timings_to_csv(csv_out_filepath.c_str());
 
     if (conf.validate_result) {
@@ -982,69 +979,21 @@ int main(int argc, char** argv)
         }
     }
 
-    int my_rank=0;
-    #ifdef MPI_ON
-    op_rank(&my_rank);
-    #endif
     #ifdef PAPI
         dump_papi_counters_to_file(
-            my_rank,
             flux_kernel_event_counts, 
             ustream_kernel_event_counts,
             conf.output_file_prefix);
     #endif
     #ifdef LIKWID
-        // dump_likwid_counters_to_file(
-        //     my_rank,
-        //     flux_kernel_event_counts, 
-        //     ustream_kernel_event_counts,
-        //     conf.output_file_prefix);
-        // if (my_rank == 0) {
-        //   printf("Rank 0\n");
-        //   for (int l=0; l<levels; l++) {
-        //     for (int e=0; e<n_events; e++) {
-        //       printf("%f , ", flux_kernel_event_counts[0][l*n_events + e]);
-        //     }
-        //   }
-        //   printf("\n");
-        //   for (int l=0; l<levels; l++) {
-        //     for (int e=0; e<n_events; e++) {
-        //       printf("%f , ", ustream_kernel_event_counts[0][l*n_events + e]);
-        //     }
-        //   }
-        //   printf("\n");
-        // }
-        // MPI_Barrier(MPI_COMM_WORLD);
-        // if (my_rank == 1) {
-        //   printf("Rank 1\n");
-        //   for (int l=0; l<levels; l++) {
-        //     for (int e=0; e<n_events; e++) {
-        //       printf("%f , ", flux_kernel_event_counts[0][l*n_events + e]);
-        //     }
-        //   }
-        //   printf("\n");
-        //   for (int l=0; l<levels; l++) {
-        //     for (int e=0; e<n_events; e++) {
-        //       printf("%f , ", ustream_kernel_event_counts[0][l*n_events + e]);
-        //     }
-        //   }
-        //   printf("\n");
-        // }
-        for (int t=0; t<n_cpus_monitored; t++) {
-          printf("T%d: ", t);
-          for (int l=0; l<levels; l++) {
-            for (int e=0; e<n_events; e++) {
-              printf("%lld , ", flux_kernel_event_counts[t][l*n_events + e]);
-            }
-          }
-          printf("\n");
-        }
+        dump_likwid_counters_to_file(
+            flux_kernel_event_counts, 
+            ustream_kernel_event_counts,
+            conf.output_file_prefix);
     #endif
 
     #ifdef DUMP_EXT_PERF_DATA
         dump_perf_data_to_file(
-            my_rank, 
-            levels, 
             #ifdef VERIFY_OP2_TIMING
                 flux_kernel_compute_times, 
                 flux_kernel_sync_times,
@@ -1053,22 +1002,13 @@ int main(int argc, char** argv)
             conf.output_file_prefix);
     #endif
 
-    #ifndef DUMP_EXT_PERF_DATA
-        // Should only need file IO performance data for 
-        // one rank; in my brief experience, all ranks report 
-        // the same time.
-        if (my_rank == 0) {
-    #endif
-    dump_file_io_perf_data_to_file(
-        my_rank, 
-        levels, 
-        walltime, 
-        file_io_times, 
-        number_of_file_io_writes, 
-        conf.output_file_prefix);
-    #ifndef DUMP_EXT_PERF_DATA
-        }
-    #endif
+    if (number_of_file_io_writes > 0) {
+      dump_file_io_perf_data_to_file(
+          walltime, 
+          file_io_times, 
+          number_of_file_io_writes, 
+          conf.output_file_prefix);
+    }
 
     #ifdef LIKWID
         clear_likwid();

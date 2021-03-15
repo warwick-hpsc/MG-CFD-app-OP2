@@ -19,6 +19,7 @@
 
 #include "hdf5.h"
 
+#include "perf_funcs.h"
 #ifdef PAPI
 #include <papi.h>
 long_long** flux_kernel_event_counts = NULL;
@@ -791,20 +792,14 @@ int main(int argc, char** argv)
         }
     }
 
-    int my_rank=0;
-    #ifdef MPI_ON
-    op_rank(&my_rank);
-    #endif
     #ifdef PAPI
         dump_papi_counters_to_file(
-            my_rank,
             flux_kernel_event_counts, 
             ustream_kernel_event_counts,
             conf.output_file_prefix);
     #endif
     #ifdef LIKWID
         dump_likwid_counters_to_file(
-            my_rank, 
             flux_kernel_event_counts, 
             ustream_kernel_event_counts,
             conf.output_file_prefix);
@@ -812,8 +807,6 @@ int main(int argc, char** argv)
 
     #ifdef DUMP_EXT_PERF_DATA
         dump_perf_data_to_file(
-            my_rank, 
-            levels, 
             #ifdef VERIFY_OP2_TIMING
                 flux_kernel_compute_times, 
                 flux_kernel_sync_times,
@@ -822,22 +815,11 @@ int main(int argc, char** argv)
             conf.output_file_prefix);
     #endif
 
-    #ifndef DUMP_EXT_PERF_DATA
-        // Should only need file IO performance data for 
-        // one rank; in my brief experience, all ranks report 
-        // the same time.
-        if (my_rank == 0) {
-    #endif
     dump_file_io_perf_data_to_file(
-        my_rank, 
-        levels, 
         walltime, 
         file_io_times, 
         number_of_file_io_writes, 
         conf.output_file_prefix);
-    #ifndef DUMP_EXT_PERF_DATA
-        }
-    #endif
 
     #ifdef LIKWID
         clear_likwid();

@@ -139,6 +139,7 @@ endif
 ifeq ($(COMPILER),gnu)
   CFLAGS	= -fPIC -DUNIX -Wall -Wextra
   CFLAGS  += -Wno-unused
+  CFLAGS += -Wfatal-errors
   ## Disable C math function error checking, as prevents SIMD:
   CFLAGS += -fno-math-errno
   CPPFLAGS 	= $(CFLAGS)

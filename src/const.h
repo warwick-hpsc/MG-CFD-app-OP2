@@ -22,6 +22,8 @@
 #define restrict __restrict__
 #endif
 
+#define TABLE_STRING_LENGTH 128
+
 /*
  * Options
  *
