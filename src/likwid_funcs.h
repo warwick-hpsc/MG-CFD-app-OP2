@@ -27,7 +27,6 @@
 
 #include <likwid.h>
 #include <vector>
-#include <regex>
 
 // OP2 op_printf
 #include "op_seq.h"
@@ -75,7 +74,8 @@ inline int likwid_get_num_threads() {
 
 inline void clear_likwid()
 {
-    perfmon_stopCounters();
+    if (n_events > 0)
+        perfmon_stopCounters();
     perfmon_finalize();
     affinity_finalize();
     topology_finalize();
@@ -287,8 +287,6 @@ inline void load_likwid_events()
     bool permit_uncore_access = uncore_monitoring_permitted();
 
     std::vector<std::string> events;
-    std::regex likwid_event_rgx("([A-Z0-9_]*):([A-Z0-9_]*)");
-    std::regex likwid_mbox_rgx("MBOX.*");
 
     std::string line;
     std::ifstream file_if(conf.papi_config_file);
@@ -298,20 +296,23 @@ inline void load_likwid_events()
         exit(EXIT_FAILURE);
     } else {
         while(std::getline(file_if, line)) {
-            if (line.c_str()[0] == '#' || strcmp(line.c_str(), "")==0) {
+            const char* line_str = line.c_str();
+            fflush(stdout);
+            if (line_str[0] == '#' || strcmp(line_str, "")==0) {
                 continue;
             }
 
-            std::smatch match;
-            if (!std::regex_match(line, match, likwid_event_rgx)) {
-                op_printf("ERROR: Provided Likwid event is malformed: %s\n", line.c_str());
+            const char* p = strchr(line_str, ':');
+            if (p == NULL) {
+                op_printf("ERROR: Provided Likwid event is malformed: %s\n", line_str);
                 op_exit();
                 clear_likwid();
                 exit(EXIT_FAILURE);
             }
-            std::string rhs = match.str(2);
+            const char* rhs = p+1;
 
-            if (std::regex_match(rhs, likwid_mbox_rgx)) {
+            if (strstr(rhs, "MBOX") != NULL) {
+                op_printf("Restricting Likwid uncore event to 1 rank per socket: %s\n", line_str);
                 if (permit_uncore_access) {
                     events.push_back(line);
                 }
