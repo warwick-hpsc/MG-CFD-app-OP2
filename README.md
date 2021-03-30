@@ -61,6 +61,13 @@ MG-CFD has more command-line arguments to ease file/directory interaction, and c
      $ ./path/to/mgcfd_* --help
 ```
 
+### Performance counters:
+
+Built into MG-CFD is functionality to collect performance counter data, at fine granularity of individual loops. Currently CPU only. Requires PAPI library to be installed and configured. 
+- disabled as default - to enable, enable either 'PAPI' flag in Makefile, then compile. 
+- this in turn enables a command-line parameter: -p \<filepath\> . This file should contain the list of events to measure.
+- counts will be written to PAPI.csv
+
 ### Generating batch submission scripts:
 
 1) Prepare a json file detailing run configuration. See ./run-inputs/annotated.json for documentation on each option. 
