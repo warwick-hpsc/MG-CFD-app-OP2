@@ -268,22 +268,22 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                 mg_connectivity_filename[l] = (std::string(input_directory) + "/" + mg_connectivity_filename[l]).c_str();
         }
     }
-
+    
     if (base_array_index >= 1 && base_array_index <= 9) {
       // Append 'base_array_index' to args:
 
       char** new_argv = (char**)malloc((argc+1)*sizeof(char*));
       for (int i=0; i<argc; i++) {
-        new_argv[i] = (char*)malloc(strlen(argv[i])*sizeof(char));
+        new_argv[i] = (char*)malloc((strlen(argv[i])+1)*sizeof(char));
         strcpy(new_argv[i], argv[i]);
       }
-      new_argv[argc] = (char*)malloc(strlen("OP_MAPS_BASE_INDEX=0")*sizeof(char));
+      new_argv[argc] = (char*)malloc((strlen("OP_MAPS_BASE_INDEX=0")+1)*sizeof(char));
       sprintf(new_argv[argc], "OP_MAPS_BASE_INDEX=%d", base_array_index);
       argc++;
 
       argv = new_argv;
     }
-
+    
     #ifdef LOG_PROGRESS
         // op_init(argc, argv, 7); // Report positive checks in op_plan_check
         // op_init(argc, argv, 4);
