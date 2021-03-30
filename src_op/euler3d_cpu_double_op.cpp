@@ -620,7 +620,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     MPI_Comm_size(mgcfd_comm, &internal_size);
     int *ranks = new int[internal_size];
     
-    int temp_buffer;
+    //int temp_buffer;
   
     MPI_Gather(&internal_rank, 1, MPI_INT, ranks, 1, MPI_INT, 0, mgcfd_comm);
 
@@ -642,9 +642,9 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         }
     }
      
-    int recv_size = 0;
+    //int recv_size = 0;
     int total_coupler_unit_count = units[unit_count].coupler_ranks.size();
-    std::vector<bool> left;
+    //std::vector<bool> left;
     
     for(int z = 0; z < total_coupler_unit_count; z++){
         int coupler_rank = units[unit_count].coupler_ranks[z][0]; //This can be left alone since the instance number is the same for all ranks in a coupler unit
@@ -665,31 +665,31 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             }
         }
 
-        if (std::find(units[unit_count_2].mgcfd_ranks[0].begin(), units[unit_count_2].mgcfd_ranks[0].end(), worldrank) != units[unit_count_2].mgcfd_ranks[0].end()){
+        /*if (std::find(units[unit_count_2].mgcfd_ranks[0].begin(), units[unit_count_2].mgcfd_ranks[0].end(), worldrank) != units[unit_count_2].mgcfd_ranks[0].end()){
             recv_size = units[unit_count_2].mgcfd_ranks[1].size();
             left.push_back(true);
         }else{
             recv_size = units[unit_count_2].mgcfd_ranks[0].size();
             left.push_back(false);
-        }
+        }*/
     }
         
     int coupler_rank = units[unit_count].coupler_ranks[0][0]; //This assumes only 1 coupler unit per 2 MG-CFD sessions 
-    int *recv_buffer = new int[recv_size];
+    //int *recv_buffer = new int[recv_size];
     int prev_cycle = -1;
 
-    int no_of_data_ranks = units[unit_count].coupler_ranks[0].size();//the number of ranks in the 'send' size
-    int no_of_recv_ranks = units[unit_count].coupler_ranks[1].size();
+    //int no_of_data_ranks = units[unit_count].coupler_ranks[0].size();//the number of ranks in the 'send' size
+    //int no_of_recv_ranks = units[unit_count].coupler_ranks[1].size();
 
     double nodes_sizes[4];
     double boundary_nodes_sizes[4];
-    double nodes_size_chunks[4];
-    double extra_chunk[4];
-    bool chunk_add = true;
+    //double nodes_size_chunks[4];
+    //double extra_chunk[4];
+    //bool chunk_add = true;
     double *p_variables_data_l0, *p_variables_data_l1, *p_variables_data_l2, *p_variables_data_l3;
     double *p_variables_recv_l0, *p_variables_recv_l1, *p_variables_recv_l2, *p_variables_recv_l3;
-    double add_amount[4];
-    long long int total_amount[4] = {0,0,0,0};
+    //double add_amount[4];
+    //long long int total_amount[4] = {0,0,0,0};
     int null_check;
 
     for (int z = 0; z < 4; z++) {

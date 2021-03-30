@@ -276,11 +276,11 @@ int main(int argc, char** argv){
             }
     	}
 		int left_rank = units[unit_count].mgcfd_ranks[0][0];
-		int left_size = static_cast<int>(units[unit_count].mgcfd_ranks[0].size());
+		//int left_size = static_cast<int>(units[unit_count].mgcfd_ranks[0].size());
 		int right_rank = units[unit_count].mgcfd_ranks[1][0];
-		int right_size = static_cast<int>(units[unit_count].mgcfd_ranks[1].size());
-		int *left_rank_storage = new int[left_size];
-		int *right_rank_storage = new int[right_size];
+		//int right_size = static_cast<int>(units[unit_count].mgcfd_ranks[1].size());
+		//int *left_rank_storage = new int[left_size];
+		//int *right_rank_storage = new int[right_size];
         
         double left_nodes_sizes[4];
         double right_nodes_sizes[4];
@@ -303,18 +303,18 @@ int main(int argc, char** argv){
 		int root_rank = units[unit_count].coupler_ranks[0][0];
 
     	double left_nodes_size_chunks[4];
-		double left_extra_chunk[4];
+		//double left_extra_chunk[4];
 		double right_nodes_size_chunks[4];
-		double right_extra_chunk[4];
-		double left_add_amount[4];
-		double right_add_amount[4];
-		bool chunk_add = true;
+		//double right_extra_chunk[4];
+		//double left_add_amount[4];
+		//double right_add_amount[4];
+		//bool chunk_add = true;
 
 		for(int j = 0; j < 4; j++){
 				left_nodes_size_chunks[j] = left_nodes_sizes[j] / total_ranks;
-				left_extra_chunk[j] = left_nodes_sizes[j] - left_nodes_size_chunks[j]*total_ranks;//since dividing integers is a floor function in C++, there may be a little bit left which we add onto the first transfer
+				//left_extra_chunk[j] = left_nodes_sizes[j] - left_nodes_size_chunks[j]*total_ranks;//since dividing integers is a floor function in C++, there may be a little bit left which we add onto the first transfer
 				right_nodes_size_chunks[j] = right_nodes_sizes[j] / total_ranks;
-				right_extra_chunk[j] = right_nodes_sizes[j] - right_nodes_size_chunks[j]*total_ranks;
+				//right_extra_chunk[j] = right_nodes_sizes[j] - right_nodes_size_chunks[j]*total_ranks;
             }
 
         double *left_p_variables_l0_sg, *left_p_variables_l1_sg, *left_p_variables_l2_sg, *left_p_variables_l3_sg;
@@ -455,8 +455,8 @@ int main(int argc, char** argv){
 					std::vector<double> node_state_vars_left;
 					std::vector<double> node_state_vars_right;
 					std::vector<double> node_state_vars_temp;
-					double valuecheck_left;
-					double valuecheck_right;
+					//double valuecheck_left;
+					//double valuecheck_right;
 					vector_counter = 0;
 					sub_count = 0;
                     //NEW
