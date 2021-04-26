@@ -479,7 +479,7 @@ int main(int argc, char** argv){
 					sub_count = 0;
                     //NEW
                     vector_counter_max = std::min(vector_counter_max_sizes_l[k], vector_counter_max_sizes_r[k]);//this is size of mesh recieved from scatter
-					while(sub_count < (total_ranks*30)){
+					while(sub_count < (total_ranks*500)){
 						while(vector_counter < vector_counter_max/total_ranks){
 							node_state_vars_left = left_vector_of_state_vars_total[k].at(vector_counter);
 							node_state_vars_right = right_vector_of_state_vars_total[k].at(vector_counter);

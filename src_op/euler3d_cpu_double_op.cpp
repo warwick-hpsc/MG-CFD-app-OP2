@@ -703,7 +703,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     }
 
     for (int z = 0; z < levels; z++) {
-        boundary_nodes_sizes[z] = round(nodes_sizes[z] * 0.025);//the boundary mesh is roughly 2.5% the actual mesh size
+        boundary_nodes_sizes[z] = round(nodes_sizes[z] * 0.0042);//the boundary mesh is roughly 2.5% the actual mesh size
     }
 
     int ranks_per_coupler;
