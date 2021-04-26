@@ -31,10 +31,12 @@ int main(int argc, char** argv){
 	char unit_1[] = "UNIT_1";
 	char unit_2[] = "UNIT_2";
 	char total[] = "TOTAL";
+	char type[] = "TYPE";
 	bool debug = true;
 
 	int mpi_ranks = 0;
 	char keyword[8];//longest word is COUPLER
+	char c_type[8]; //longest type is sliding
 	int temp_unit;//temporarily stores how many processes each unit will have
 	int num_of_units = 0;//number of coupler units as read from the TOTAL value
 	int temp_count = 0;//used to count the total number of units and verify it matches the TOTAL value
@@ -53,6 +55,19 @@ int main(int argc, char** argv){
 		if(strcmp(keyword, coupler) == 0){
 			units[temp_count].type = 'C';
 			units[temp_count].processes = temp_unit;
+			fscanf(ifp, "%s %s", keyword, c_type);
+			if(strcmp(keyword, type) != 0){
+				fprintf(stderr, "Error: You must specify the type of a coupler after the definition, aborting... \n");
+				exit(1);
+			}
+			if(strcmp(c_type, "SLIDING") == 0){
+				units[temp_count].coupling_type = 'S';
+			}else if(strcmp(c_type, "CHT") == 0){
+				units[temp_count].coupling_type = 'C';
+			}else{
+				fprintf(stderr, "Error: couplers must be of type CHT or SLIDING, aborting... \n");
+				exit(1);
+			}
 			temp_count++;
 			coupler_count++;
 			mpi_ranks += temp_unit;
@@ -63,6 +78,10 @@ int main(int argc, char** argv){
 			mgcfd_count++;
 			mpi_ranks += temp_unit;
 		}else if(strcmp(keyword, fenics) == 0){
+			#ifndef deffenics
+				fprintf(stderr, "Error: CPX has not been compiled with FEniCS X support.\n");
+				exit(1);
+			#endif				
 			units[temp_count].type = 'F';
 			units[temp_count].processes = temp_unit;
 			temp_count++;
@@ -96,7 +115,7 @@ int main(int argc, char** argv){
 		for(int i = 0; i < num_of_units; i++){
 			if(units[i].type == 'C'){
 				coupler_count_temp++;
-				printf("  Coupler unit %d\n  Number of ranks assigned: %d\n  with the two units %d and %d\n\n", coupler_count_temp, units[i].processes, units[i].mgcfd_units[0], units[i].mgcfd_units[1]);
+				printf("  Coupler unit %d\n  Coupler type %c\n  Number of ranks assigned: %d\n  with the two units %d and %d\n\n", coupler_count_temp, units[i].coupling_type, units[i].processes, units[i].mgcfd_units[0], units[i].mgcfd_units[1]);
 			}else{
 				work_count_temp++;
 				printf("  Work unit %d type %c\n  Number of ranks assigned: %d\n\n", work_count_temp, units[i].type, units[i].processes);
@@ -252,7 +271,7 @@ int main(int argc, char** argv){
 		}else{
             #ifdef deffenics
                 main_dolfinx(argc, argv, comms_shell, instance_number, units, relative_positions);
-            #endif
+			#endif
             MPI_Finalize();
 		}
 	}else{
@@ -385,68 +404,67 @@ int main(int argc, char** argv){
 				MPI_Bcast(right_p_variables_l2, right_nodes_sizes[2] * NVAR, MPI_DOUBLE, 0, coupler_comm);
 				MPI_Bcast(right_p_variables_l3, right_nodes_sizes[3] * NVAR, MPI_DOUBLE, 0, coupler_comm);
 			}
-
-	        //rendezvous routines start
-
-			if((cycle_counter % upd_freq) == 0){
-
-				for(int k = 0; k < 4; k++){
-			        vector_counter = 0;
-					if(MUM == 0){
-						vector_counter_max = std::min(left_nodes_sizes[k], right_nodes_sizes[k]);//this is size of mesh recieved from broadcast
-					}else{
-						vector_counter_max = std::min(vector_counter_max_sizes_l[k], vector_counter_max_sizes_r[k]);//this is size of mesh recieved from scatter
-					}
-					sub_count = 0;
-					while(sub_count < total_ranks){
-						left_vector_of_state_vars_total[k].clear();
-						while(vector_counter < (vector_counter_max/total_ranks)){
-							std::vector<double> node_state_vars;
-							for(int i = 0; i<NVAR; i++){
-								if(MUM == 0){
-									node_state_vars.push_back(*(left_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
-								}else{
-									node_state_vars.push_back(*(left_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
-								}
-							}
-							left_vector_of_state_vars_total[k].insert(left_vector_of_state_vars_total[k].begin(), node_state_vars);
-							vector_counter++;
+			
+			//rendezvous routines start
+			if(units[unit_count].coupling_type == 'S' || cycle_counter == 0){
+				if((cycle_counter % upd_freq) == 0){
+					for(int k = 0; k < 4; k++){
+			        	vector_counter = 0;
+						if(MUM == 0){
+							vector_counter_max = std::min(left_nodes_sizes[k], right_nodes_sizes[k]);//this is size of mesh recieved from broadcast
+						}else{
+							vector_counter_max = std::min(vector_counter_max_sizes_l[k], vector_counter_max_sizes_r[k]);//this is size of mesh recieved from scatter
 						}
-						vector_counter = 0;
-						sub_count++;
-					}
-		        }
-			}
-
-			if((cycle_counter % upd_freq) == 0){
-				for(int k = 0; k < 4; k++){
-			        vector_counter = 0;
-					if(MUM == 0){
-						vector_counter_max = std::min(left_nodes_sizes[k], right_nodes_sizes[k]);//this is size of mesh recieved from broadcast
-					}else{
-						vector_counter_max = std::min(vector_counter_max_sizes_l[k], vector_counter_max_sizes_r[k]);//this is size of mesh recieved from scatter
-					}
-					sub_count = 0;
-					while(sub_count < total_ranks){
-						right_vector_of_state_vars_total[k].clear();
-						while(vector_counter < (vector_counter_max/total_ranks)){
-							std::vector<double> node_state_vars;
-							for(int i = 0; i<NVAR; i++){
-								if(MUM == 0){
-									node_state_vars.push_back(*(right_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along right_p_variables in chunks of NVAR
-								}else{
-									node_state_vars.push_back(*(right_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along right_p_variables in chunks of NVAR
+						sub_count = 0;
+						while(sub_count < total_ranks){
+							left_vector_of_state_vars_total[k].clear();
+							while(vector_counter < (vector_counter_max/total_ranks)){
+								std::vector<double> node_state_vars;
+								for(int i = 0; i<NVAR; i++){
+									if(MUM == 0){
+										node_state_vars.push_back(*(left_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
+									}else{
+										node_state_vars.push_back(*(left_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
+									}
 								}
+								left_vector_of_state_vars_total[k].insert(left_vector_of_state_vars_total[k].begin(), node_state_vars);
+								vector_counter++;
 							}
-							right_vector_of_state_vars_total[k].insert(right_vector_of_state_vars_total[k].begin(), node_state_vars);
-							vector_counter++;
+							vector_counter = 0;
+							sub_count++;
 						}
-						vector_counter = 0;
-						sub_count++;
-					}
-		        }
-			}
+		        	}
+				}
 
+				if((cycle_counter % upd_freq) == 0){
+					for(int k = 0; k < 4; k++){
+			        	vector_counter = 0;
+						if(MUM == 0){
+							vector_counter_max = std::min(left_nodes_sizes[k], right_nodes_sizes[k]);//this is size of mesh recieved from broadcast
+						}else{
+							vector_counter_max = std::min(vector_counter_max_sizes_l[k], vector_counter_max_sizes_r[k]);//this is size of mesh recieved from scatter
+						}
+						sub_count = 0;
+						while(sub_count < total_ranks){
+							right_vector_of_state_vars_total[k].clear();
+							while(vector_counter < (vector_counter_max/total_ranks)){
+								std::vector<double> node_state_vars;
+								for(int i = 0; i<NVAR; i++){
+									if(MUM == 0){
+										node_state_vars.push_back(*(right_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along right_p_variables in chunks of NVAR
+									}else{
+										node_state_vars.push_back(*(right_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along right_p_variables in chunks of NVAR
+									}
+								}
+								right_vector_of_state_vars_total[k].insert(right_vector_of_state_vars_total[k].begin(), node_state_vars);
+								vector_counter++;
+							}
+							vector_counter = 0;
+							sub_count++;
+						}
+		        	}
+				}
+			}
 			//rendezvous routines end
 
 			//interpolate routine start
