@@ -240,8 +240,9 @@ seq: $(BIN_DIR)/mgcfd_seq
 slope: $(BIN_DIR)/mgcfd_slope
 slope_vec: OPTIMISE += -DVECTORIZE
 slope_vec: $(BIN_DIR)/mgcfd_slope_vec
-slope_mpi: OPTIMISE += -DVECTORIZE
 slope_mpi: $(BIN_DIR)/mgcfd_slope_mpi
+slope_mpi_vec: OPTIMISE += -DVECTORIZE
+slope_mpi_vec: $(BIN_DIR)/mgcfd_slope_mpi_vec
 
 openmp: $(BIN_DIR)/mgcfd_openmp
 openmp_vec: OPTIMISE += -DVECTORIZE
@@ -271,6 +272,9 @@ OP2_SLOPE_VEC_OBJECTS := $(OBJ_DIR)/mgcfd_slope_vec_main.o \
 
 OP2_SLOPE_MPI_OBJECTS := $(OBJ_DIR)/mgcfd_slope_mpi_main.o \
                          $(OBJ_DIR)/mgcfd_slope_mpi_kernels.o
+
+OP2_SLOPE_MPI_VEC_OBJECTS := $(OBJ_DIR)/mgcfd_slope_mpi_vec_main.o \
+                         $(OBJ_DIR)/mgcfd_slope_mpi_vec_kernels.o
 
 OP2_MPI_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_main.o \
                    $(OBJ_DIR)/mgcfd_mpi_kernels.o
@@ -432,6 +436,24 @@ $(BIN_DIR)/mgcfd_mpi: $(OP2_MPI_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+		-o $@
+
+## SLOPE + MPI_VEC
+$(OBJ_DIR)/mgcfd_slope_mpi_vec_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
+	    -I$(SRC_DIR)/../slope \
+		-DMPI_ON  -c -o $@ $^ 2>&1 | tee $@.log
+$(OBJ_DIR)/mgcfd_slope_mpi_vec_kernels.o: $(SRC_DIR)/../slope/_kernels.cpp $(SLOPE_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
+		-Iopenmp  -DMPI_ON -c -o $@ $(SRC_DIR)/../slope/_kernels.cpp 2>&1 | tee $@.log
+$(BIN_DIR)/mgcfd_slope_mpi_vec: $(OP2_SLOPE_MPI_VEC_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+		-lm $(OP2_LIB) -lop2_mpi_slope -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lslope $(METIS_LIB) -lmetis \
 		-o $@
 
 ## SLOPE + MPI
