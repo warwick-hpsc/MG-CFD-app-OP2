@@ -149,7 +149,8 @@ inline void set_config_defaults() {
 
     conf.num_cycles = 25;
 
-    conf.partitioner = Partitioners::Parmetis;
+    conf.partitioner = Partitioners::Inertial;
+    // conf.partitioner = Partitioners::Parmetis;
     conf.partitioner_method = PartitionerMethods::NotSet;
     conf.partitioner_string = (char*)malloc(sizeof(char));
     conf.partitioner_string[0] = '\0';
