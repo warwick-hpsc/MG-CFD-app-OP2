@@ -294,6 +294,14 @@ int main(int argc, char** argv){
                 unit_count++;
             }
     	}
+		
+		int coupler_vars = 0;
+		if(units[unit_count].coupling_type == 'S'){
+			coupler_vars = 5;
+		}else if(units[unit_count].coupling_type == 'C'){
+			coupler_vars = 1;
+		}
+		
 		int left_rank = units[unit_count].mgcfd_ranks[0][0];
 		//int left_size = static_cast<int>(units[unit_count].mgcfd_ranks[0].size());
 		int right_rank = units[unit_count].mgcfd_ranks[1][0];
@@ -308,15 +316,15 @@ int main(int argc, char** argv){
         double *left_p_variables_l0, *left_p_variables_l1, *left_p_variables_l2, *left_p_variables_l3;
         double *right_p_variables_l0, *right_p_variables_l1, *right_p_variables_l2, *right_p_variables_l3;
 
-        left_p_variables_l0 = (double *) malloc(left_nodes_sizes[0] * NVAR * sizeof(double));
-        left_p_variables_l1 = (double *) malloc(left_nodes_sizes[1] * NVAR * sizeof(double));
-        left_p_variables_l2 = (double *) malloc(left_nodes_sizes[2] * NVAR * sizeof(double));
-        left_p_variables_l3 = (double *) malloc(left_nodes_sizes[3] * NVAR * sizeof(double));
+        left_p_variables_l0 = (double *) malloc(left_nodes_sizes[0] * coupler_vars * sizeof(double));
+        left_p_variables_l1 = (double *) malloc(left_nodes_sizes[1] * coupler_vars * sizeof(double));
+        left_p_variables_l2 = (double *) malloc(left_nodes_sizes[2] * coupler_vars * sizeof(double));
+        left_p_variables_l3 = (double *) malloc(left_nodes_sizes[3] * coupler_vars * sizeof(double));
 
-        right_p_variables_l0 = (double *) malloc(right_nodes_sizes[0] * NVAR * sizeof(double));
-        right_p_variables_l1 = (double *) malloc(right_nodes_sizes[1] * NVAR * sizeof(double));
-        right_p_variables_l2 = (double *) malloc(right_nodes_sizes[2] * NVAR * sizeof(double));
-        right_p_variables_l3 = (double *) malloc(right_nodes_sizes[3] * NVAR * sizeof(double));
+        right_p_variables_l0 = (double *) malloc(right_nodes_sizes[0] * coupler_vars * sizeof(double));
+        right_p_variables_l1 = (double *) malloc(right_nodes_sizes[1] * coupler_vars * sizeof(double));
+        right_p_variables_l2 = (double *) malloc(right_nodes_sizes[2] * coupler_vars * sizeof(double));
+        right_p_variables_l3 = (double *) malloc(right_nodes_sizes[3] * coupler_vars * sizeof(double));
 
 		int total_ranks = units[unit_count].coupler_ranks[0].size();
 		int root_rank = units[unit_count].coupler_ranks[0][0];
@@ -345,15 +353,15 @@ int main(int argc, char** argv){
 		double vector_counter_max_sizes_l[4] = {left_nodes_size_chunks[0],left_nodes_size_chunks[1], left_nodes_size_chunks[2], left_nodes_size_chunks[3]};
 		double vector_counter_max_sizes_r[4] = {right_nodes_size_chunks[0],right_nodes_size_chunks[1], right_nodes_size_chunks[2], right_nodes_size_chunks[3]};
 
-		left_p_variables_l0_sg = (double *) malloc((left_nodes_size_chunks[0]) * NVAR * sizeof(double)); //left p_variables storage for scatter/gather
-        left_p_variables_l1_sg = (double *) malloc((left_nodes_size_chunks[1]) * NVAR * sizeof(double));
-        left_p_variables_l2_sg = (double *) malloc((left_nodes_size_chunks[2]) * NVAR * sizeof(double));
-        left_p_variables_l3_sg = (double *) malloc((left_nodes_size_chunks[3]) * NVAR * sizeof(double));
+		left_p_variables_l0_sg = (double *) malloc((left_nodes_size_chunks[0]) * coupler_vars * sizeof(double)); //left p_variables storage for scatter/gather
+        left_p_variables_l1_sg = (double *) malloc((left_nodes_size_chunks[1]) * coupler_vars * sizeof(double));
+        left_p_variables_l2_sg = (double *) malloc((left_nodes_size_chunks[2]) * coupler_vars * sizeof(double));
+        left_p_variables_l3_sg = (double *) malloc((left_nodes_size_chunks[3]) * coupler_vars * sizeof(double));
 
-        right_p_variables_l0_sg = (double *) malloc((right_nodes_size_chunks[0]) * NVAR * sizeof(double)); //right p_variables storage for scatter/gather
-        right_p_variables_l1_sg = (double *) malloc((right_nodes_size_chunks[1]) * NVAR * sizeof(double));
-        right_p_variables_l2_sg = (double *) malloc((right_nodes_size_chunks[2]) * NVAR * sizeof(double));
-        right_p_variables_l3_sg = (double *) malloc((right_nodes_size_chunks[3]) * NVAR * sizeof(double));
+        right_p_variables_l0_sg = (double *) malloc((right_nodes_size_chunks[0]) * coupler_vars * sizeof(double)); //right p_variables storage for scatter/gather
+        right_p_variables_l1_sg = (double *) malloc((right_nodes_size_chunks[1]) * coupler_vars * sizeof(double));
+        right_p_variables_l2_sg = (double *) malloc((right_nodes_size_chunks[2]) * coupler_vars * sizeof(double));
+        right_p_variables_l3_sg = (double *) malloc((right_nodes_size_chunks[3]) * coupler_vars * sizeof(double));
 
         double *left_p_variable_pointers[4] = {left_p_variables_l0_sg,left_p_variables_l1_sg,left_p_variables_l2_sg,left_p_variables_l3_sg};
         double *right_p_variable_pointers[4] = {right_p_variables_l0_sg,right_p_variables_l1_sg,right_p_variables_l2_sg,right_p_variables_l3_sg};
@@ -370,39 +378,39 @@ int main(int argc, char** argv){
 			int local_size;
 			MPI_Comm_size(coupler_comm, &local_size);
 			if(rank == root_rank){
-				MPI_Recv(left_p_variables_l0, left_nodes_sizes[0] * NVAR, MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	            MPI_Recv(left_p_variables_l1, left_nodes_sizes[1] * NVAR, MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	            MPI_Recv(left_p_variables_l2, left_nodes_sizes[2] * NVAR, MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	            MPI_Recv(left_p_variables_l3, left_nodes_sizes[3] * NVAR, MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				MPI_Recv(left_p_variables_l0, left_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	            MPI_Recv(left_p_variables_l1, left_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	            MPI_Recv(left_p_variables_l2, left_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	            MPI_Recv(left_p_variables_l3, left_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-				MPI_Recv(right_p_variables_l0, right_nodes_sizes[0] * NVAR, MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	            MPI_Recv(right_p_variables_l1, right_nodes_sizes[1] * NVAR, MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	            MPI_Recv(right_p_variables_l2, right_nodes_sizes[2] * NVAR, MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	            MPI_Recv(right_p_variables_l3, right_nodes_sizes[3] * NVAR, MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				MPI_Recv(right_p_variables_l0, right_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	            MPI_Recv(right_p_variables_l1, right_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	            MPI_Recv(right_p_variables_l2, right_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	            MPI_Recv(right_p_variables_l3, right_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	        }
 			MPI_Barrier(coupler_comm);
-			MPI_Scatter(left_p_variables_l0, (left_nodes_size_chunks[0] * NVAR), MPI_DOUBLE, left_p_variables_l0_sg, (left_nodes_size_chunks[0] * NVAR), MPI_DOUBLE, 0, coupler_comm);
-			MPI_Scatter(left_p_variables_l1, (left_nodes_size_chunks[1] * NVAR), MPI_DOUBLE, left_p_variables_l1_sg, (left_nodes_size_chunks[1] * NVAR), MPI_DOUBLE, 0, coupler_comm);
-			MPI_Scatter(left_p_variables_l2, (left_nodes_size_chunks[2] * NVAR), MPI_DOUBLE, left_p_variables_l2_sg, (left_nodes_size_chunks[2] * NVAR), MPI_DOUBLE, 0, coupler_comm);
-			MPI_Scatter(left_p_variables_l3, (left_nodes_size_chunks[3] * NVAR), MPI_DOUBLE, left_p_variables_l3_sg, (left_nodes_size_chunks[3] * NVAR), MPI_DOUBLE, 0, coupler_comm);
+			MPI_Scatter(left_p_variables_l0, (left_nodes_size_chunks[0] * coupler_vars), MPI_DOUBLE, left_p_variables_l0_sg, (left_nodes_size_chunks[0] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+			MPI_Scatter(left_p_variables_l1, (left_nodes_size_chunks[1] * coupler_vars), MPI_DOUBLE, left_p_variables_l1_sg, (left_nodes_size_chunks[1] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+			MPI_Scatter(left_p_variables_l2, (left_nodes_size_chunks[2] * coupler_vars), MPI_DOUBLE, left_p_variables_l2_sg, (left_nodes_size_chunks[2] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+			MPI_Scatter(left_p_variables_l3, (left_nodes_size_chunks[3] * coupler_vars), MPI_DOUBLE, left_p_variables_l3_sg, (left_nodes_size_chunks[3] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
 
 			MPI_Barrier(coupler_comm);
-			MPI_Scatter(right_p_variables_l0, (right_nodes_size_chunks[0] * NVAR), MPI_DOUBLE, right_p_variables_l0_sg, (right_nodes_size_chunks[0] * NVAR), MPI_DOUBLE, 0, coupler_comm);
-			MPI_Scatter(right_p_variables_l1, (right_nodes_size_chunks[1] * NVAR), MPI_DOUBLE, right_p_variables_l1_sg, (right_nodes_size_chunks[1] * NVAR), MPI_DOUBLE, 0, coupler_comm);
-			MPI_Scatter(right_p_variables_l2, (right_nodes_size_chunks[2] * NVAR), MPI_DOUBLE, right_p_variables_l2_sg, (right_nodes_size_chunks[2] * NVAR), MPI_DOUBLE, 0, coupler_comm);
-			MPI_Scatter(right_p_variables_l3, (right_nodes_size_chunks[3] * NVAR), MPI_DOUBLE, right_p_variables_l3_sg, (right_nodes_size_chunks[3] * NVAR), MPI_DOUBLE, 0, coupler_comm);
+			MPI_Scatter(right_p_variables_l0, (right_nodes_size_chunks[0] * coupler_vars), MPI_DOUBLE, right_p_variables_l0_sg, (right_nodes_size_chunks[0] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+			MPI_Scatter(right_p_variables_l1, (right_nodes_size_chunks[1] * coupler_vars), MPI_DOUBLE, right_p_variables_l1_sg, (right_nodes_size_chunks[1] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+			MPI_Scatter(right_p_variables_l2, (right_nodes_size_chunks[2] * coupler_vars), MPI_DOUBLE, right_p_variables_l2_sg, (right_nodes_size_chunks[2] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+			MPI_Scatter(right_p_variables_l3, (right_nodes_size_chunks[3] * coupler_vars), MPI_DOUBLE, right_p_variables_l3_sg, (right_nodes_size_chunks[3] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
 
 			
 			if(MUM == 0){
-				MPI_Bcast(left_p_variables_l0, left_nodes_sizes[0] * NVAR, MPI_DOUBLE, 0, coupler_comm);
-				MPI_Bcast(left_p_variables_l1, left_nodes_sizes[1] * NVAR, MPI_DOUBLE, 0, coupler_comm);
-				MPI_Bcast(left_p_variables_l2, left_nodes_sizes[2] * NVAR, MPI_DOUBLE, 0, coupler_comm);
-				MPI_Bcast(left_p_variables_l3, left_nodes_sizes[3] * NVAR, MPI_DOUBLE, 0, coupler_comm);
+				MPI_Bcast(left_p_variables_l0, left_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
+				MPI_Bcast(left_p_variables_l1, left_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
+				MPI_Bcast(left_p_variables_l2, left_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
+				MPI_Bcast(left_p_variables_l3, left_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
 
-				MPI_Bcast(right_p_variables_l0, right_nodes_sizes[0] * NVAR, MPI_DOUBLE, 0, coupler_comm);
-				MPI_Bcast(right_p_variables_l1, right_nodes_sizes[1] * NVAR, MPI_DOUBLE, 0, coupler_comm);
-				MPI_Bcast(right_p_variables_l2, right_nodes_sizes[2] * NVAR, MPI_DOUBLE, 0, coupler_comm);
-				MPI_Bcast(right_p_variables_l3, right_nodes_sizes[3] * NVAR, MPI_DOUBLE, 0, coupler_comm);
+				MPI_Bcast(right_p_variables_l0, right_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
+				MPI_Bcast(right_p_variables_l1, right_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
+				MPI_Bcast(right_p_variables_l2, right_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
+				MPI_Bcast(right_p_variables_l3, right_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
 			}
 			
 			//rendezvous routines start
@@ -421,11 +429,11 @@ int main(int argc, char** argv){
 								left_vector_of_state_vars_total[k].clear();
 								while(vector_counter < (vector_counter_max/total_ranks)){
 									std::vector<double> node_state_vars;
-									for(int i = 0; i<NVAR; i++){
+									for(int i = 0; i<coupler_vars; i++){
 										if(MUM == 0){
-											node_state_vars.push_back(*(left_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
+											node_state_vars.push_back(*(left_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * coupler_vars) + i));//essentially move along left_p_variables in chunks of NVAR
 										}else{
-											node_state_vars.push_back(*(left_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along left_p_variables in chunks of NVAR
+											node_state_vars.push_back(*(left_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * coupler_vars) + i));//essentially move along left_p_variables in chunks of NVAR
 										}
 									}
 									left_vector_of_state_vars_total[k].insert(left_vector_of_state_vars_total[k].begin(), node_state_vars);
@@ -452,11 +460,11 @@ int main(int argc, char** argv){
 								right_vector_of_state_vars_total[k].clear();
 								while(vector_counter < (vector_counter_max/total_ranks)){
 									std::vector<double> node_state_vars;
-									for(int i = 0; i<NVAR; i++){
+									for(int i = 0; i<coupler_vars; i++){
 										if(MUM == 0){
-											node_state_vars.push_back(*(right_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along right_p_variables in chunks of NVAR
+											node_state_vars.push_back(*(right_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * coupler_vars) + i));//essentially move along right_p_variables in chunks of NVAR
 										}else{
-											node_state_vars.push_back(*(right_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * NVAR) + i));//essentially move along right_p_variables in chunks of NVAR
+											node_state_vars.push_back(*(right_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * coupler_vars) + i));//essentially move along right_p_variables in chunks of NVAR
 										}
 									}
 									right_vector_of_state_vars_total[k].insert(right_vector_of_state_vars_total[k].begin(), node_state_vars);
@@ -488,7 +496,7 @@ int main(int argc, char** argv){
 							node_state_vars_left = left_vector_of_state_vars_total[k].at(vector_counter);
 							node_state_vars_right = right_vector_of_state_vars_total[k].at(vector_counter);
 							node_state_vars_temp = node_state_vars_right;
-							for(int i = 0; i<NVAR; i++){
+							for(int i = 0; i<coupler_vars; i++){
 								node_state_vars_right.at(i) = (node_state_vars_left.at(i) + node_state_vars_right.at(i))/2;
 								node_state_vars_left.at(i) = (node_state_vars_left.at(i) + node_state_vars_temp.at(i))/2;
 							}
@@ -501,26 +509,26 @@ int main(int argc, char** argv){
 			}
 			//interpolate routine end
 			MPI_Barrier(coupler_comm);
-	        MPI_Gather(left_p_variables_l0_sg, (left_nodes_size_chunks[0] * NVAR), MPI_DOUBLE, left_p_variables_l0, (left_nodes_size_chunks[0] * NVAR), MPI_DOUBLE, 0, coupler_comm);
-	        MPI_Gather(left_p_variables_l1_sg, (left_nodes_size_chunks[1] * NVAR), MPI_DOUBLE, left_p_variables_l1, (left_nodes_size_chunks[1] * NVAR), MPI_DOUBLE, 0, coupler_comm);
-	        MPI_Gather(left_p_variables_l2_sg, (left_nodes_size_chunks[2] * NVAR), MPI_DOUBLE, left_p_variables_l2, (left_nodes_size_chunks[2] * NVAR), MPI_DOUBLE, 0, coupler_comm);
-	        MPI_Gather(left_p_variables_l3_sg, (left_nodes_size_chunks[3] * NVAR), MPI_DOUBLE, left_p_variables_l3, (left_nodes_size_chunks[3] * NVAR), MPI_DOUBLE, 0, coupler_comm);
+	        MPI_Gather(left_p_variables_l0_sg, (left_nodes_size_chunks[0] * coupler_vars), MPI_DOUBLE, left_p_variables_l0, (left_nodes_size_chunks[0] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+	        MPI_Gather(left_p_variables_l1_sg, (left_nodes_size_chunks[1] * coupler_vars), MPI_DOUBLE, left_p_variables_l1, (left_nodes_size_chunks[1] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+	        MPI_Gather(left_p_variables_l2_sg, (left_nodes_size_chunks[2] * coupler_vars), MPI_DOUBLE, left_p_variables_l2, (left_nodes_size_chunks[2] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+	        MPI_Gather(left_p_variables_l3_sg, (left_nodes_size_chunks[3] * coupler_vars), MPI_DOUBLE, left_p_variables_l3, (left_nodes_size_chunks[3] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
 
 			MPI_Barrier(coupler_comm);
-	        MPI_Gather(right_p_variables_l0_sg, (right_nodes_size_chunks[0] * NVAR), MPI_DOUBLE, right_p_variables_l0, (right_nodes_size_chunks[0] * NVAR), MPI_DOUBLE, 0, coupler_comm);
-	        MPI_Gather(right_p_variables_l1_sg, (right_nodes_size_chunks[1] * NVAR), MPI_DOUBLE, right_p_variables_l1, (right_nodes_size_chunks[1] * NVAR), MPI_DOUBLE, 0, coupler_comm);
-	        MPI_Gather(right_p_variables_l2_sg, (right_nodes_size_chunks[2] * NVAR), MPI_DOUBLE, right_p_variables_l2, (right_nodes_size_chunks[2] * NVAR), MPI_DOUBLE, 0, coupler_comm);
-	        MPI_Gather(right_p_variables_l3_sg, (right_nodes_size_chunks[3] * NVAR), MPI_DOUBLE, right_p_variables_l3, (right_nodes_size_chunks[3] * NVAR), MPI_DOUBLE, 0, coupler_comm);
+	        MPI_Gather(right_p_variables_l0_sg, (right_nodes_size_chunks[0] * coupler_vars), MPI_DOUBLE, right_p_variables_l0, (right_nodes_size_chunks[0] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+	        MPI_Gather(right_p_variables_l1_sg, (right_nodes_size_chunks[1] * coupler_vars), MPI_DOUBLE, right_p_variables_l1, (right_nodes_size_chunks[1] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+	        MPI_Gather(right_p_variables_l2_sg, (right_nodes_size_chunks[2] * coupler_vars), MPI_DOUBLE, right_p_variables_l2, (right_nodes_size_chunks[2] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+	        MPI_Gather(right_p_variables_l3_sg, (right_nodes_size_chunks[3] * coupler_vars), MPI_DOUBLE, right_p_variables_l3, (right_nodes_size_chunks[3] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
             
 			if(rank == root_rank){
-	            MPI_Send(right_p_variables_l0, right_nodes_sizes[0] * NVAR, MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
-	            MPI_Send(right_p_variables_l1, right_nodes_sizes[1] * NVAR, MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
-	            MPI_Send(right_p_variables_l2, right_nodes_sizes[2] * NVAR, MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
-	            MPI_Send(right_p_variables_l3, right_nodes_sizes[3] * NVAR, MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
-	            MPI_Send(left_p_variables_l0, left_nodes_sizes[0] * NVAR, MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
-	            MPI_Send(left_p_variables_l1, left_nodes_sizes[1] * NVAR, MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
-	            MPI_Send(left_p_variables_l2, left_nodes_sizes[2] * NVAR, MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
-	            MPI_Send(left_p_variables_l3, left_nodes_sizes[3] * NVAR, MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
+	            MPI_Send(right_p_variables_l0, right_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
+	            MPI_Send(right_p_variables_l1, right_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
+	            MPI_Send(right_p_variables_l2, right_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
+	            MPI_Send(right_p_variables_l3, right_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
+	            MPI_Send(left_p_variables_l0, left_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
+	            MPI_Send(left_p_variables_l1, left_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
+	            MPI_Send(left_p_variables_l2, left_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
+	            MPI_Send(left_p_variables_l3, left_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
 	        }
             
 			cycle_counter = cycle_counter + conversion_factor;
