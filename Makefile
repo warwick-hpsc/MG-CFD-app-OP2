@@ -51,12 +51,35 @@ ifdef DOLFINX_INSTALL_PATH
     DOLFINX_LIB = -L$(DOLFINX_INSTALL_PATH)/lib
 endif
 
+ifdef SQLITE_INSTALL_PATH
+    SQLITE_INC = -I$(SQLITE_INSTALL_PATH)/include
+    SQLITE_LIB = -L$(SQLITE_INSTALL_PATH)/lib
+endif
+
+ifdef TREETIMER_INSTALL_PATH
+    TREETIMER_INC = -I$(TREETIMER_INSTALL_PATH)/include/timing_library/interface
+    TREETIMER_LIB = -L$(TREETIMER_INSTALL_PATH) -ltt
+endif
+
+ifdef CUP_CFD_INSTALL_PATH
+    CUP_CFD_INC = -I$(CUP_CFD_INSTALL_PATH)/include
+    CUP_CFD_LIB = -L$(CUP_CFD_INSTALL_PATH)/libcupcfd_lib.a
+endif
+
 ifdef FENICS
     FENICS_DEF = -Ddeffenics
     DOLFINX_LIB += -ldolfinx
     FENICS_LIB = $(BIN_DIR)/libdolfinx_cpx.a
     PETSC_INC += -DHAVE_PETSC
     PETSC_LIB += -lpetsc
+endif
+
+ifdef CUPCFD
+    CUP_DEF = -Ddefcup
+	CUP_LIB = $(CUP_CFD_INSTALL_PATH)/libcupcfd_lib.a
+    PETSC_INC += -DHAVE_PETSC
+    PETSC_LIB += -lpetsc
+	SQLITE_LIB += -lsqlite3
 endif
 
 ifdef DEBUG
@@ -370,11 +393,12 @@ $(BIN_DIR)/mgcfd_cpx.a: $(OP2_MPI_CPX_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	ar rcs $(BIN_DIR)/mgcfd_cpx.a $(OP2_MPI_CPX_OBJECTS)
 
-$(BIN_DIR)/mgcfd_cpx_runtime: $(OP2_MPI_CPX_MAIN) $(BIN_DIR)/mgcfd_cpx.a $(FENICS_LIB)
+$(BIN_DIR)/mgcfd_cpx_runtime: $(OP2_MPI_CPX_MAIN) $(BIN_DIR)/mgcfd_cpx.a $(FENICS_LIB) $(CUP_LIB)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(BIN_DIR)/mgcfd_cpx.a $(MGCFD_LIBS) \
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(BIN_DIR)/mgcfd_cpx.a $(CUP_LIB) $(MGCFD_LIBS) \
         -lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(DOLFINX_LIB) $(PETSC_LIB) \
-        $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) -o $@ 
+		$(SQLITE_LIB) $(TREETIMER_INC) $(TREETIMER_LIB) \
+        $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) $(CUP_DEF) -o $@ 
 
 ## MPI_VEC
 $(OBJ_DIR)/mgcfd_mpi_vec_main.o: $(OP2_MAIN_SRC)
@@ -502,4 +526,5 @@ clean_openacc:
 	rm -f $(BIN_DIR)/mgcfd_openacc $(OP2_OPENACC_OBJECTS)
 clean_openmp4:
 	rm -f $(BIN_DIR)/mgcfd_openmp4 $(OP2_OMP4_OBJECTS)
+
 
