@@ -1,0 +1,56 @@
+{
+	"DataTypes" : {
+		"IntDataType" : "int",
+		"FloatDataType" : "double",
+		"MeshDataType" : "MiniAoS"
+	},
+	"Mesh" : {
+		"Partitioner" : {
+			"ParmetisPartitioner" : { }
+		},
+		"MeshSource": {
+            "MeshSourceStructGen": {
+                "CellX" : 11,
+                "CellY" : 12,
+                "CellZ" : 14,
+                "SpatialXMin" : 0.0,
+                "SpatialYMin" : 0.0,
+                "SpatialZMin" : 0.0,
+                "SpatialXMax" : 1.0,
+                "SpatialYMax" : 1.0,
+                "SpatialZMax" : 1.0 
+            }
+        }
+	},
+	"Benchmarks" :[
+		{
+			"BenchmarkParticleSystem" : {
+                "BenchmarkName" : "ParticleSystemSimpleTest",
+                "Repetitions"   : 1,
+                "NTimesteps"    : 600,
+                "DtDistribution" : {"FixedDistribution" : {"value" : 0.13171}},
+                "ParticleSystemSimple" : {
+                    "Emitters": [
+                        {
+                            "ParticleEmitterSimple" : {
+                                "Position" : {"X": 0.05, "Y": 0.12, "Z": 0.16},
+                                "Rate" : {"FixedDistribution" : {"value" : 0.1}},
+                                "AngleXY" : {"FixedDistribution" : {"value" : 0.1}},
+                                "AngleRotation" : {"FixedDistribution" : {"value" : 0.1}},
+                                "Speed" : {"FixedDistribution" : {"value" : 0.1}},
+                                "AccelerationX" : {"FixedDistribution" : {"value" : 0.0}},
+                                "AccelerationY" : {"FixedDistribution" : {"value" : 0.0}},
+                                "AccelerationZ" : {"FixedDistribution" : {"value" : 0.0}},
+                                "JerkX" : {"FixedDistribution" : {"value" : 0.0}},
+                                "JerkY" : {"FixedDistribution" : {"value" : 0.0}},
+                                "JerkZ" : {"FixedDistribution" : {"value" : 0.0}},
+                                "DecayRate" : {"FixedDistribution" : {"value" : 0.1}},
+                                "DecayThreshold" : {"FixedDistribution" : {"value" : 0.1}}
+                            }
+                        }
+                    ]
+                }
+            }
+		}
+	]
+}

@@ -268,22 +268,22 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                 mg_connectivity_filename[l] = (std::string(input_directory) + "/" + mg_connectivity_filename[l]).c_str();
         }
     }
-
+    
     if (base_array_index >= 1 && base_array_index <= 9) {
       // Append 'base_array_index' to args:
 
       char** new_argv = (char**)malloc((argc+1)*sizeof(char*));
       for (int i=0; i<argc; i++) {
-        new_argv[i] = (char*)malloc(strlen(argv[i])*sizeof(char));
+        new_argv[i] = (char*)malloc((strlen(argv[i])+1)*sizeof(char));
         strcpy(new_argv[i], argv[i]);
       }
-      new_argv[argc] = (char*)malloc(strlen("OP_MAPS_BASE_INDEX=0")*sizeof(char));
+      new_argv[argc] = (char*)malloc((strlen("OP_MAPS_BASE_INDEX=0")+1)*sizeof(char));
       sprintf(new_argv[argc], "OP_MAPS_BASE_INDEX=%d", base_array_index);
       argc++;
 
       argv = new_argv;
     }
-
+    
     #ifdef LOG_PROGRESS
         // op_init(argc, argv, 7); // Report positive checks in op_plan_check
         // op_init(argc, argv, 4);
@@ -620,7 +620,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     MPI_Comm_size(mgcfd_comm, &internal_size);
     int *ranks = new int[internal_size];
     
-    int temp_buffer;
+    //int temp_buffer;
   
     MPI_Gather(&internal_rank, 1, MPI_INT, ranks, 1, MPI_INT, 0, mgcfd_comm);
 
@@ -642,11 +642,11 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         }
     }
      
-    int recv_size = 0;
+    //int recv_size = 0;
     int total_coupler_unit_count = units[unit_count].coupler_ranks.size();
-    std::vector<bool> left;
+    //std::vector<bool> left;
     
-    for(int z = 0; z < total_coupler_unit_count; z++){
+    /*for(int z = 0; z < total_coupler_unit_count; z++){
         int coupler_rank = units[unit_count].coupler_ranks[z][0]; //This can be left alone since the instance number is the same for all ranks in a coupler unit
         int coupler_position = relative_positions[coupler_rank].placelocator; // converts coupler instance number to relative index for units AoS - needed due to stack nature of coupler allocation
         
@@ -665,31 +665,31 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             }
         }
 
-        if (std::find(units[unit_count_2].mgcfd_ranks[0].begin(), units[unit_count_2].mgcfd_ranks[0].end(), worldrank) != units[unit_count_2].mgcfd_ranks[0].end()){
+		if (std::find(units[unit_count_2].mgcfd_ranks[0].begin(), units[unit_count_2].mgcfd_ranks[0].end(), worldrank) != units[unit_count_2].mgcfd_ranks[0].end()){
             recv_size = units[unit_count_2].mgcfd_ranks[1].size();
             left.push_back(true);
         }else{
             recv_size = units[unit_count_2].mgcfd_ranks[0].size();
             left.push_back(false);
         }
-    }
+    }*/
         
     int coupler_rank = units[unit_count].coupler_ranks[0][0]; //This assumes only 1 coupler unit per 2 MG-CFD sessions 
-    int *recv_buffer = new int[recv_size];
+    //int *recv_buffer = new int[recv_size];
     int prev_cycle = -1;
 
-    int no_of_data_ranks = units[unit_count].coupler_ranks[0].size();//the number of ranks in the 'send' size
-    int no_of_recv_ranks = units[unit_count].coupler_ranks[1].size();
+    //int no_of_data_ranks = units[unit_count].coupler_ranks[0].size();//the number of ranks in the 'send' size
+    //int no_of_recv_ranks = units[unit_count].coupler_ranks[1].size();
 
     double nodes_sizes[4];
     double boundary_nodes_sizes[4];
-    double nodes_size_chunks[4];
-    double extra_chunk[4];
-    bool chunk_add = true;
+    //double nodes_size_chunks[4];
+    //double extra_chunk[4];
+    //bool chunk_add = true;
     double *p_variables_data_l0, *p_variables_data_l1, *p_variables_data_l2, *p_variables_data_l3;
     double *p_variables_recv_l0, *p_variables_recv_l1, *p_variables_recv_l2, *p_variables_recv_l3;
-    double add_amount[4];
-    long long int total_amount[4] = {0,0,0,0};
+    //double add_amount[4];
+    //long long int total_amount[4] = {0,0,0,0};
     int null_check;
 
     for (int z = 0; z < 4; z++) {
@@ -703,7 +703,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     }
 
     for (int z = 0; z < levels; z++) {
-        boundary_nodes_sizes[z] = round(nodes_sizes[z] * 0.025);//the boundary mesh is roughly 2.5% the actual mesh size
+        boundary_nodes_sizes[z] = round(nodes_sizes[z] * 0.0042);//set the boundary size
     }
 
     int ranks_per_coupler;
@@ -753,15 +753,36 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                 op_printf("Cycle %d comms starting\n", i);
                 for(int z = 0; z < total_coupler_unit_count; z++){
                     coupler_rank = units[unit_count].coupler_ranks[z][0];
-                    MPI_Send(p_variables_data_l0, boundary_nodes_sizes[0] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+					int coupler_position = relative_positions[coupler_rank].placelocator;
+					found = false;
+					int unit_count_2 = 0;
+					int coupler_unit_count = 1;
+					while(!found){//this is used to find out the unit index of the coupler unit we want
+						if(units[unit_count_2].type == 'C' && coupler_unit_count == coupler_position){
+						found=true;
+						}else{
+							if(units[unit_count_2].type == 'C'){
+								coupler_unit_count++;
+							}
+							unit_count_2++;
+						}
+					}
+					int coupler_vars = 0;
+					if(units[unit_count_2].coupling_type == 'S'){
+						coupler_vars = 5;
+					}else if(units[unit_count_2].coupling_type == 'C'){
+						coupler_vars = 1;
+					}
+
+                    MPI_Send(p_variables_data_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
                     auto start = std::chrono::steady_clock::now();
-                    MPI_Send(p_variables_data_l1, boundary_nodes_sizes[1] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                    MPI_Send(p_variables_data_l2, boundary_nodes_sizes[2] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                    MPI_Send(p_variables_data_l3, boundary_nodes_sizes[3] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                    MPI_Recv(p_variables_recv_l0, boundary_nodes_sizes[0] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    MPI_Recv(p_variables_recv_l1, boundary_nodes_sizes[1] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    MPI_Recv(p_variables_recv_l2, boundary_nodes_sizes[2] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    MPI_Recv(p_variables_recv_l3, boundary_nodes_sizes[3] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Send(p_variables_data_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                    MPI_Send(p_variables_data_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                    MPI_Send(p_variables_data_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                    MPI_Recv(p_variables_recv_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(p_variables_recv_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(p_variables_recv_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(p_variables_recv_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     auto end = std::chrono::steady_clock::now();
                     std::chrono::duration<double> elapsed_seconds = end-start;
                     total_seconds += elapsed_seconds;
