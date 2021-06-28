@@ -2,7 +2,7 @@
 #define CONST_H
 
 #ifndef OP_FUN_PREFIX
-    #ifdef __CUDACC__
+    #if defined(__CUDACC__) || defined(__HIP_PLATFORM_HCC__)
         #define OP_FUN_PREFIX __host__ __device__
     #else
         #define OP_FUN_PREFIX

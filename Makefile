@@ -115,6 +115,9 @@ else
 ifeq ($(OP2_COMPILER),intel-sycl)
   CPP = dpcpp
 else
+ifeq ($(OP2_COMPILER),hipsycl)
+  CPP = syclcc-clang
+else
   $(error unrecognised value for COMPILER: $(COMPILER))
 endif
 endif
@@ -123,6 +126,8 @@ endif
 endif
 endif
 endif
+endif
+HIPCC = hipcc
 
 ifeq ($(COMPILER),cray)
   ## Check whether Cray uses Clang frontend:
@@ -279,6 +284,10 @@ endif
 #
 # set flags for NVCC compilation and linking
 #
+ifdef AMD_ARCH
+  SYCL_FLAGS += --hipsycl-gpu-arch=$(AMD_ARCH)
+  NV_ARCH=" "
+endif
 
 ifndef NV_ARCH
   MESSAGE=select an NVIDA device to compile in CUDA, e.g. make NV_ARCH=KEPLER
@@ -348,7 +357,7 @@ endif
 
 
 #all: seq openmp mpi mpi_vec mpi_openmp
-all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda sycl
+all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda sycl hip mpi_hip
 # all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda openacc openmp4
 
 parallel: N = $(shell nproc)
@@ -363,7 +372,9 @@ vec: mpi_vec
 mpi_vec: $(BIN_DIR)/mgcfd_mpi_vec
 mpi_openmp: $(BIN_DIR)/mgcfd_mpi_openmp
 cuda: $(BIN_DIR)/mgcfd_cuda
+hip: $(BIN_DIR)/mgcfd_hip
 mpi_cuda: $(BIN_DIR)/mgcfd_mpi_cuda
+mpi_hip: $(BIN_DIR)/mgcfd_mpi_hip
 openmp4: $(BIN_DIR)/mgcfd_openmp4
 openacc: $(BIN_DIR)/mgcfd_openacc
 
@@ -401,6 +412,11 @@ OP2_OMP4_OBJECTS := $(OBJ_DIR)/mgcfd_omp4_main.o \
 OP2_OPENACC_OBJECTS := $(OBJ_DIR)/mgcfd_openacc_main.o \
                        $(OBJ_DIR)/mgcfd_openacc_kernels.o
 
+OP2_HIP_OBJECTS := $(OBJ_DIR)/mgcfd_hip_main.o \
+                    $(OBJ_DIR)/mgcfd_kernels_hip.o
+
+OP2_MPI_HIP_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_hip_main.o \
+                        $(OBJ_DIR)/mgcfd_mpi_kernels_hip.o
 
 KERNELS := calc_rms_kernel \
 	calculate_cell_volumes \
@@ -434,7 +450,7 @@ VEC_KERNELS := $(patsubst %, $(SRC_DIR)/../vec/%_veckernel.cpp, $(KERNELS))
 ACC_KERNELS := $(patsubst %, $(SRC_DIR)/../openacc/%_acckernel.c, $(KERNELS))
 OMP4_KERNELS := $(patsubst %, $(SRC_DIR)/../openmp4/%_omp4kernel.cpp, $(KERNELS))
 OMP4_KERNEL_FUNCS := $(patsubst %, $(SRC_DIR)/../openmp4/%_omp4kernel_func.cpp, $(KERNELS))
-
+HIP_KERNELS := $(patsubst %, $(SRC_DIR)/../hip/%_kernel.cpp, $(KERNELS))
 
 
 ## SEQUENTIAL
@@ -609,6 +625,36 @@ $(BIN_DIR)/mgcfd_openacc: $(OP2_OPENACC_OBJECTS)
 	$(MPICPP) $(CPPFLAGS) $(ACCFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
 	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_cuda $(HDF5_LIB) -lop2_hdf5 \
 	    -o $@
+
+## HIP
+$(OBJ_DIR)/mgcfd_hip_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+	    	-DCUDA_ON -c -o $@ $^
+$(OBJ_DIR)/mgcfd_kernels_hip.o: $(SRC_DIR)/../hip/_kernels.cpp $(HIP_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	hipcc $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) \
+	        -c -o $@ $(SRC_DIR)/../hip/_kernels.cpp
+$(BIN_DIR)/mgcfd_hip: $(OP2_HIP_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(HIPCC) $(CFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+	    $(HIP_LIB) $(OP2_LIB) -lop2_hip $(HDF5_LIB) -lop2_hdf5 \
+	    -o $@
+
+## MPI HIP
+$(OBJ_DIR)/mgcfd_mpi_kernels_hip.o: $(SRC_DIR)/../hip/_kernels.cpp $(HIP_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	hipcc $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) -I$(MPI_INSTALL_PATH)/include  \
+	        -c -o $@ $(SRC_DIR)/../hip/_kernels.cpp
+$(OBJ_DIR)/mgcfd_mpi_hip_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+        -DCUDA_ON -c -o $@ $^
+$(BIN_DIR)/mgcfd_mpi_hip: $(OP2_MPI_HIP_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(HIPCC) $(shell mpicxx --showme:compile) $(CFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+	    $(HIP_LIB) $(OP2_LIB) -lop2_mpi_hip $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) $(shell mpicxx --showme:link) \
+        -o $@
 
 
 clean:
