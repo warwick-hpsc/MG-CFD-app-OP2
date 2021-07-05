@@ -39,6 +39,7 @@ int main(int argc, char** argv){
 	char type[] = "TYPE";
 	bool debug = true;
 	bool superdebug = false;//Disables coupling entirely and allows applications to run on their own
+	bool fastsearch = false;
 
 	int mpi_ranks = 0;
 	char keyword[8];//longest word is COUPLER
@@ -401,6 +402,10 @@ int main(int argc, char** argv){
 			std::vector< std::vector<double> > left_vector_of_state_vars_total[4] = {vector_of_state_vars_l0, vector_of_state_vars_l1, vector_of_state_vars_l2, vector_of_state_vars_l3};
 			std::vector< std::vector<double> > right_vector_of_state_vars_total[4] = {vector_of_state_vars_l0, vector_of_state_vars_l1, vector_of_state_vars_l2, vector_of_state_vars_l3};
 
+			std::map< int, std::vector<double> > map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3; //p_variable vectors to represent tree-based search
+			std::map< int, std::vector<double> > left_map_of_state_vars_total[4] = {map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3};
+			std::map< int, std::vector<double> > right_map_of_state_vars_total[4] = {map_of_state_vars_l0, map_of_state_vars_l1, map_of_state_vars_l2, map_of_state_vars_l3};
+
 			while((cycle_counter < mgcycles) && (cycle_counter % conversion_factor) == 0){// Change this value to the number of cycles if it is not the default
 
 				int local_size;
@@ -444,7 +449,7 @@ int main(int argc, char** argv){
 				//rendezvous routines start
 				if(units[unit_count].coupling_type == 'S' || cycle_counter == 0){
 					if((cycle_counter % upd_freq) == 0){
-						for(int l = 0; l < 5; l++){
+						for(int l = 0; l < 10; l++){
 							for(int k = 0; k < 4; k++){
 					        	vector_counter = 0;
 								if(MUM == 0){
@@ -453,9 +458,28 @@ int main(int argc, char** argv){
 									vector_counter_max = std::min(vector_counter_max_sizes_l[k], vector_counter_max_sizes_r[k]);//this is size of mesh recieved from scatter
 								}
 								sub_count = 0;
-								while(sub_count < total_ranks){
-									left_vector_of_state_vars_total[k].clear();
-									while(vector_counter < (vector_counter_max/total_ranks)){
+								if(!fastsearch){
+									while(sub_count < total_ranks){
+										left_vector_of_state_vars_total[k].clear();
+										while(vector_counter < (vector_counter_max/total_ranks)){
+											std::vector<double> node_state_vars;
+											for(int i = 0; i<coupler_vars; i++){
+												if(MUM == 0){
+													node_state_vars.push_back(*(left_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * coupler_vars) + i));//essentially move along left_p_variables in chunks of NVAR
+												}else{
+													node_state_vars.push_back(*(left_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * coupler_vars) + i));//essentially move along left_p_variables in chunks of NVAR
+												}
+											}
+											left_vector_of_state_vars_total[k].insert(left_vector_of_state_vars_total[k].begin(), node_state_vars);
+											vector_counter++;
+										}
+										vector_counter = 0;
+										sub_count++;
+									}
+								}else{
+									left_map_of_state_vars_total[k].clear();
+									vector_counter = 0;
+									while(vector_counter < (vector_counter_max)){
 										std::vector<double> node_state_vars;
 										for(int i = 0; i<coupler_vars; i++){
 											if(MUM == 0){
@@ -464,18 +488,17 @@ int main(int argc, char** argv){
 												node_state_vars.push_back(*(left_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * coupler_vars) + i));//essentially move along left_p_variables in chunks of NVAR
 											}
 										}
-										left_vector_of_state_vars_total[k].insert(left_vector_of_state_vars_total[k].begin(), node_state_vars);
+										left_map_of_state_vars_total[k].insert(std::make_pair(vector_counter, node_state_vars));
 										vector_counter++;
 									}
-									vector_counter = 0;
-									sub_count++;
 								}
 				        	}
+
 				        }
 					}
 
 					if((cycle_counter % upd_freq) == 0){
-						for(int l = 0; l < 5; l++){
+						for(int l = 0; l < 10; l++){
 							for(int k = 0; k < 4; k++){
 					        	vector_counter = 0;
 								if(MUM == 0){
@@ -484,9 +507,28 @@ int main(int argc, char** argv){
 									vector_counter_max = std::min(vector_counter_max_sizes_l[k], vector_counter_max_sizes_r[k]);//this is size of mesh recieved from scatter
 								}
 								sub_count = 0;
-								while(sub_count < total_ranks){
-									right_vector_of_state_vars_total[k].clear();
-									while(vector_counter < (vector_counter_max/total_ranks)){
+								if(!fastsearch){
+									while(sub_count < total_ranks){
+										right_vector_of_state_vars_total[k].clear();
+										while(vector_counter < (vector_counter_max/total_ranks)){
+											std::vector<double> node_state_vars;
+											for(int i = 0; i<coupler_vars; i++){
+												if(MUM == 0){
+													node_state_vars.push_back(*(right_p_variable_pointers_full[k] + (static_cast<long long>(vector_counter) * coupler_vars) + i));//essentially move along right_p_variables in chunks of NVAR
+												}else{
+													node_state_vars.push_back(*(right_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * coupler_vars) + i));//essentially move along right_p_variables in chunks of NVAR
+												}
+											}
+											right_vector_of_state_vars_total[k].insert(right_vector_of_state_vars_total[k].begin(), node_state_vars);
+											vector_counter++;
+										}
+										vector_counter = 0;
+										sub_count++;
+									}
+								}else{
+									right_map_of_state_vars_total[k].clear();
+									vector_counter = 0;
+									while(vector_counter < (vector_counter_max)){
 										std::vector<double> node_state_vars;
 										for(int i = 0; i<coupler_vars; i++){
 											if(MUM == 0){
@@ -495,19 +537,29 @@ int main(int argc, char** argv){
 												node_state_vars.push_back(*(right_p_variable_pointers[k] + (static_cast<long long>(vector_counter) * coupler_vars) + i));//essentially move along right_p_variables in chunks of NVAR
 											}
 										}
-										right_vector_of_state_vars_total[k].insert(right_vector_of_state_vars_total[k].begin(), node_state_vars);
+										right_map_of_state_vars_total[k].insert(std::make_pair(vector_counter, node_state_vars));
 										vector_counter++;
 									}
-									vector_counter = 0;
-									sub_count++;
 								}
 				        	}
 				        }
 					}
+
+					for(int k = 0; k < 4; k++){
+						if(fastsearch){
+							vector_counter_max = std::min(vector_counter_max_sizes_l[k], vector_counter_max_sizes_r[k]);
+							for(int i=0; i<(vector_counter_max/total_ranks); i++){
+								left_vector_of_state_vars_total[k].insert(left_vector_of_state_vars_total[k].end(), left_map_of_state_vars_total[k].at(i));
+								right_vector_of_state_vars_total[k].insert(right_vector_of_state_vars_total[k].end(), right_map_of_state_vars_total[k].at(i));
+							}
+						}
+					}
 				}
 				//rendezvous routines end
-
+				
 				//interpolate routine start
+				
+				
 				if((cycle_counter % conversion_factor) == 0){
 					for(int k = 0; k < 4; k++){
 						std::vector<double> node_state_vars_left;
@@ -519,7 +571,7 @@ int main(int argc, char** argv){
 						sub_count = 0;
 	                    //NEW
 	                    vector_counter_max = std::min(vector_counter_max_sizes_l[k], vector_counter_max_sizes_r[k]);//this is size of mesh recieved from scatter
-						while(sub_count < (total_ranks*500)){
+						while(sub_count < (total_ranks*3500)){
 							while(vector_counter < vector_counter_max/total_ranks){
 								node_state_vars_left = left_vector_of_state_vars_total[k].at(vector_counter);
 								node_state_vars_right = right_vector_of_state_vars_total[k].at(vector_counter);
@@ -535,6 +587,8 @@ int main(int argc, char** argv){
 						}
 					}
 				}
+				
+				
 				//interpolate routine end
 				MPI_Barrier(coupler_comm);
 		        MPI_Gather(left_p_variables_l0_sg, (left_nodes_size_chunks[0] * coupler_vars), MPI_DOUBLE, left_p_variables_l0, (left_nodes_size_chunks[0] * coupler_vars), MPI_DOUBLE, 0, coupler_comm);

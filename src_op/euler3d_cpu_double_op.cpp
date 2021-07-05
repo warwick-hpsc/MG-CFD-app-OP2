@@ -686,6 +686,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     //double nodes_size_chunks[4];
     //double extra_chunk[4];
     //bool chunk_add = true;
+    bool hide_search = true;
     double *p_variables_data_l0, *p_variables_data_l1, *p_variables_data_l2, *p_variables_data_l3;
     double *p_variables_recv_l0, *p_variables_recv_l1, *p_variables_recv_l2, *p_variables_recv_l3;
     //double add_amount[4];
@@ -742,7 +743,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             }
         #endif
 
-        if(i != prev_cycle && (i % conversion_factor) == 0){
+        if((i != prev_cycle && (i % conversion_factor) == 0) || (hide_search == true && i != prev_cycle && ((i % upd_freq) == conversion_factor - 1))){
             prev_cycle=i;
 
             for (int z = 0; z < levels; z++) {
@@ -750,7 +751,12 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             }
             
             if(internal_rank == MPI_ROOT){
-                op_printf("Cycle %d comms starting\n", i);
+                if(hide_search == true){
+                    op_printf("Cycle %d comms starting\n", i);
+                } else if (hide_search == false && ((i % upd_freq) != conversion_factor - 1)){
+                    op_printf("Cycle %d comms starting\n", i);
+                }
+
                 for(int z = 0; z < total_coupler_unit_count; z++){
                     coupler_rank = units[unit_count].coupler_ranks[z][0];
 					int coupler_position = relative_positions[coupler_rank].placelocator;
@@ -773,19 +779,54 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 					}else if(units[unit_count_2].coupling_type == 'C'){
 						coupler_vars = 1;
 					}
-
-                    MPI_Send(p_variables_data_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                    auto start = std::chrono::steady_clock::now();
-                    MPI_Send(p_variables_data_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                    MPI_Send(p_variables_data_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                    MPI_Send(p_variables_data_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                    MPI_Recv(p_variables_recv_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    MPI_Recv(p_variables_recv_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    MPI_Recv(p_variables_recv_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    MPI_Recv(p_variables_recv_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    auto end = std::chrono::steady_clock::now();
-                    std::chrono::duration<double> elapsed_seconds = end-start;
-                    total_seconds += elapsed_seconds;
+                    if(hide_search == true){
+                        if((i % upd_freq) == 0){
+                            op_printf("Cycle %d - search taking place\n", i);
+                            MPI_Send(p_variables_data_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            auto start = std::chrono::steady_clock::now();
+                            MPI_Send(p_variables_data_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            MPI_Send(p_variables_data_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            MPI_Send(p_variables_data_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            auto end = std::chrono::steady_clock::now();
+                            std::chrono::duration<double> elapsed_seconds = end-start;
+                            total_seconds += elapsed_seconds;
+                        }else if((i % upd_freq) == conversion_factor - 1){
+                            MPI_Recv(p_variables_recv_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            auto start = std::chrono::steady_clock::now();
+                            MPI_Recv(p_variables_recv_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            MPI_Recv(p_variables_recv_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            MPI_Recv(p_variables_recv_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            auto end = std::chrono::steady_clock::now();
+                            std::chrono::duration<double> elapsed_seconds = end-start;
+                            total_seconds += elapsed_seconds;
+                        }else{
+                            MPI_Send(p_variables_data_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            auto start = std::chrono::steady_clock::now();
+                            MPI_Send(p_variables_data_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            MPI_Send(p_variables_data_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            MPI_Send(p_variables_data_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            MPI_Recv(p_variables_recv_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            MPI_Recv(p_variables_recv_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            MPI_Recv(p_variables_recv_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            MPI_Recv(p_variables_recv_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            auto end = std::chrono::steady_clock::now();
+                            std::chrono::duration<double> elapsed_seconds = end-start;
+                            total_seconds += elapsed_seconds;
+                        }
+                    }else{
+                        MPI_Send(p_variables_data_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                        auto start = std::chrono::steady_clock::now();
+                        MPI_Send(p_variables_data_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                        MPI_Send(p_variables_data_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                        MPI_Send(p_variables_data_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                        MPI_Recv(p_variables_recv_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                        MPI_Recv(p_variables_recv_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                        MPI_Recv(p_variables_recv_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                        MPI_Recv(p_variables_recv_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                        auto end = std::chrono::steady_clock::now();
+                        std::chrono::duration<double> elapsed_seconds = end-start;
+                        total_seconds += elapsed_seconds;
+                    }
                 }
             }
 
