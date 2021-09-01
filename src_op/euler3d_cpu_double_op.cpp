@@ -707,6 +707,11 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         boundary_nodes_sizes[z] = round(nodes_sizes[z] * 0.0042);//set the boundary size
     }
 
+    op_printf("Size of interface: %f \n", boundary_nodes_sizes[0]);
+    op_printf("Size of interface 2: %f \n", boundary_nodes_sizes[1]);
+    op_printf("Size of interface 3: %f \n", boundary_nodes_sizes[2]);
+    op_printf("Size of interface 4: %f \n", boundary_nodes_sizes[3]);
+
     int ranks_per_coupler;
     if (internal_rank == MPI_ROOT) {
         for(int z = 0; z < total_coupler_unit_count; z++){

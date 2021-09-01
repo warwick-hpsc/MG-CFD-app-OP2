@@ -8,6 +8,7 @@
 #endif
 #include <stdio.h>
 #include <mpi.h>
+#include <cmath>
 #include <string.h>
 #include <stdlib.h>
 #include <vector>
@@ -345,6 +346,9 @@ int main(int argc, char** argv){
 	        double *left_p_variables_l0, *left_p_variables_l1, *left_p_variables_l2, *left_p_variables_l3;
 	        double *right_p_variables_l0, *right_p_variables_l1, *right_p_variables_l2, *right_p_variables_l3;
 
+			double adjusted_sizes_left = ceil((left_nodes_sizes[0]/34000)/4);
+			double adjusted_sizes_right = ceil((right_nodes_sizes[0]/34000)/4);
+
 	        left_p_variables_l0 = (double *) malloc(left_nodes_sizes[0] * coupler_vars * sizeof(double));
 	        left_p_variables_l1 = (double *) malloc(left_nodes_sizes[1] * coupler_vars * sizeof(double));
 	        left_p_variables_l2 = (double *) malloc(left_nodes_sizes[2] * coupler_vars * sizeof(double));
@@ -376,6 +380,7 @@ int main(int argc, char** argv){
 	        double *left_p_variables_l0_sg, *left_p_variables_l1_sg, *left_p_variables_l2_sg, *left_p_variables_l3_sg;
 	        double *right_p_variables_l0_sg, *right_p_variables_l1_sg, *right_p_variables_l2_sg, *right_p_variables_l3_sg;
 
+			int search_repeats = 10;
 			double vector_counter;
 			int sub_count;
 			double vector_counter_max;
@@ -449,7 +454,7 @@ int main(int argc, char** argv){
 				//rendezvous routines start
 				if(units[unit_count].coupling_type == 'S' || cycle_counter == 0){
 					if((cycle_counter % upd_freq) == 0){
-						for(int l = 0; l < 10; l++){
+						for(int l = 0; l < (search_repeats * adjusted_sizes_left); l++){
 							for(int k = 0; k < 4; k++){
 					        	vector_counter = 0;
 								if(MUM == 0){
@@ -498,7 +503,7 @@ int main(int argc, char** argv){
 					}
 
 					if((cycle_counter % upd_freq) == 0){
-						for(int l = 0; l < 10; l++){
+						for(int l = 0; l < (search_repeats * adjusted_sizes_right); l++){
 							for(int k = 0; k < 4; k++){
 					        	vector_counter = 0;
 								if(MUM == 0){
@@ -545,13 +550,14 @@ int main(int argc, char** argv){
 				        }
 					}
 
-					for(int k = 0; k < 4; k++){
+					for(int k = 0; k < 4; k++){//this routine is used to convert the tree in the based search to a vector so the interpolation routine can run as before
 						if(fastsearch){
 							vector_counter_max = std::min(vector_counter_max_sizes_l[k], vector_counter_max_sizes_r[k]);
 							for(int i=0; i<(vector_counter_max/total_ranks); i++){
 								left_vector_of_state_vars_total[k].insert(left_vector_of_state_vars_total[k].end(), left_map_of_state_vars_total[k].at(i));
 								right_vector_of_state_vars_total[k].insert(right_vector_of_state_vars_total[k].end(), right_map_of_state_vars_total[k].at(i));
 							}
+							search_repeats = 1;
 						}
 					}
 				}
@@ -571,7 +577,7 @@ int main(int argc, char** argv){
 						sub_count = 0;
 	                    //NEW
 	                    vector_counter_max = std::min(vector_counter_max_sizes_l[k], vector_counter_max_sizes_r[k]);//this is size of mesh recieved from scatter
-						while(sub_count < (total_ranks*3500)){
+						while(sub_count < (total_ranks*(3500/((adjusted_sizes_left + adjusted_sizes_right)/2)))){//TODO: changes the adjusted_sizes to whichever is lower
 							while(vector_counter < vector_counter_max/total_ranks){
 								node_state_vars_left = left_vector_of_state_vars_total[k].at(vector_counter);
 								node_state_vars_right = right_vector_of_state_vars_total[k].at(vector_counter);
