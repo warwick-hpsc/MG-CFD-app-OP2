@@ -206,17 +206,20 @@ inline void down_v2_kernel_post(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline void down_kernel_vec( double* variable, const double* residual, const double* coord, const double residual_above[*][SIMD_VEC], const double coord_above[*][SIMD_VEC], int idx ) {
-    double dx = fabs(coord[0] - coord_above[0][idx]);
-    double dy = fabs(coord[1] - coord_above[1][idx]);
-    double dz = fabs(coord[2] - coord_above[2][idx]);
+#if defined __clang__ || defined __GNUC__
+__attribute__((always_inline))
+#endif
+inline void down_kernel_vec( double variable[][SIMD_VEC], const double residual[][SIMD_VEC], const double coord[][SIMD_VEC], const double residual_above[][SIMD_VEC], const double coord_above[][SIMD_VEC], int idx ) {
+    double dx = fabs(coord[0][idx] - coord_above[0][idx]);
+    double dy = fabs(coord[1][idx] - coord_above[1][idx]);
+    double dz = fabs(coord[2][idx] - coord_above[2][idx]);
     double dm = sqrt(dx*dx + dy*dy + dz*dz);
 
-    variable[VAR_DENSITY]        -= dm* (residual_above[VAR_DENSITY][idx]        - residual[VAR_DENSITY]);
-    variable[VAR_MOMENTUM+0]     -= dx* (residual_above[VAR_MOMENTUM+0][idx]     - residual[VAR_MOMENTUM+0]);
-    variable[VAR_MOMENTUM+1]     -= dy* (residual_above[VAR_MOMENTUM+1][idx]     - residual[VAR_MOMENTUM+1]);
-    variable[VAR_MOMENTUM+2]     -= dz* (residual_above[VAR_MOMENTUM+2][idx]     - residual[VAR_MOMENTUM+2]);
-    variable[VAR_DENSITY_ENERGY] -= dm* (residual_above[VAR_DENSITY_ENERGY][idx] - residual[VAR_DENSITY_ENERGY]);
+    variable[VAR_DENSITY][idx]        -= dm* (residual_above[VAR_DENSITY][idx]        - residual[VAR_DENSITY][idx]);
+    variable[VAR_MOMENTUM+0][idx]     -= dx* (residual_above[VAR_MOMENTUM+0][idx]     - residual[VAR_MOMENTUM+0][idx]);
+    variable[VAR_MOMENTUM+1][idx]     -= dy* (residual_above[VAR_MOMENTUM+1][idx]     - residual[VAR_MOMENTUM+1][idx]);
+    variable[VAR_MOMENTUM+2][idx]     -= dz* (residual_above[VAR_MOMENTUM+2][idx]     - residual[VAR_MOMENTUM+2][idx]);
+    variable[VAR_DENSITY_ENERGY][idx] -= dm* (residual_above[VAR_DENSITY_ENERGY][idx] - residual[VAR_DENSITY_ENERGY][idx]);
 
 }
 #endif
@@ -239,15 +242,15 @@ void op_par_loop_down_kernel(char const *name, op_set set,
   args[4] = arg4;
   //create aligned pointers for dats
   ALIGNED_double       double * __restrict__ ptr0 = (double *) arg0.data;
-  __assume_aligned(ptr0,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr0,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr1 = (double *) arg1.data;
-  __assume_aligned(ptr1,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr1,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr2 = (double *) arg2.data;
-  __assume_aligned(ptr2,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr2,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr3 = (double *) arg3.data;
-  __assume_aligned(ptr3,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr3,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr4 = (double *) arg4.data;
-  __assume_aligned(ptr4,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr4,double_ALIGN);
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
@@ -265,15 +268,37 @@ void op_par_loop_down_kernel(char const *name, op_set set,
     #ifdef VECTORIZE
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      if (n+SIMD_VEC >= set->core_size) {
+      if ((n+SIMD_VEC >= set->core_size) && (n+SIMD_VEC-set->core_size < SIMD_VEC)) {
         op_mpi_wait_all(nargs, args);
       }
+      ALIGNED_double double dat0[5][SIMD_VEC];
+      ALIGNED_double double dat1[5][SIMD_VEC];
+      ALIGNED_double double dat2[3][SIMD_VEC];
       ALIGNED_double double dat3[5][SIMD_VEC];
       ALIGNED_double double dat4[3][SIMD_VEC];
       #pragma omp simd simdlen(SIMD_VEC)
       for ( int i=0; i<SIMD_VEC; i++ ){
+        int idx0_5 = 5 * (n+i);
+        int idx1_5 = 5 * (n+i);
+        int idx2_3 = 3 * (n+i);
         int idx3_5 = 5 * arg3.map_data[(n+i) * arg3.map->dim + 0];
         int idx4_3 = 3 * arg3.map_data[(n+i) * arg3.map->dim + 0];
+
+        dat0[0][i] = 0.0;
+        dat0[1][i] = 0.0;
+        dat0[2][i] = 0.0;
+        dat0[3][i] = 0.0;
+        dat0[4][i] = 0.0;
+
+        dat1[0][i] = (ptr1)[idx1_5 + 0];
+        dat1[1][i] = (ptr1)[idx1_5 + 1];
+        dat1[2][i] = (ptr1)[idx1_5 + 2];
+        dat1[3][i] = (ptr1)[idx1_5 + 3];
+        dat1[4][i] = (ptr1)[idx1_5 + 4];
+
+        dat2[0][i] = (ptr2)[idx2_3 + 0];
+        dat2[1][i] = (ptr2)[idx2_3 + 1];
+        dat2[2][i] = (ptr2)[idx2_3 + 2];
 
         dat3[0][i] = (ptr3)[idx3_5 + 0];
         dat3[1][i] = (ptr3)[idx3_5 + 1];
@@ -289,15 +314,21 @@ void op_par_loop_down_kernel(char const *name, op_set set,
       #pragma omp simd simdlen(SIMD_VEC)
       for ( int i=0; i<SIMD_VEC; i++ ){
         down_kernel_vec(
-          &(ptr0)[5 * (n+i)],
-          &(ptr1)[5 * (n+i)],
-          &(ptr2)[3 * (n+i)],
+          dat0,
+          dat1,
+          dat2,
           dat3,
           dat4,
           i);
       }
       for ( int i=0; i<SIMD_VEC; i++ ){
+        int idx0_5 = 5 * (n+i);
 
+        (ptr0)[idx0_5 + 0] += dat0[0][i];
+        (ptr0)[idx0_5 + 1] += dat0[1][i];
+        (ptr0)[idx0_5 + 2] += dat0[2][i];
+        (ptr0)[idx0_5 + 3] += dat0[3][i];
+        (ptr0)[idx0_5 + 4] += dat0[4][i];
       }
     }
 
@@ -309,7 +340,8 @@ void op_par_loop_down_kernel(char const *name, op_set set,
       if (n==set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      int map3idx = arg3.map_data[n * arg3.map->dim + 0];
+      int map3idx;
+      map3idx = arg3.map_data[n * arg3.map->dim + 0];
 
       down_kernel(
         &(ptr0)[5 * n],

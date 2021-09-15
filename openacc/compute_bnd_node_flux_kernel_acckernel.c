@@ -76,7 +76,7 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
   int ncolors = 0;
 
-  if (set->size >0) {
+  if (set_size >0) {
 
 
     //Set up typed device pointers for OpenACC
@@ -103,7 +103,8 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
       #pragma acc parallel loop independent deviceptr(col_reord,map2,data0,data1,data2,data3)
       for ( int e=start; e<end; e++ ){
         int n = col_reord[e];
-        int map2idx = map2[n + set_size1 * 0];
+        int map2idx;
+        map2idx = map2[n + set_size1 * 0];
 
 
         compute_bnd_node_flux_kernel_openacc(

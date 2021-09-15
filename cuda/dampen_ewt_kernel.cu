@@ -10,9 +10,9 @@
 //user function
 __device__ void dampen_ewt_gpu( 
     double* ewt) {
-    ewt[0] *= 1e-7;
-    ewt[1] *= 1e-7;
-    ewt[2] *= 1e-7;
+    ewt[0] *= 1e-9;
+    ewt[1] *= 1e-9;
+    ewt[2] *= 1e-9;
 
 }
 
@@ -52,15 +52,14 @@ void op_par_loop_dampen_ewt(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  dampen_ewt");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (set_size > 0) {
 
     //set CUDA execution parameters
     #ifdef OP_BLOCK_SIZE_4
       int nthread = OP_BLOCK_SIZE_4;
     #else
       int nthread = OP_block_size;
-    //  int nthread = 128;
     #endif
 
     int nblocks = 200;

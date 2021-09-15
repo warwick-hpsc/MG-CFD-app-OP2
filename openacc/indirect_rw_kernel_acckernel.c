@@ -99,7 +99,7 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
 
   int ncolors = 0;
 
-  if (set->size >0) {
+  if (set_size >0) {
 
 
     //Set up typed device pointers for OpenACC
@@ -125,8 +125,10 @@ void op_par_loop_indirect_rw_kernel(char const *name, op_set set,
       #pragma acc parallel loop independent deviceptr(col_reord,map0,data2,data0,data3)
       for ( int e=start; e<end; e++ ){
         int n = col_reord[e];
-        int map0idx = map0[n + set_size1 * 0];
-        int map1idx = map0[n + set_size1 * 1];
+        int map0idx;
+        int map1idx;
+        map0idx = map0[n + set_size1 * 0];
+        map1idx = map0[n + set_size1 * 1];
 
 
         indirect_rw_kernel_openacc(

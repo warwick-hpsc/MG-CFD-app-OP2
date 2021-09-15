@@ -10,10 +10,16 @@
 #define ALIGNED_double __attribute__((aligned(double_ALIGN)))
 #define ALIGNED_float __attribute__((aligned(float_ALIGN)))
 #define ALIGNED_int __attribute__((aligned(int_ALIGN)))
+  #ifdef __ICC
+    #define DECLARE_PTR_ALIGNED(X, Y) __assume_aligned(X, Y)
+  #else
+    #define DECLARE_PTR_ALIGNED(X, Y)
+  #endif
 #else
 #define ALIGNED_double
 #define ALIGNED_float
 #define ALIGNED_int
+#define DECLARE_PTR_ALIGNED(X, Y)
 #endif
 
 // global constants
@@ -21,20 +27,6 @@
 // header
 #include "op_lib_cpp.h"
 
-#ifdef PAPI
-#include <papi.h>
-#endif
-void op_par_loop_compute_flux_edge_kernel_instrumented(
-  char const *name, op_set set,
-  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef VERIFY_OP2_TIMING
-    , double* compute_time_ptr, double* sync_time_ptr
-  #endif
-  , long* iter_counts_ptr
-  #ifdef PAPI
-  , long_long* restrict event_counts, int event_set, int num_events
-  #endif
-);
 // user kernel files
 #include "initialize_variables_kernel_veckernel.cpp"
 #include "zero_5d_array_kernel_veckernel.cpp"

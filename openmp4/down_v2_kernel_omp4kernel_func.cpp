@@ -32,10 +32,14 @@ void down_v2_kernel_omp4_kernel(
   #pragma omp distribute parallel for schedule(static,1)
   for ( int e=start; e<end; e++ ){
     int n_op = col_reord[e];
-    int map0idx = map0[n_op + set_size1 * 0];
-    int map1idx = map0[n_op + set_size1 * 1];
-    int map2idx = map2[n_op + set_size1 * 0];
-    int map3idx = map2[n_op + set_size1 * 1];
+    int map0idx;
+    int map1idx;
+    int map2idx;
+    int map3idx;
+    map0idx = map0[n_op + set_size1 * 0];
+    map1idx = map0[n_op + set_size1 * 1];
+    map2idx = map2[n_op + set_size1 * 0];
+    map3idx = map2[n_op + set_size1 * 1];
 
     //variable mapping
     const double* coord2a = &data0[3 * map0idx];

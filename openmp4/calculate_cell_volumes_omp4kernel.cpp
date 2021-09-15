@@ -70,7 +70,7 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
   int ncolors = 0;
   int set_size1 = set->size + set->exec_size;
 
-  if (set->size >0) {
+  if (set_size >0) {
 
     //Set up typed device pointers for OpenMP
     int *map0 = arg0.map_data_d;

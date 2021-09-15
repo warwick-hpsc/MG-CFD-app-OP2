@@ -108,11 +108,11 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
   args[3] = arg3;
   //create aligned pointers for dats
   ALIGNED_double const double * __restrict__ ptr0 = (double *) arg0.data;
-  __assume_aligned(ptr0,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr0,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr1 = (double *) arg1.data;
-  __assume_aligned(ptr1,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr1,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr3 = (double *) arg3.data;
-  __assume_aligned(ptr3,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr3,double_ALIGN);
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
@@ -129,12 +129,12 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
   if (exec_size >0) {
 
     #ifdef VECTORIZE
-    double dat2[SIMD_VEC];
-    for ( int i=0; i<SIMD_VEC; i++ ){
-      dat2[i] = *((double*)arg2.data);
-    }
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
+      double dat2[SIMD_VEC];
+      for ( int i=0; i<SIMD_VEC; i++ ){
+        dat2[i] = *((double*)arg2.data);
+      }
       #pragma omp simd simdlen(SIMD_VEC)
       for ( int i=0; i<SIMD_VEC; i++ ){
         compute_step_factor_kernel(

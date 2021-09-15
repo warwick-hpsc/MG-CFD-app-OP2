@@ -206,7 +206,10 @@ inline void down_v2_kernel_post(
 #endif
 #ifdef VECTORIZE
 //user function -- modified for vectorisation
-inline void down_v2_kernel_vec( const double coord2a[*][SIMD_VEC], const double coord2b[*][SIMD_VEC], const double coord1a[*][SIMD_VEC], const double coord1b[*][SIMD_VEC], const double residuals1a[*][SIMD_VEC], const double residuals1b[*][SIMD_VEC], double residuals1a_prolonged[*][SIMD_VEC], double residuals1b_prolonged[*][SIMD_VEC], double residuals1a_prolonged_wsum[*][SIMD_VEC], double residuals1b_prolonged_wsum[*][SIMD_VEC], int idx ) {
+#if defined __clang__ || defined __GNUC__
+__attribute__((always_inline))
+#endif
+inline void down_v2_kernel_vec( const double coord2a[][SIMD_VEC], const double coord2b[][SIMD_VEC], const double coord1a[][SIMD_VEC], const double coord1b[][SIMD_VEC], const double residuals1a[][SIMD_VEC], const double residuals1b[][SIMD_VEC], double residuals1a_prolonged[][SIMD_VEC], double residuals1b_prolonged[][SIMD_VEC], double residuals1a_prolonged_wsum[][SIMD_VEC], double residuals1b_prolonged_wsum[][SIMD_VEC], int idx ) {
 
 
 
@@ -228,24 +231,24 @@ inline void down_v2_kernel_vec( const double coord2a[*][SIMD_VEC], const double 
     } else {
 
         const double idist_a1a2 = 1.0/sqrt(dx_a1a2*dx_a1a2 + dy_a1a2*dy_a1a2 + dz_a1a2*dz_a1a2);
-        residuals1a_prolonged[VAR_DENSITY][idx]        += idist_a1a2*residuals1a[VAR_DENSITY][idx];
-        residuals1a_prolonged[VAR_MOMENTUM+0][idx]     += idist_a1a2*residuals1a[VAR_MOMENTUM+0][idx];
-        residuals1a_prolonged[VAR_MOMENTUM+1][idx]     += idist_a1a2*residuals1a[VAR_MOMENTUM+1][idx];
-        residuals1a_prolonged[VAR_MOMENTUM+2][idx]     += idist_a1a2*residuals1a[VAR_MOMENTUM+2][idx];
-        residuals1a_prolonged[VAR_DENSITY_ENERGY][idx] += idist_a1a2*residuals1a[VAR_DENSITY_ENERGY][idx];
-        residuals1a_prolonged_wsum[0][idx]+= idist_a1a2;
+        residuals1a_prolonged[VAR_DENSITY][idx]        = idist_a1a2*residuals1a[VAR_DENSITY][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+0][idx]     = idist_a1a2*residuals1a[VAR_MOMENTUM+0][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+1][idx]     = idist_a1a2*residuals1a[VAR_MOMENTUM+1][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+2][idx]     = idist_a1a2*residuals1a[VAR_MOMENTUM+2][idx];
+        residuals1a_prolonged[VAR_DENSITY_ENERGY][idx] = idist_a1a2*residuals1a[VAR_DENSITY_ENERGY][idx];
+        residuals1a_prolonged_wsum[0][idx]= idist_a1a2;
 
         double dx_b1a2 = coord1b[0][idx] - coord2a[0][idx];
         double dy_b1a2 = coord1b[1][idx] - coord2a[1][idx];
         double dz_b1a2 = coord1b[2][idx] - coord2a[2][idx];
 
         const double idist_b1a2 = 1.0/sqrt(dx_b1a2*dx_b1a2 + dy_b1a2*dy_b1a2 + dz_b1a2*dz_b1a2);
-        residuals1a_prolonged[VAR_DENSITY][idx]        += idist_b1a2*residuals1b[VAR_DENSITY][idx];
-        residuals1a_prolonged[VAR_MOMENTUM+0][idx]     += idist_b1a2*residuals1b[VAR_MOMENTUM+0][idx];
-        residuals1a_prolonged[VAR_MOMENTUM+1][idx]     += idist_b1a2*residuals1b[VAR_MOMENTUM+1][idx];
-        residuals1a_prolonged[VAR_MOMENTUM+2][idx]     += idist_b1a2*residuals1b[VAR_MOMENTUM+2][idx];
-        residuals1a_prolonged[VAR_DENSITY_ENERGY][idx] += idist_b1a2*residuals1b[VAR_DENSITY_ENERGY][idx];
-        residuals1a_prolonged_wsum[0][idx]+= idist_b1a2;
+        residuals1a_prolonged[VAR_DENSITY][idx]        = idist_b1a2*residuals1b[VAR_DENSITY][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+0][idx]     = idist_b1a2*residuals1b[VAR_MOMENTUM+0][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+1][idx]     = idist_b1a2*residuals1b[VAR_MOMENTUM+1][idx];
+        residuals1a_prolonged[VAR_MOMENTUM+2][idx]     = idist_b1a2*residuals1b[VAR_MOMENTUM+2][idx];
+        residuals1a_prolonged[VAR_DENSITY_ENERGY][idx] = idist_b1a2*residuals1b[VAR_DENSITY_ENERGY][idx];
+        residuals1a_prolonged_wsum[0][idx]= idist_b1a2;
     }
 
     double dx_b1b2 = coord2b[0][idx] - coord1b[0][idx];
@@ -262,24 +265,24 @@ inline void down_v2_kernel_vec( const double coord2a[*][SIMD_VEC], const double 
     } else {
 
         const double idist_b1b2 = 1.0/sqrt(dx_b1b2*dx_b1b2 + dy_b1b2*dy_b1b2 + dz_b1b2*dz_b1b2);
-        residuals1b_prolonged[VAR_DENSITY][idx]        += idist_b1b2*residuals1b[VAR_DENSITY][idx];
-        residuals1b_prolonged[VAR_MOMENTUM+0][idx]     += idist_b1b2*residuals1b[VAR_MOMENTUM+0][idx];
-        residuals1b_prolonged[VAR_MOMENTUM+1][idx]     += idist_b1b2*residuals1b[VAR_MOMENTUM+1][idx];
-        residuals1b_prolonged[VAR_MOMENTUM+2][idx]     += idist_b1b2*residuals1b[VAR_MOMENTUM+2][idx];
-        residuals1b_prolonged[VAR_DENSITY_ENERGY][idx] += idist_b1b2*residuals1b[VAR_DENSITY_ENERGY][idx];
-        residuals1b_prolonged_wsum[0][idx]+= idist_b1b2;
+        residuals1b_prolonged[VAR_DENSITY][idx]        = idist_b1b2*residuals1b[VAR_DENSITY][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+0][idx]     = idist_b1b2*residuals1b[VAR_MOMENTUM+0][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+1][idx]     = idist_b1b2*residuals1b[VAR_MOMENTUM+1][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+2][idx]     = idist_b1b2*residuals1b[VAR_MOMENTUM+2][idx];
+        residuals1b_prolonged[VAR_DENSITY_ENERGY][idx] = idist_b1b2*residuals1b[VAR_DENSITY_ENERGY][idx];
+        residuals1b_prolonged_wsum[0][idx]= idist_b1b2;
 
         double dx_a1b2 = coord1a[0][idx] - coord2b[0][idx];
         double dy_a1b2 = coord1a[1][idx] - coord2b[1][idx];
         double dz_a1b2 = coord1a[2][idx] - coord2b[2][idx];
 
         const double idist_a1b2 = 1.0/sqrt(dx_a1b2*dx_a1b2 + dy_a1b2*dy_a1b2 + dz_a1b2*dz_a1b2);
-        residuals1b_prolonged[VAR_DENSITY][idx]        += idist_a1b2*residuals1b[VAR_DENSITY][idx];
-        residuals1b_prolonged[VAR_MOMENTUM+0][idx]     += idist_a1b2*residuals1b[VAR_MOMENTUM+0][idx];
-        residuals1b_prolonged[VAR_MOMENTUM+1][idx]     += idist_a1b2*residuals1b[VAR_MOMENTUM+1][idx];
-        residuals1b_prolonged[VAR_MOMENTUM+2][idx]     += idist_a1b2*residuals1b[VAR_MOMENTUM+2][idx];
-        residuals1b_prolonged[VAR_DENSITY_ENERGY][idx] += idist_a1b2*residuals1b[VAR_DENSITY_ENERGY][idx];
-        residuals1b_prolonged_wsum[0][idx]+= idist_a1b2;
+        residuals1b_prolonged[VAR_DENSITY][idx]        = idist_a1b2*residuals1b[VAR_DENSITY][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+0][idx]     = idist_a1b2*residuals1b[VAR_MOMENTUM+0][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+1][idx]     = idist_a1b2*residuals1b[VAR_MOMENTUM+1][idx];
+        residuals1b_prolonged[VAR_MOMENTUM+2][idx]     = idist_a1b2*residuals1b[VAR_MOMENTUM+2][idx];
+        residuals1b_prolonged[VAR_DENSITY_ENERGY][idx] = idist_a1b2*residuals1b[VAR_DENSITY_ENERGY][idx];
+        residuals1b_prolonged_wsum[0][idx]= idist_a1b2;
     }
 
 }
@@ -313,25 +316,25 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
   args[9] = arg9;
   //create aligned pointers for dats
   ALIGNED_double const double * __restrict__ ptr0 = (double *) arg0.data;
-  __assume_aligned(ptr0,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr0,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr1 = (double *) arg1.data;
-  __assume_aligned(ptr1,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr1,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr2 = (double *) arg2.data;
-  __assume_aligned(ptr2,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr2,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr3 = (double *) arg3.data;
-  __assume_aligned(ptr3,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr3,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr4 = (double *) arg4.data;
-  __assume_aligned(ptr4,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr4,double_ALIGN);
   ALIGNED_double const double * __restrict__ ptr5 = (double *) arg5.data;
-  __assume_aligned(ptr5,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr5,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr6 = (double *) arg6.data;
-  __assume_aligned(ptr6,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr6,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr7 = (double *) arg7.data;
-  __assume_aligned(ptr7,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr7,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr8 = (double *) arg8.data;
-  __assume_aligned(ptr8,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr8,double_ALIGN);
   ALIGNED_double       double * __restrict__ ptr9 = (double *) arg9.data;
-  __assume_aligned(ptr9,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr9,double_ALIGN);
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
@@ -349,7 +352,7 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
     #ifdef VECTORIZE
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-      if (n+SIMD_VEC >= set->core_size) {
+      if ((n+SIMD_VEC >= set->core_size) && (n+SIMD_VEC-set->core_size < SIMD_VEC)) {
         op_mpi_wait_all(nargs, args);
       }
       ALIGNED_double double dat0[3][SIMD_VEC];
@@ -464,10 +467,14 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
       if (n==set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      int map0idx = arg0.map_data[n * arg0.map->dim + 0];
-      int map1idx = arg0.map_data[n * arg0.map->dim + 1];
-      int map2idx = arg2.map_data[n * arg2.map->dim + 0];
-      int map3idx = arg2.map_data[n * arg2.map->dim + 1];
+      int map0idx;
+      int map1idx;
+      int map2idx;
+      int map3idx;
+      map0idx = arg0.map_data[n * arg0.map->dim + 0];
+      map1idx = arg0.map_data[n * arg0.map->dim + 1];
+      map2idx = arg2.map_data[n * arg2.map->dim + 0];
+      map3idx = arg2.map_data[n * arg2.map->dim + 1];
 
       down_v2_kernel(
         &(ptr0)[3 * map0idx],

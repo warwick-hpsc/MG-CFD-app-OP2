@@ -49,7 +49,7 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  time_step_kernel");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
+  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
 
   #ifdef OP_PART_SIZE_11
     int part_size = OP_PART_SIZE_11;
@@ -64,7 +64,7 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
 
   int arg0_l = arg0h[0];
 
-  if (set->size >0) {
+  if (set_size >0) {
 
     //Set up typed device pointers for OpenMP
 

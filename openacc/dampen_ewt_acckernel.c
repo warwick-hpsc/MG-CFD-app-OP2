@@ -12,9 +12,9 @@
 //#pragma acc routine
 inline void dampen_ewt_openacc( 
     double* ewt) {
-    ewt[0] *= 1e-7;
-    ewt[1] *= 1e-7;
-    ewt[2] *= 1e-7;
+    ewt[0] *= 1e-9;
+    ewt[1] *= 1e-9;
+    ewt[2] *= 1e-9;
 }
 
 // host stub function
@@ -38,10 +38,10 @@ void op_par_loop_dampen_ewt(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  dampen_ewt");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
+  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
 
 
-  if (set->size >0) {
+  if (set_size >0) {
 
 
     //Set up typed device pointers for OpenACC

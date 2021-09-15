@@ -37,7 +37,7 @@ void op_par_loop_down_v2_kernel_pre(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  down_v2_kernel_pre");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
+  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
 
   #ifdef OP_PART_SIZE_19
     int part_size = OP_PART_SIZE_19;
@@ -51,7 +51,7 @@ void op_par_loop_down_v2_kernel_pre(char const *name, op_set set,
   #endif
 
 
-  if (set->size >0) {
+  if (set_size >0) {
 
     //Set up typed device pointers for OpenMP
 

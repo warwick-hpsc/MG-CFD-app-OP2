@@ -37,7 +37,7 @@ void op_par_loop_count_non_zeros(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  count_non_zeros");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
+  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
 
   #ifdef OP_PART_SIZE_24
     int part_size = OP_PART_SIZE_24;
@@ -52,7 +52,7 @@ void op_par_loop_count_non_zeros(char const *name, op_set set,
 
   int arg1_l = arg1h[0];
 
-  if (set->size >0) {
+  if (set_size >0) {
 
     //Set up typed device pointers for OpenMP
 

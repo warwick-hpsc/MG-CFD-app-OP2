@@ -104,7 +104,7 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
   args[1] = arg1;
   //create aligned pointers for dats
   ALIGNED_double const double * __restrict__ ptr0 = (double *) arg0.data;
-  __assume_aligned(ptr0,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr0,double_ALIGN);
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
@@ -121,12 +121,12 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
   if (exec_size >0) {
 
     #ifdef VECTORIZE
-    double dat1[SIMD_VEC];
-    for ( int i=0; i<SIMD_VEC; i++ ){
-      dat1[i] = INFINITY;
-    }
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
+      double dat1[SIMD_VEC];
+      for ( int i=0; i<SIMD_VEC; i++ ){
+        dat1[i] = INFINITY;
+      }
       #pragma omp simd simdlen(SIMD_VEC)
       for ( int i=0; i<SIMD_VEC; i++ ){
         get_min_dt_kernel(

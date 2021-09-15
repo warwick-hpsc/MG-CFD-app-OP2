@@ -31,8 +31,7 @@
 // #define LOG_PROGRESS
 
 // OP2:
-#include  "op_lib_cpp.h"
-#include  "op_mpi_core.h"
+#include   "op_lib_cpp.h"
 
 //
 // op_par_loop declarations
@@ -87,22 +86,6 @@ void op_par_loop_compute_flux_edge_kernel(char const *, op_set,
   op_arg,
   op_arg,
   op_arg );
-
-void op_par_loop_compute_flux_edge_kernel_instrumented(char const *, op_set,
-  op_arg,
-  op_arg,
-  op_arg,
-  op_arg,
-  op_arg
-  #ifdef VERIFY_OP2_TIMING
-    , double* // compute time
-    , double* // sync time
-  #endif
-  , long* // iterations
-  #ifdef PAPI
-    , long_long*, int, int
-  #endif
-);
 
 void op_par_loop_compute_bnd_node_flux_kernel(char const *, op_set,
   op_arg,
@@ -193,12 +176,8 @@ void op_par_loop_count_non_zeros(char const *, op_set,
 #endif
 #endif
 
-void printvecint(std::vector<int> const &input)
-{
-	for (int i = 0; i < input.size(); i++) {
-		std::cout << input.at(i) << ' ';
-	}
-}
+
+#include  "op_mpi_core.h"
 
 #include "op_hdf5.h"
 
@@ -220,6 +199,7 @@ double ff_flux_contribution_momentum_z[NDIM];
 double ff_flux_contribution_density_energy[NDIM];
 int mesh_name;
 #include "global.h"
+
 #ifdef PAPI
 int num_events;
 #endif
@@ -707,11 +687,11 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         boundary_nodes_sizes[z] = round(nodes_sizes[z] * 0.0042);//set the boundary size
     }
 
-    op_printf("Size of interface: %f \n", boundary_nodes_sizes[0]);
+    op_printf("Size of interface 1: %f \n", boundary_nodes_sizes[0]);
     op_printf("Size of interface 2: %f \n", boundary_nodes_sizes[1]);
     op_printf("Size of interface 3: %f \n", boundary_nodes_sizes[2]);
     op_printf("Size of interface 4: %f \n", boundary_nodes_sizes[3]);
-
+    
     int ranks_per_coupler;
     if (internal_rank == MPI_ROOT) {
         for(int z = 0; z < total_coupler_unit_count; z++){
@@ -874,20 +854,12 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                 op_print_file(buffer, fp);
             #endif
 
-            op_par_loop_compute_flux_edge_kernel_instrumented("compute_flux_edge_kernel",op_edges[level],
+            op_par_loop_compute_flux_edge_kernel("compute_flux_edge_kernel",op_edges[level],
                         op_arg_dat(p_variables[level],0,p_edge_to_nodes[level],5,"double",OP_READ),
                         op_arg_dat(p_variables[level],1,p_edge_to_nodes[level],5,"double",OP_READ),
                         op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                         op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
-                        #ifdef VERIFY_OP2_TIMING
-                          , &flux_kernel_compute_times[level], &flux_kernel_sync_times[level]
-                        #endif
-                        , &flux_kernel_iter_counts[level]
-                        #ifdef PAPI
-                        , &flux_kernel_event_counts[level*num_events], event_set, num_events
-                        #endif
-                        );
+                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));
 
             op_par_loop_compute_bnd_node_flux_kernel("compute_bnd_node_flux_kernel",op_bnd_nodes[level],
                         op_arg_dat(p_bnd_node_groups[level],-1,OP_ID,1,"int",OP_READ),

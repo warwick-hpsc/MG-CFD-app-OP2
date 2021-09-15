@@ -83,9 +83,9 @@ inline void calculate_cell_volumes(
 inline void dampen_ewt(
     double* ewt)
 {
-    ewt[0] *= 1e-7;
-    ewt[1] *= 1e-7;
-    ewt[2] *= 1e-7;
+    ewt[0] *= 1e-9;
+    ewt[1] *= 1e-9;
+    ewt[2] *= 1e-9;
 }
 
 #endif
@@ -100,7 +100,7 @@ void op_par_loop_zero_1d_array_kernel(char const *name, op_set set,
   args[0] = arg0;
   //create aligned pointers for dats
   ALIGNED_double       double * __restrict__ ptr0 = (double *) arg0.data;
-  __assume_aligned(ptr0,double_ALIGN);
+  DECLARE_PTR_ALIGNED(ptr0,double_ALIGN);
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;

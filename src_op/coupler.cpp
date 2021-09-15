@@ -40,7 +40,7 @@ int main(int argc, char** argv){
 	char type[] = "TYPE";
 	bool debug = true;
 	bool superdebug = false;//Disables coupling entirely and allows applications to run on their own
-	bool fastsearch = false;
+	bool fastsearch = true;
 
 	int mpi_ranks = 0;
 	char keyword[8];//longest word is COUPLER

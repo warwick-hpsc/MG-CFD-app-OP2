@@ -210,10 +210,15 @@ ifeq ($(NV_ARCH),Maxwell)
 else
 ifeq ($(NV_ARCH),Pascal)
   CODE_GEN_CUDA=-gencode arch=compute_60,code=sm_60
+else
+ifeq ($(NV_ARCH),Volta)
+  CODE_GEN_CUDA=-gencode arch=compute_70,code=sm_70
 endif
 endif
 endif
 endif
+endif
+
 NVCCFLAGS = 
 ifdef NVCC_BIN
 	NVCCFLAGS = -ccbin $(NVCC_BIN)
@@ -256,6 +261,7 @@ mpi_cuda: $(BIN_DIR)/mgcfd_mpi_cuda
 openmp4: $(BIN_DIR)/mgcfd_openmp4
 openacc: $(BIN_DIR)/mgcfd_openacc
 mpi_cpx: $(BIN_DIR)/mgcfd_cpx.a $(BIN_DIR)/mgcfd_cpx_runtime
+mpi_cuda_cpx: $(BIN_DIR)/mgcfd_cpx_cuda.a $(BIN_DIR)/mgcfd_cpx_cuda_runtime
 
 
 OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
@@ -268,6 +274,9 @@ OP2_MPI_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_main.o \
 
 OP2_MPI_CPX_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_cpx_main.o \
                    $(OBJ_DIR)/mgcfd_mpi_cpx_kernels.o
+
+OP2_MPI_CPX_CUDA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_cuda_cpx_main.o \
+                        $(OBJ_DIR)/mgcfd_mpi_cpx_kernels_cu.o
 
 OP2_MPI_CPX_MAIN := $(SRC_DIR)_op/coupler.cpp
 
@@ -384,11 +393,12 @@ $(OBJ_DIR)/mgcfd_mpi_cpx_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	     -DMPI_ON -c -o $@ $^ 
+
 $(OBJ_DIR)/mgcfd_mpi_cpx_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(SEQ_KERNELS)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	     -DMPI_ON -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
-
+		 
 $(BIN_DIR)/mgcfd_cpx.a: $(OP2_MPI_CPX_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	ar rcs $(BIN_DIR)/mgcfd_cpx.a $(OP2_MPI_CPX_OBJECTS)
@@ -397,6 +407,30 @@ $(BIN_DIR)/mgcfd_cpx_runtime: $(OP2_MPI_CPX_MAIN) $(BIN_DIR)/mgcfd_cpx.a $(FENIC
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(BIN_DIR)/mgcfd_cpx.a $(CUP_LIB) $(MGCFD_LIBS) \
         -lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(DOLFINX_LIB) $(PETSC_LIB) \
+		$(SQLITE_LIB) $(TREETIMER_INC) $(TREETIMER_LIB) \
+        $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) $(CUP_DEF) -o $@ 
+
+
+## MPI_CPX CUDA
+
+$(OBJ_DIR)/mgcfd_mpi_cpx_kernels_cu.o: $(SRC_DIR)/../cuda/_kernels.cu $(CUDA_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	nvcc $(NVCCFLAGS) $(MGCFD_INCS) $(OP2_INC) -I $(MPI_INSTALL_PATH)/include \
+        -c -o $@ $(SRC_DIR)/../cuda/_kernels.cu
+
+$(OBJ_DIR)/mgcfd_mpi_cuda_cpx_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
+        -DCUDA_ON -c -o $@ $^
+
+$(BIN_DIR)/mgcfd_cpx_cuda.a: $(OP2_MPI_CPX_CUDA_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	ar rcs $(BIN_DIR)/mgcfd_cpx_cuda.a $(OP2_MPI_CPX_CUDA_OBJECTS)
+
+$(BIN_DIR)/mgcfd_cpx_cuda_runtime: $(OP2_MPI_CPX_MAIN) $(BIN_DIR)/mgcfd_cpx_cuda.a $(FENICS_LIB) $(CUP_LIB)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(BIN_DIR)/mgcfd_cpx_cuda.a $(CUP_LIB) $(MGCFD_LIBS) \
+        $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_cuda $(PARMETIS_LIB) $(DOLFINX_LIB) $(PETSC_LIB) \
 		$(SQLITE_LIB) $(TREETIMER_INC) $(TREETIMER_LIB) \
         $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) $(CUP_DEF) -o $@ 
 
