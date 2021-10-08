@@ -7,10 +7,9 @@ Dependencies
 ==========================================
 
 * [OP2](https://github.com/OP-DSL/OP2-Common)
-* HDF5 parallel
-* ParMETIS
-* PT-Scotch
-* CUDA library if using `mgcfd_cuda` or `mgcfd_mpi_cuda`
+* HDF5
+* For MPI variants of MG-CFD: ParMETIS and PT-Scotch
+* For CUDA variants of MG-CFD CUDA library
 
 Compiling and executing
 ==========================================
@@ -18,35 +17,31 @@ Compiling and executing
 ### Building dependencies:
 
 #### OP2
-Several distinct libraries can be compiled, depending on the mix of parallelism and performance portability desired. Similary for MG-CFD, and so it is likely that you only need to compile a subset of the OP2 libraries. 
-
-All MG-CFD variants need two particular OP2 libraries, created by executing these two OP2 make rules: `core`, `hdf5`. Variant-specific dependencies are listed in next section.
+Several distinct libraries can be compiled, depending on the mix of parallelism and performance portability desired. Similary for MG-CFD, and so it is likely that you only need to compile a subset of the OP2 libraries. All MG-CFD variants need two particular OP2 libraries, created by executing these two OP2 make rules: `core`, `hdf5`. Variant-specific dependencies are listed in table below.
 
 #### HDF5
-All variants of MG-CFD require HDF5. Buy only those MPI variants require HDF5 compiled with MPI support (with --enable-parallel)
+All variants of MG-CFD require HDF5, but only the MPI variants require HDF5 compiled with MPI support (i.e. with --enable-parallel)
 
 #### MPI-specific
-MPI variants of MG-CFD require these further libraries
+MPI variants of MG-CFD require these additional libraries:
 
-##### ParMETIS
-Standard compile.
+- ParMETIS
 
-##### PT-Scotch
-Follow their build instructions. After linking `Makefile.inc`, edit it and remove the flag `-DSCOTCH_PTHREAD` from `CFLAGS`. Then standard compile.
+- PT-Scotch - Follow their build instructions, but edit `Makefile.inc` to remove the flag `-DSCOTCH_PTHREAD` from `CFLAGS`.
 
 ### Compiling MG-CFD
 
 Different binaries can be generated, depending on the mix of parallelism and performance portability desired:
 
-Intent | MG-CFD make rule | OP2 dependency make rule
------- | --------- | -----------------------------
-Sequential | seq | seq
-OpenMP | openmp | openmp
-MPI | mpi | mpi_seq
-MPI + OpenMP | mpi_openmp | mpi_seq
-MPI + SIMD | mpi_vec | mpi_seq
-CUDA | cuda | cuda
-MPI + CUDA | mpi_cuda | mpi_cuda
+Intent       | MG-CFD make rule | OP2 make rule
+------       | ---------------- | -------------
+Sequential   | seq              | seq
+OpenMP       | openmp           | openmp
+MPI          | mpi              | mpi_seq
+MPI + OpenMP | mpi_openmp       | mpi_seq
+MPI + SIMD   | mpi_vec          | mpi_seq
+CUDA         | cuda             | cuda
+MPI + CUDA   | mpi_cuda         | mpi_cuda
 
 In future, OpenACC and OpenMP 4.5 ports will be available
 
