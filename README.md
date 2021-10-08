@@ -17,19 +17,22 @@ Compiling and executing
 
 ### Building dependencies:
 
-#### HDF5 parallel
-Configure with `--enable-parallel` option, then standard compile.
-
-#### ParMETIS
-Standard compile.
-
-#### PT-Scotch
-Follow their build instructions. After linking `Makefile.inc`, edit it and remove the flag `-DSCOTCH_PTHREAD` from `CFLAGS`. Then standard compile.
-
 #### OP2
 Several distinct libraries can be compiled, depending on the mix of parallelism and performance portability desired. Similary for MG-CFD, and so it is likely that you only need to compile a subset of the OP2 libraries. 
 
 All MG-CFD variants need two particular OP2 libraries, created by executing these two OP2 make rules: `core`, `hdf5`. Variant-specific dependencies are listed in next section.
+
+#### HDF5
+All variants of MG-CFD require HDF5. Buy only those MPI variants require HDF5 compiled with MPI support (with --enable-parallel)
+
+#### MPI-specific
+MPI variants of MG-CFD require these further libraries
+
+##### ParMETIS
+Standard compile.
+
+##### PT-Scotch
+Follow their build instructions. After linking `Makefile.inc`, edit it and remove the flag `-DSCOTCH_PTHREAD` from `CFLAGS`. Then standard compile.
 
 ### Compiling MG-CFD
 
@@ -60,6 +63,13 @@ MG-CFD has more command-line arguments to ease file/directory interaction, and c
 ```Shell
      $ ./path/to/mgcfd_* --help
 ```
+
+### Performance counters:
+
+Built into MG-CFD is functionality to collect performance counter data, at fine granularity of individual loops. Currently CPU only. Requires PAPI library to be installed and configured. 
+- disabled as default - to enable, enable either 'PAPI' flag in Makefile, then compile. 
+- this in turn enables a command-line parameter: -p \<filepath\> . This file should contain the list of events to measure.
+- counts will be written to PAPI.csv
 
 ### Generating batch submission scripts:
 
