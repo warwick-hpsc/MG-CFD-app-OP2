@@ -9,8 +9,6 @@
 #include "papi_funcs.h"
 #endif
 
-#include <mpi.h>
-
 // host stub function
 void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg0,
