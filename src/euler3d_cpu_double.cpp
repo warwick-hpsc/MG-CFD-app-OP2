@@ -520,6 +520,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     bool hide_search = true;
     double *p_variables_data_l0, *p_variables_data_l1, *p_variables_data_l2, *p_variables_data_l3;
     double *p_variables_recv_l0, *p_variables_recv_l1, *p_variables_recv_l2, *p_variables_recv_l3;
+    char *data_l0, *data_l1, *data_l2, *data_l3;
     //double add_amount[4];
     //long long int total_amount[4] = {0,0,0,0};
     int null_check;
@@ -563,7 +564,8 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     p_variables_recv_l2 = (double*) malloc(nodes_sizes[2] * NVAR * sizeof(double));
     p_variables_recv_l3 = (double*) malloc(nodes_sizes[3] * NVAR * sizeof(double));
 
-    double *p_variables_pointers[4] = {p_variables_data_l0,p_variables_data_l1,p_variables_data_l2,p_variables_data_l3}; 
+    double *p_variables_pointers[4] = {p_variables_data_l0,p_variables_data_l1,p_variables_data_l2,p_variables_data_l3};
+    char *datas[4] = {data_l0, data_l1, data_l2, data_l3}; 
     
     std::chrono::duration<double> total_seconds;
 
@@ -582,9 +584,44 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         if((i != prev_cycle && (i % conversion_factor) == 0) || (hide_search == true && i != prev_cycle && ((i % upd_freq) == conversion_factor - 1))){
             prev_cycle=i;
 
+            op_dat temp_dat_l0 = (op_dat) malloc(sizeof(op_dat_core));
+            op_dat temp_dat_l1 = (op_dat) malloc(sizeof(op_dat_core));
+            op_dat temp_dat_l2 = (op_dat) malloc(sizeof(op_dat_core));
+            op_dat temp_dat_l3 = (op_dat) malloc(sizeof(op_dat_core));
+
+            op_set set_l0 = (op_set) malloc(sizeof(op_set_core));
+            op_set set_l1 = (op_set) malloc(sizeof(op_set_core));
+            op_set set_l2 = (op_set) malloc(sizeof(op_set_core));
+            op_set set_l3 = (op_set) malloc(sizeof(op_set_core));
+
+            op_dat temp_dats[4] = {temp_dat_l0, temp_dat_l1, temp_dat_l2, temp_dat_l3};
+            op_set sets[4] = {set_l0, set_l1, set_l2, set_l3};
+
             for (int z = 0; z < levels; z++) {
-                op_fetch_data(p_variables[z], p_variables_pointers[z]);
+
+                datas[z] = (char *) malloc(op_bnd_nodes[z]->size * p_variables[z]->size);
+                memcpy(datas[z], p_variables[z]->data, op_bnd_nodes[z]->size * p_variables[z]->size);
+
+                sets[z]->index = p_variables[z]->set->index;
+                sets[z]->size = op_bnd_nodes[z]->size;
+                sets[z]->name = p_variables[z]->set->name;
+
+                temp_dats[z]->index = p_variables[z]->index;
+                temp_dats[z]->set = sets[z];
+                temp_dats[z]->dim = p_variables[z]->dim;
+                temp_dats[z]->data = datas[z];
+                temp_dats[z]->data_d = NULL;
+                temp_dats[z]->name = p_variables[z]->name;
+                temp_dats[z]->type = p_variables[z]->type;
+                temp_dats[z]->size = p_variables[z]->size;
+
             }
+
+            for (int z = 0; z < levels; z++) {
+                op_fetch_data(temp_dats[z], p_variables_pointers[z]);
+            }
+
+            
             
             if(internal_rank == MPI_ROOT){
                 if(hide_search == true){
@@ -667,7 +704,11 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             }
 
             op_printf("Cycle %d comms ending\n", i);
-            
+            for (int z = 0; z < levels; z++) {
+                free(temp_dats[z]->data);
+                free(temp_dats[z]->set);
+                free(temp_dats[z]);
+            }
         }
         
 
