@@ -115,7 +115,7 @@ inline void dump_perf_data_to_file_mpi(
     int err;
 
     // Create MPI_Datatype MPI_PerfRowType
-    int types[5] = { MPI_CHAR, MPI_INT, MPI_DOUBLE, MPI_DOUBLE, MPI_LONG };
+    MPI_Datatype types[5] = { MPI_CHAR, MPI_INT, MPI_DOUBLE, MPI_DOUBLE, MPI_LONG };
     int blocklengths[5] = { TABLE_STRING_LENGTH, 1, 1, 1, 1 };
     int type_sizes[5] = { sizeof(char), sizeof(int), sizeof(double), sizeof(double), sizeof(long) };
     MPI_Aint displacements[5];

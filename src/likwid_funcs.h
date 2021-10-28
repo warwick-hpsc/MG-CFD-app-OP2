@@ -492,7 +492,7 @@ inline void dump_likwid_counters_to_file_mpi(
     int err;
 
     // Create MPI_Datatype MPI_LikwidRowType
-    int types[6] = { MPI_INT, MPI_INT, MPI_CHAR, MPI_CHAR, MPI_INT, MPI_LONG_LONG_INT};
+    MPI_Datatype types[6] = { MPI_INT, MPI_INT, MPI_CHAR, MPI_CHAR, MPI_INT, MPI_LONG_LONG_INT};
     int blocklengths[6] = { 1, 1, TABLE_STRING_LENGTH, TABLE_STRING_LENGTH, 1, 1 };
     int type_sizes[6] = { sizeof(int), sizeof(int), sizeof(char), sizeof(char), sizeof(int), sizeof(long long int) };
     MPI_Aint displacements[6];
