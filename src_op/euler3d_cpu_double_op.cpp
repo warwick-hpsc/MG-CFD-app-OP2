@@ -649,7 +649,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
     double *p_variables_data = (double*) malloc(nodes_size * NVAR * sizeof(double));
     double *p_variables_recv = (double*) malloc(nodes_size * NVAR * sizeof(double));
-    
+
     std::chrono::duration<double> total_seconds;
 
     while(i < conf.num_cycles)
@@ -723,7 +723,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                             MPI_Send(p_variables_data, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
                         }else if((i % upd_freq) == conversion_factor - 1){
                             auto start = std::chrono::steady_clock::now();
-							MPI_Recv(p_variables_recv, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            MPI_Recv(p_variables_recv, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                             auto end = std::chrono::steady_clock::now();
                             std::chrono::duration<double> elapsed_seconds = end-start;
                             total_seconds += elapsed_seconds;
