@@ -599,8 +599,6 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     MPI_Comm_rank(mgcfd_comm, &internal_rank); 
     MPI_Comm_size(mgcfd_comm, &internal_size);
     int *ranks = new int[internal_size];
-    
-    //int temp_buffer;
   
     MPI_Gather(&internal_rank, 1, MPI_INT, ranks, 1, MPI_INT, 0, mgcfd_comm);
 
@@ -622,99 +620,35 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         }
     }
      
-    //int recv_size = 0;
     int total_coupler_unit_count = units[unit_count].coupler_ranks.size();
-    //std::vector<bool> left;
-    
-    /*for(int z = 0; z < total_coupler_unit_count; z++){
-        int coupler_rank = units[unit_count].coupler_ranks[z][0]; //This can be left alone since the instance number is the same for all ranks in a coupler unit
-        int coupler_position = relative_positions[coupler_rank].placelocator; // converts coupler instance number to relative index for units AoS - needed due to stack nature of coupler allocation
-        
-        found = false;
-        int unit_count_2 = 0;
-        int coupler_unit_count = 1;
-
-        while(!found){//this is used to find out the unit index of the coupler unit we want
-            if(units[unit_count_2].type == 'C' && coupler_unit_count == coupler_position){
-                found=true;
-            }else{
-                if(units[unit_count_2].type == 'C'){
-                    coupler_unit_count++;
-                }
-                unit_count_2++;
-            }
-        }
-
-		if (std::find(units[unit_count_2].mgcfd_ranks[0].begin(), units[unit_count_2].mgcfd_ranks[0].end(), worldrank) != units[unit_count_2].mgcfd_ranks[0].end()){
-            recv_size = units[unit_count_2].mgcfd_ranks[1].size();
-            left.push_back(true);
-        }else{
-            recv_size = units[unit_count_2].mgcfd_ranks[0].size();
-            left.push_back(false);
-        }
-    }*/
-        
     int coupler_rank = units[unit_count].coupler_ranks[0][0]; //This assumes only 1 coupler unit per 2 MG-CFD sessions 
-    //int *recv_buffer = new int[recv_size];
     int prev_cycle = -1;
 
-    //int no_of_data_ranks = units[unit_count].coupler_ranks[0].size();//the number of ranks in the 'send' size
-    //int no_of_recv_ranks = units[unit_count].coupler_ranks[1].size();
-
-    double nodes_sizes[4];
-    double boundary_nodes_sizes[4];
-    //double nodes_size_chunks[4];
-    //double extra_chunk[4];
-    //bool chunk_add = true;
+    double nodes_size = 0;
+    double boundary_nodes_size = 0;
     bool hide_search = true;
-    double *p_variables_data_l0, *p_variables_data_l1, *p_variables_data_l2, *p_variables_data_l3;
-    double *p_variables_recv_l0, *p_variables_recv_l1, *p_variables_recv_l2, *p_variables_recv_l3;
-    char *data_l0, *data_l1, *data_l2, *data_l3;
-    //double add_amount[4];
-    //long long int total_amount[4] = {0,0,0,0};
+    char *data_l0;
     int null_check;
 
-    for (int z = 0; z < 4; z++) {
-        nodes_sizes[z] = 0;
-        boundary_nodes_sizes[z] = 0;
-    }
+    null_check = op_get_size(op_nodes[0]);
+    nodes_size = null_check;
 
-    for (int z = 0; z < levels; z++) {
-        null_check = op_get_size(op_nodes[z]);
-        nodes_sizes[z] = null_check;
-    }
+    boundary_nodes_size = round(nodes_size * 0.0042);//set the boundary size
 
-    for (int z = 0; z < levels; z++) {
-        boundary_nodes_sizes[z] = round(nodes_sizes[z] * 0.0042);//set the boundary size
-    }
-
-    op_printf("Size of interface 1: %f \n", boundary_nodes_sizes[0]);
-    op_printf("Size of interface 2: %f \n", boundary_nodes_sizes[1]);
-    op_printf("Size of interface 3: %f \n", boundary_nodes_sizes[2]);
-    op_printf("Size of interface 4: %f \n", boundary_nodes_sizes[3]);
+    op_printf("Size of interface 1: %f \n", boundary_nodes_size);
     
     int ranks_per_coupler;
     if (internal_rank == MPI_ROOT) {
         for(int z = 0; z < total_coupler_unit_count; z++){
             ranks_per_coupler = units[unit_count].coupler_ranks[z].size();
             for(int z2 = 0; z2 < ranks_per_coupler; z2++){
-                MPI_Send(boundary_nodes_sizes, 4, MPI_DOUBLE, units[unit_count].coupler_ranks[z][z2], 0, MPI_COMM_WORLD);//this sends the node sizes to each of the coupler ranks of each of the coupler units
+                MPI_Send(&boundary_nodes_size, 1, MPI_DOUBLE, units[unit_count].coupler_ranks[z][z2], 0, MPI_COMM_WORLD);//this sends the node sizes to each of the coupler ranks of each of the coupler units
             }
         }
     }
 
-    p_variables_data_l0 = (double*) malloc(nodes_sizes[0] * NVAR * sizeof(double));
-    p_variables_data_l1 = (double*) malloc(nodes_sizes[1] * NVAR * sizeof(double));
-    p_variables_data_l2 = (double*) malloc(nodes_sizes[2] * NVAR * sizeof(double));
-    p_variables_data_l3 = (double*) malloc(nodes_sizes[3] * NVAR * sizeof(double));
-
-    p_variables_recv_l0 = (double*) malloc(nodes_sizes[0] * NVAR * sizeof(double));
-    p_variables_recv_l1 = (double*) malloc(nodes_sizes[1] * NVAR * sizeof(double));
-    p_variables_recv_l2 = (double*) malloc(nodes_sizes[2] * NVAR * sizeof(double));
-    p_variables_recv_l3 = (double*) malloc(nodes_sizes[3] * NVAR * sizeof(double));
-
-    double *p_variables_pointers[4] = {p_variables_data_l0,p_variables_data_l1,p_variables_data_l2,p_variables_data_l3};
-    char *datas[4] = {data_l0, data_l1, data_l2, data_l3}; 
+    double *p_variables_data = (double*) malloc(nodes_size * NVAR * sizeof(double));
+    double *p_variables_recv = (double*) malloc(nodes_size * NVAR * sizeof(double));
     
     std::chrono::duration<double> total_seconds;
 
@@ -734,43 +668,25 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             prev_cycle=i;
 
             op_dat temp_dat_l0 = (op_dat) malloc(sizeof(op_dat_core));
-            op_dat temp_dat_l1 = (op_dat) malloc(sizeof(op_dat_core));
-            op_dat temp_dat_l2 = (op_dat) malloc(sizeof(op_dat_core));
-            op_dat temp_dat_l3 = (op_dat) malloc(sizeof(op_dat_core));
-
             op_set set_l0 = (op_set) malloc(sizeof(op_set_core));
-            op_set set_l1 = (op_set) malloc(sizeof(op_set_core));
-            op_set set_l2 = (op_set) malloc(sizeof(op_set_core));
-            op_set set_l3 = (op_set) malloc(sizeof(op_set_core));
 
-            op_dat temp_dats[4] = {temp_dat_l0, temp_dat_l1, temp_dat_l2, temp_dat_l3};
-            op_set sets[4] = {set_l0, set_l1, set_l2, set_l3};
+            data_l0 = (char *) malloc(op_bnd_nodes[0]->size * p_variables[0]->size);
+            memcpy(data_l0, p_variables[0]->data, op_bnd_nodes[0]->size * p_variables[0]->size);
 
-            for (int z = 0; z < levels; z++) {
+            set_l0->index = p_variables[0]->set->index;
+            set_l0->size = op_bnd_nodes[0]->size;
+            set_l0->name = p_variables[0]->set->name;
 
-                datas[z] = (char *) malloc(op_bnd_nodes[z]->size * p_variables[z]->size);
-                memcpy(datas[z], p_variables[z]->data, op_bnd_nodes[z]->size * p_variables[z]->size);
+            temp_dat_l0->index = p_variables[0]->index;
+            temp_dat_l0->set = set_l0;
+            temp_dat_l0->dim = p_variables[0]->dim;
+            temp_dat_l0->data = data_l0;
+            temp_dat_l0->data_d = NULL;
+            temp_dat_l0->name = p_variables[0]->name;
+            temp_dat_l0->type = p_variables[0]->type;
+            temp_dat_l0->size = p_variables[0]->size;
 
-                sets[z]->index = p_variables[z]->set->index;
-                sets[z]->size = op_bnd_nodes[z]->size;
-                sets[z]->name = p_variables[z]->set->name;
-
-                temp_dats[z]->index = p_variables[z]->index;
-                temp_dats[z]->set = sets[z];
-                temp_dats[z]->dim = p_variables[z]->dim;
-                temp_dats[z]->data = datas[z];
-                temp_dats[z]->data_d = NULL;
-                temp_dats[z]->name = p_variables[z]->name;
-                temp_dats[z]->type = p_variables[z]->type;
-                temp_dats[z]->size = p_variables[z]->size;
-
-            }
-
-            for (int z = 0; z < levels; z++) {
-                op_fetch_data(temp_dats[z], p_variables_pointers[z]);
-            }
-
-            
+            op_fetch_data(temp_dat_l0, p_variables_data);
             
             if(internal_rank == MPI_ROOT){
                 if(hide_search == true){
@@ -804,47 +720,25 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                     if(hide_search == true){
                         if((i % upd_freq) == 0){
                             op_printf("Cycle %d - search taking place\n", i);
-                            MPI_Send(p_variables_data_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                            auto start = std::chrono::steady_clock::now();
-                            MPI_Send(p_variables_data_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                            MPI_Send(p_variables_data_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                            MPI_Send(p_variables_data_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                            auto end = std::chrono::steady_clock::now();
-                            std::chrono::duration<double> elapsed_seconds = end-start;
-                            total_seconds += elapsed_seconds;
+                            MPI_Send(p_variables_data, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
                         }else if((i % upd_freq) == conversion_factor - 1){
-                            MPI_Recv(p_variables_recv_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                             auto start = std::chrono::steady_clock::now();
-                            MPI_Recv(p_variables_recv_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                            MPI_Recv(p_variables_recv_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                            MPI_Recv(p_variables_recv_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+							MPI_Recv(p_variables_recv, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                             auto end = std::chrono::steady_clock::now();
                             std::chrono::duration<double> elapsed_seconds = end-start;
                             total_seconds += elapsed_seconds;
                         }else{
-                            MPI_Send(p_variables_data_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                            MPI_Send(p_variables_data, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
                             auto start = std::chrono::steady_clock::now();
-                            MPI_Send(p_variables_data_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                            MPI_Send(p_variables_data_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                            MPI_Send(p_variables_data_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                            MPI_Recv(p_variables_recv_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                            MPI_Recv(p_variables_recv_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                            MPI_Recv(p_variables_recv_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                            MPI_Recv(p_variables_recv_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                            MPI_Recv(p_variables_recv, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                             auto end = std::chrono::steady_clock::now();
                             std::chrono::duration<double> elapsed_seconds = end-start;
                             total_seconds += elapsed_seconds;
                         }
                     }else{
-                        MPI_Send(p_variables_data_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                        MPI_Send(p_variables_data, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
                         auto start = std::chrono::steady_clock::now();
-                        MPI_Send(p_variables_data_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                        MPI_Send(p_variables_data_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                        MPI_Send(p_variables_data_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                        MPI_Recv(p_variables_recv_l0, boundary_nodes_sizes[0] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                        MPI_Recv(p_variables_recv_l1, boundary_nodes_sizes[1] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                        MPI_Recv(p_variables_recv_l2, boundary_nodes_sizes[2] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                        MPI_Recv(p_variables_recv_l3, boundary_nodes_sizes[3] * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                        MPI_Recv(p_variables_recv, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                         auto end = std::chrono::steady_clock::now();
                         std::chrono::duration<double> elapsed_seconds = end-start;
                         total_seconds += elapsed_seconds;
@@ -853,11 +747,9 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             }
 
             op_printf("Cycle %d comms ending\n", i);
-            for (int z = 0; z < levels; z++) {
-                free(temp_dats[z]->data);
-                free(temp_dats[z]->set);
-                free(temp_dats[z]);
-            }
+            free(temp_dat_l0->data);
+            free(temp_dat_l0->set);
+            free(temp_dat_l0);
         }
         
 
@@ -1165,10 +1057,10 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                 op_printf("Level: %d\n", l);
                 for (int z = 0; z < 10; z++) {
                         if (l == 0) {
-                            op_printf("OP2 fetched p_variables data[%d]: %f\n", z, p_variables_data_l0[z]);
-                            op_printf("Received p_variables data[%d]: %f\n", z, p_variables_recv_l0[z]);
+                            op_printf("OP2 fetched p_variables data[%d]: %f\n", z, p_variables_data);
+                            op_printf("Received p_variables data[%d]: %f\n", z, p_variables_recv);
                         }
-                        else if (l == 1) {
+                        /*else if (l == 1) {
                             op_printf("OP2 fetched p_variables data[%d]: %f\n", z, p_variables_data_l1[z]);
                             op_printf("Received p_variables data[%d]: %f\n", z, p_variables_recv_l1[z]);
                         }
@@ -1179,7 +1071,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                         else if (l == 3) {
                             op_printf("OP2 fetched p_variables data[%d]: %f\n", z, p_variables_data_l3[z]);
                             op_printf("Received p_variables data[%d]: %f\n", z, p_variables_recv_l3[z]);
-                        }
+                        }*/
                 }
 
             }
