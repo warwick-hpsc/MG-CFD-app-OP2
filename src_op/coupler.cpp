@@ -39,7 +39,7 @@ int main(int argc, char** argv){
 	char total[] = "TOTAL";
 	char type[] = "TYPE";
 	bool debug = true;
-	bool superdebug = false;//Disables coupling entirely and allows applications to run on their own
+	bool superdebug = true;//Disables coupling entirely and allows applications to run on their own
 	bool fastsearch = false;
 
 	int mpi_ranks = 0;
@@ -294,16 +294,62 @@ int main(int argc, char** argv){
 		}else{
 			#ifdef defcup
 				printf("launch cup here");
-				main_cup(argc, argv, comms_shell);
+				main_cup(argc, argv, comms_shell, instance_number, units, relative_positions);
             #endif
 		}
 	}else{
 		if(superdebug){
 			#ifdef defcup
 				TreeTimerInit();
+
+				#include "coupler_config.h"
+				MPI_Comm coupler_comm = MPI_Comm_f2c(comms_shell);
+				int cycle_counter = 0;
+				int left_recv;
+				int right_recv;
+				int my_rank;
+				MPI_Comm_rank(coupler_comm, &my_rank);
+
+				bool found = false;
+				int unit_count = 0;
+				while(!found){
+					for(int j=units[unit_count].coupler_ranks[0][0]; j<units[unit_count].coupler_ranks[0][0]+units[unit_count].coupler_ranks[0].size();j++){//if rank of processes matches a rank for a particular coupler unit, assign the new communicator
+						if(units[unit_count].type == 'C' && rank == j){
+							found=true;
+						}
+					}
+					if(found == false){
+						unit_count++;
+					}
+				}
+
+				int left_rank = units[unit_count].mgcfd_ranks[0][0];
+				//int left_size = static_cast<int>(units[unit_count].mgcfd_ranks[0].size());
+				int right_rank = units[unit_count].mgcfd_ranks[1][0];
+				int root_rank = units[unit_count].coupler_ranks[0][0];
+				printf("My later rank is %d\n",rank);
+				printf("The rank I need is %d\n",root_rank);
+
+				if(rank == root_rank){
+					fflush(stdout);
+					printf("Left rank is %d\n",left_rank);
+					fflush(stdout);
+					printf("Right rank is %d\n",right_rank);
+					fflush(stdout);
+					MPI_Recv(&left_recv, 1, MPI_INT, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+					MPI_Recv(&right_recv, 1, MPI_INT, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+					printf("Recieved value %d from rank %d\n", left_recv, left_rank);
+					fflush(stdout);
+					printf("Recieved value %d from rank %d\n", right_recv, right_rank);
+					fflush(stdout);
+					MPI_Send(&right_rank, 1, MPI_INT, left_rank, 0, MPI_COMM_WORLD);
+					MPI_Send(&left_rank, 1, MPI_INT, right_rank, 0, MPI_COMM_WORLD);
+				}
+				
 				TreeTimerFinalize();
 			#endif
 			MPI_Finalize();
+			
 		}else{
 			#include "coupler_config.h"
 			MPI_Comm coupler_comm = MPI_Comm_f2c(comms_shell);
