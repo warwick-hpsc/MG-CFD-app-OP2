@@ -20,9 +20,8 @@
 #include <iostream>
 #include <map>
 
-
 int main(int argc, char** argv){
-
+	#include "coupler_config.h"
 	FILE *ifp = fopen("cpx_input.cfg", "r");
 
 	if(ifp == NULL){
@@ -38,10 +37,6 @@ int main(int argc, char** argv){
 	char unit_2[] = "UNIT_2";
 	char total[] = "TOTAL";
 	char type[] = "TYPE";
-	bool debug = true;
-	bool superdebug = true;//Disables coupling entirely and allows applications to run on their own
-	bool fastsearch = false;
-
 	int mpi_ranks = 0;
 	char keyword[8];//longest word is COUPLER
 	char c_type[8]; //longest type is sliding
@@ -351,7 +346,6 @@ int main(int argc, char** argv){
 			MPI_Finalize();
 			
 		}else{
-			#include "coupler_config.h"
 			MPI_Comm coupler_comm = MPI_Comm_f2c(comms_shell);
 			int cycle_counter = 0;
 
@@ -371,13 +365,6 @@ int main(int argc, char** argv){
 	            }
 	    	}
 			
-			int coupler_vars = 0;
-			if(units[unit_count].coupling_type == 'S'){
-				coupler_vars = 5;
-			}else if(units[unit_count].coupling_type == 'C'){
-				coupler_vars = 1;
-			}
-			
 			int left_rank = units[unit_count].mgcfd_ranks[0][0];
 			int right_rank = units[unit_count].mgcfd_ranks[1][0];
 			 
@@ -390,6 +377,24 @@ int main(int argc, char** argv){
 			double adjusted_sizes_left = ceil((left_nodes_size/34000)/4);
 			double adjusted_sizes_right = ceil((right_nodes_size/34000)/4);
 
+
+			//set the scaling for the search and interpolation routines
+			double left_search_scaling;
+			double right_search_scaling;
+            double interp_scaling;
+			int search_repeats = 10;
+            int coupler_vars = 0;
+            if(units[unit_count].coupling_type == 'S'){
+                left_search_scaling = search_repeats * adjusted_sizes_left;
+                right_search_scaling = search_repeats * adjusted_sizes_right;
+                interp_scaling = 3500/((adjusted_sizes_left + adjusted_sizes_right)/2);
+                coupler_vars = 5;
+            }else if(units[unit_count].coupling_type == 'C'){
+                left_search_scaling = 3;
+                right_search_scaling = 3;
+                coupler_vars = 1;
+            }
+
 	        double *left_p_variables = (double *) malloc(left_nodes_size * coupler_vars * sizeof(double));
 	        double *right_p_variables = (double *) malloc(right_nodes_size * coupler_vars * sizeof(double));
 
@@ -399,13 +404,13 @@ int main(int argc, char** argv){
 			double left_nodes_size_chunks = left_nodes_size / total_ranks;
 			double right_nodes_size_chunks = right_nodes_size / total_ranks;
 
-			int search_repeats = 10;
 			double vector_counter;
 			int sub_count;
 			double vector_counter_max;
 
-			double *left_p_variables_sg = (double *) malloc((left_nodes_size_chunks) * coupler_vars * sizeof(double)); //left p_variables storage for scatter/gather
-	        double *right_p_variables_sg = (double *) malloc((right_nodes_size_chunks) * coupler_vars * sizeof(double)); //right p_variables storage for scatter/gather
+			//p_variables storage for scatter/gather
+			double *left_p_variables_sg = (double *) malloc((left_nodes_size_chunks) * coupler_vars * sizeof(double));
+	        double *right_p_variables_sg = (double *) malloc((right_nodes_size_chunks) * coupler_vars * sizeof(double));
 
 			//p_variable vectors to represent brute force search
 			std::vector< std::vector<double> > left_vector_of_state_vars;
@@ -415,8 +420,18 @@ int main(int argc, char** argv){
 			std::map< int, std::vector<double> > left_map_of_state_vars;
 			std::map< int, std::vector<double> > right_map_of_state_vars;
 
-			while((cycle_counter < mgcycles) && (cycle_counter % conversion_factor) == 0){
+			//set up some random data for cht interpolation
+			int ar_size_max = ((left_nodes_size + right_nodes_size)/2)*1.5;
+			printf("size is %d\n", ar_size_max);
+			srand((unsigned)time(NULL));
+			double data_ran[ar_size_max][4];
+			for(int i = 0; i < ar_size_max; i++){
+				for(int k = 0; k < 4; k++){
+					data_ran[i][k] = rand()/1000;
+				}
+			}
 
+			while((cycle_counter < mgcycles) && (cycle_counter % conversion_factor) == 0){
 				int local_size;
 				MPI_Comm_size(coupler_comm, &local_size);
 				if(rank == root_rank){
@@ -437,15 +452,15 @@ int main(int argc, char** argv){
 				//rendezvous routines start
 				if(units[unit_count].coupling_type == 'S' || cycle_counter == 0){
 					if((cycle_counter % upd_freq) == 0){
-						for(int l = 0; l < (search_repeats * adjusted_sizes_left); l++){
-					        vector_counter = 0;
-							if(MUM == 0){
-								vector_counter_max = std::min(left_nodes_size, right_nodes_size);//this is size of mesh recieved from broadcast
-							}else{
-								vector_counter_max = std::min(left_nodes_size_chunks, right_nodes_size_chunks);//this is size of mesh recieved from scatter
-							}
-							sub_count = 0;
-							if(!fastsearch){
+						if(MUM == 0){
+							vector_counter_max = std::min(left_nodes_size, right_nodes_size);//this is size of mesh recieved from broadcast
+						}else{
+							vector_counter_max = std::min(left_nodes_size_chunks, right_nodes_size_chunks);//this is size of mesh recieved from scatter
+						}
+						if(!fastsearch){
+							for(int l = 0; l < left_search_scaling; l++){
+								vector_counter = 0;
+								sub_count = 0;
 								while(sub_count < total_ranks){
 									left_vector_of_state_vars.clear();
 									while(vector_counter < (vector_counter_max/total_ranks)){
@@ -463,7 +478,9 @@ int main(int argc, char** argv){
 									vector_counter = 0;
 									sub_count++;
 								}
-							}else{
+							}
+						}else{
+							for(int l = 0; l < left_search_scaling; l++){
 								left_map_of_state_vars.clear();
 								vector_counter = 0;
 								while(vector_counter < (vector_counter_max)){
@@ -483,15 +500,15 @@ int main(int argc, char** argv){
 					}
 
 					if((cycle_counter % upd_freq) == 0){
-						for(int l = 0; l < (search_repeats * adjusted_sizes_right); l++){
-					        vector_counter = 0;
-							if(MUM == 0){
-								vector_counter_max = std::min(left_nodes_size, right_nodes_size);//this is size of mesh recieved from broadcast
-							}else{
-								vector_counter_max = std::min(left_nodes_size_chunks, right_nodes_size_chunks);//this is size of mesh recieved from scatter
-							}
-							sub_count = 0;
-							if(!fastsearch){
+						if(MUM == 0){
+							vector_counter_max = std::min(left_nodes_size, right_nodes_size);//this is size of mesh recieved from broadcast
+						}else{
+							vector_counter_max = std::min(left_nodes_size_chunks, right_nodes_size_chunks);//this is size of mesh recieved from scatter
+						}
+						if(!fastsearch){
+							for(int l = 0; l < right_search_scaling; l++){
+								vector_counter = 0;
+								sub_count = 0;
 								while(sub_count < total_ranks){
 									right_vector_of_state_vars.clear();
 									while(vector_counter < (vector_counter_max/total_ranks)){
@@ -509,7 +526,9 @@ int main(int argc, char** argv){
 									vector_counter = 0;
 									sub_count++;
 								}
-							}else{
+							}
+						}else{
+							for(int l = 0; l < right_search_scaling; l++){
 								right_map_of_state_vars.clear();
 								vector_counter = 0;
 								while(vector_counter < (vector_counter_max)){
@@ -534,35 +553,64 @@ int main(int argc, char** argv){
 							left_vector_of_state_vars.insert(left_vector_of_state_vars.end(), left_map_of_state_vars.at(i));
 							right_vector_of_state_vars.insert(right_vector_of_state_vars.end(), right_map_of_state_vars.at(i));
 						}
-						search_repeats = 1;
+						if(units[unit_count].coupling_type == 'S'){
+							left_search_scaling = adjusted_sizes_left;
+							right_search_scaling = adjusted_sizes_right;
+						}
 					}
 				}
 				//rendezvous routines end
 				
 				//interpolate routine start
 				if((cycle_counter % conversion_factor) == 0){
-					std::vector<double> node_state_vars_left;
-					std::vector<double> node_state_vars_right;
-					std::vector<double> node_state_vars_temp;
-					vector_counter = 0;
-					sub_count = 0;
-	                vector_counter_max = std::min(left_nodes_size_chunks, right_nodes_size_chunks);//this is size of mesh recieved from scatter
-					while(sub_count < (total_ranks*(3500/((adjusted_sizes_left + adjusted_sizes_right)/2)))){//TODO: changes the adjusted_sizes to whichever is lower
-						while(vector_counter < vector_counter_max/total_ranks){
-							node_state_vars_left = left_vector_of_state_vars.at(vector_counter);
-							node_state_vars_right = right_vector_of_state_vars.at(vector_counter);
-							node_state_vars_temp = node_state_vars_right;
-							for(int i = 0; i<coupler_vars; i++){
-								node_state_vars_right.at(i) = (node_state_vars_left.at(i) + node_state_vars_right.at(i))/2;
-								node_state_vars_left.at(i) = (node_state_vars_left.at(i) + node_state_vars_temp.at(i))/2;
-							}
-							vector_counter++;
-						}
+					if(units[unit_count].coupling_type == 'S'){
+						std::vector<double> node_state_vars_left;
+						std::vector<double> node_state_vars_right;
+						std::vector<double> node_state_vars_temp;
 						vector_counter = 0;
-						sub_count++;
+						sub_count = 0;
+						vector_counter_max = std::min(left_nodes_size_chunks, right_nodes_size_chunks);//this is size of mesh recieved from scatter
+						while(sub_count < (total_ranks*(3500/((adjusted_sizes_left + adjusted_sizes_right)/2)))){//TODO: changes the adjusted_sizes to whichever is lower
+							while(vector_counter < vector_counter_max/total_ranks){
+								node_state_vars_left = left_vector_of_state_vars.at(vector_counter);
+								node_state_vars_right = right_vector_of_state_vars.at(vector_counter);
+								node_state_vars_temp = node_state_vars_right;
+								for(int i = 0; i<coupler_vars; i++){
+									node_state_vars_right.at(i) = (node_state_vars_left.at(i) + node_state_vars_right.at(i))/2;
+									node_state_vars_left.at(i) = (node_state_vars_left.at(i) + node_state_vars_temp.at(i))/2;
+								}
+								vector_counter++;
+							}
+							vector_counter = 0;
+							sub_count++;
+						}
+					}else if(units[unit_count].coupling_type == 'C'){
+						std::vector<double> quad_array_rt;
+						std::vector<double> quad_array_lt;
+						for(int i = 0; i < ar_size_max*0.85; i++){
+							quad_array_rt.push_back(data_ran[i][0]);
+							quad_array_lt.push_back(data_ran[i][0]);
+							for(int k = 1; k < 4; k++){
+								quad_array_rt.at(i) = (quad_array_rt.at(i) + data_ran[i][k]);
+								quad_array_lt.at(i) = (quad_array_lt.at(i) + data_ran[i][k]);
+							}
+							quad_array_rt.at(i) = (quad_array_rt.at(i)/2);
+							quad_array_lt.at(i) = (quad_array_lt.at(i)/2);
+							quad_array_rt.at(i) = 0.0;
+							quad_array_lt.at(i) = 0.0;
+						}
+						vector_counter_max = (left_nodes_size_chunks + right_nodes_size_chunks)/2;//this is size of mesh recieved from scatter
+						for(int b = 0; b < vector_counter_max; b++){
+							int temp = 0;
+							for(int i = 0; i < 3; i++){
+								if(data_ran[b][i] != data_ran[b][i % 3 + 1]){
+									temp = temp + 1;
+									quad_array_rt.at(b % (ar_size_max/2)) = quad_array_lt.at(b % (ar_size_max/2));
+								}
+							}
+						}
 					}
 				}
-				
 				//interpolate routine end
 				MPI_Barrier(coupler_comm);
 		        MPI_Gather(left_p_variables_sg, (left_nodes_size_chunks * coupler_vars), MPI_DOUBLE, left_p_variables, (left_nodes_size_chunks * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
@@ -582,3 +630,4 @@ int main(int argc, char** argv){
 		}
 	}
 }
+
