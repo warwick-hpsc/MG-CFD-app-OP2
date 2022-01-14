@@ -546,6 +546,7 @@ int main(int argc, char** argv)
         }
     }
 
+    op_timers(&cpu_t1, &wall_t1);
     // Initialise variables:
     for (int i=0; i<levels; i++) {
         op_par_loop_initialize_variables_kernel("initialize_variables_kernel",op_nodes[i],
@@ -584,7 +585,6 @@ int main(int argc, char** argv)
     op_printf("-----------------------------------------------------\n");
     op_printf("Compute beginning\n");
 
-    op_timers(&cpu_t1, &wall_t1);
 
     int level = 0;
     int mg_dir = MG_UP;
