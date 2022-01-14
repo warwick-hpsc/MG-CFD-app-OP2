@@ -307,6 +307,13 @@ ifeq ($(NV_ARCH),Volta)
 ifeq ($(OP2_COMPILER),hipsycl)
   SYCL_FLAGS += --hipsycl-gpu-arch=sm_70
 endif
+else
+ifeq ($(NV_ARCH),Ampere)
+  CODE_GEN_CUDA=-gencode arch=compute_80,code=sm_80
+ifeq ($(OP2_COMPILER),hipsycl)
+  SYCL_FLAGS += --hipsycl-gpu-arch=sm_80
+endif
+endif
 endif
 endif
 endif
