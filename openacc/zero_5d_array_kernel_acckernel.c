@@ -8,12 +8,14 @@
 #include "structures.h"
 #include "global.h"
 
+int direct_zero_5d_array_kernel_stride_OP2CONSTANT;
+int direct_zero_5d_array_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void zero_5d_array_kernel_openacc( 
     double* array) {
     for(int j = 0; j < NVAR; j++) {
-        array[j] = 0.0;
+        array[(j)*direct_zero_5d_array_kernel_stride_OP2CONSTANT] = 0.0;
     }
 }
 
@@ -43,6 +45,10 @@ void op_par_loop_zero_5d_array_kernel(char const *name, op_set set,
 
   if (set_size >0) {
 
+    if ((OP_kernels[1].count==1) || (direct_zero_5d_array_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_zero_5d_array_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_zero_5d_array_kernel_stride_OP2CONSTANT = direct_zero_5d_array_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
 
@@ -50,7 +56,7 @@ void op_par_loop_zero_5d_array_kernel(char const *name, op_set set,
     #pragma acc parallel loop independent deviceptr(data0)
     for ( int n=0; n<set->size; n++ ){
       zero_5d_array_kernel_openacc(
-        &data0[5*n]);
+        &data0[n]);
     }
   }
 

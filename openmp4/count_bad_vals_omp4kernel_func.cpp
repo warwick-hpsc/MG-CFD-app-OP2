@@ -10,7 +10,8 @@ void count_bad_vals_omp4_kernel(
   int *arg1,
   int count,
   int num_teams,
-  int nthread){
+  int nthread,
+  int direct_count_bad_vals_stride_OP2CONSTANT){
 
   int arg1_l = *arg1;
   #pragma omp target teams num_teams(num_teams) thread_limit(nthread) map(to:data0[0:dat0size])\
@@ -18,16 +19,16 @@ void count_bad_vals_omp4_kernel(
   #pragma omp distribute parallel for schedule(static,1) reduction(+:arg1_l)
   for ( int n_op=0; n_op<count; n_op++ ){
     //variable mapping
-    const double* value = &data0[5*n_op];
+    const double* value = &data0[n_op];
     int* count = &arg1_l;
 
     //inline function
     
-      #ifdef OPENACC
+      #if defined(OPENACC) || defined(__HIPSYCL__) || defined(TRISYCL_CL_LANGUAGE_VERSION)
 
       #else
           for (int v=0; v<NVAR; v++) {
-              if (isnan(value[v]) || isinf(value[v])) {
+              if (isnan(value[(v)*direct_count_bad_vals_stride_OP2CONSTANT]) || isinf(value[(v)*direct_count_bad_vals_stride_OP2CONSTANT])) {
                   *count += 1;
               }
           }

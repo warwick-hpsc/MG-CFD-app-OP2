@@ -6,6 +6,10 @@
 #include <math.h>
 #include "const.h"
 
+int opDat0_down_v2_kernel_stride_OP2CONSTANT;
+int opDat0_down_v2_kernel_stride_OP2HOST=-1;
+int opDat2_down_v2_kernel_stride_OP2CONSTANT;
+int opDat2_down_v2_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void down_v2_kernel_openacc( 
@@ -26,9 +30,9 @@ inline void down_v2_kernel_openacc(
 
 
 
-    double dx_a1a2 = coord2a[0] - coord1a[0];
-    double dy_a1a2 = coord2a[1] - coord1a[1];
-    double dz_a1a2 = coord2a[2] - coord1a[2];
+    double dx_a1a2 = coord2a[(0)*opDat0_down_v2_kernel_stride_OP2CONSTANT] - coord1a[(0)*opDat2_down_v2_kernel_stride_OP2CONSTANT];
+    double dy_a1a2 = coord2a[(1)*opDat0_down_v2_kernel_stride_OP2CONSTANT] - coord1a[(1)*opDat2_down_v2_kernel_stride_OP2CONSTANT];
+    double dz_a1a2 = coord2a[(2)*opDat0_down_v2_kernel_stride_OP2CONSTANT] - coord1a[(2)*opDat2_down_v2_kernel_stride_OP2CONSTANT];
     if (dx_a1a2 == 0.0 && dy_a1a2 == 0.0 && dz_a1a2 == 0.0) {
 
         residuals1a_prolonged[VAR_DENSITY]        = residuals1a[VAR_DENSITY];
@@ -47,9 +51,9 @@ inline void down_v2_kernel_openacc(
         residuals1a_prolonged[VAR_DENSITY_ENERGY] += idist_a1a2*residuals1a[VAR_DENSITY_ENERGY];
         *residuals1a_prolonged_wsum += idist_a1a2;
 
-        double dx_b1a2 = coord1b[0] - coord2a[0];
-        double dy_b1a2 = coord1b[1] - coord2a[1];
-        double dz_b1a2 = coord1b[2] - coord2a[2];
+        double dx_b1a2 = coord1b[(0)*opDat2_down_v2_kernel_stride_OP2CONSTANT] - coord2a[(0)*opDat0_down_v2_kernel_stride_OP2CONSTANT];
+        double dy_b1a2 = coord1b[(1)*opDat2_down_v2_kernel_stride_OP2CONSTANT] - coord2a[(1)*opDat0_down_v2_kernel_stride_OP2CONSTANT];
+        double dz_b1a2 = coord1b[(2)*opDat2_down_v2_kernel_stride_OP2CONSTANT] - coord2a[(2)*opDat0_down_v2_kernel_stride_OP2CONSTANT];
 
         const double idist_b1a2 = 1.0/sqrt(dx_b1a2*dx_b1a2 + dy_b1a2*dy_b1a2 + dz_b1a2*dz_b1a2);
         residuals1a_prolonged[VAR_DENSITY]        += idist_b1a2*residuals1b[VAR_DENSITY];
@@ -60,9 +64,9 @@ inline void down_v2_kernel_openacc(
         *residuals1a_prolonged_wsum += idist_b1a2;
     }
 
-    double dx_b1b2 = coord2b[0] - coord1b[0];
-    double dy_b1b2 = coord2b[1] - coord1b[1];
-    double dz_b1b2 = coord2b[2] - coord1b[2];
+    double dx_b1b2 = coord2b[(0)*opDat0_down_v2_kernel_stride_OP2CONSTANT] - coord1b[(0)*opDat2_down_v2_kernel_stride_OP2CONSTANT];
+    double dy_b1b2 = coord2b[(1)*opDat0_down_v2_kernel_stride_OP2CONSTANT] - coord1b[(1)*opDat2_down_v2_kernel_stride_OP2CONSTANT];
+    double dz_b1b2 = coord2b[(2)*opDat0_down_v2_kernel_stride_OP2CONSTANT] - coord1b[(2)*opDat2_down_v2_kernel_stride_OP2CONSTANT];
     if (dx_b1b2 == 0.0 && dy_b1b2 == 0.0 && dz_b1b2 == 0.0) {
 
         residuals1b_prolonged[VAR_DENSITY]        = residuals1b[VAR_DENSITY];
@@ -81,9 +85,9 @@ inline void down_v2_kernel_openacc(
         residuals1b_prolonged[VAR_DENSITY_ENERGY] += idist_b1b2*residuals1b[VAR_DENSITY_ENERGY];
         *residuals1b_prolonged_wsum += idist_b1b2;
 
-        double dx_a1b2 = coord1a[0] - coord2b[0];
-        double dy_a1b2 = coord1a[1] - coord2b[1];
-        double dz_a1b2 = coord1a[2] - coord2b[2];
+        double dx_a1b2 = coord1a[(0)*opDat2_down_v2_kernel_stride_OP2CONSTANT] - coord2b[(0)*opDat0_down_v2_kernel_stride_OP2CONSTANT];
+        double dy_a1b2 = coord1a[(1)*opDat2_down_v2_kernel_stride_OP2CONSTANT] - coord2b[(1)*opDat0_down_v2_kernel_stride_OP2CONSTANT];
+        double dz_a1b2 = coord1a[(2)*opDat2_down_v2_kernel_stride_OP2CONSTANT] - coord2b[(2)*opDat0_down_v2_kernel_stride_OP2CONSTANT];
 
         const double idist_a1b2 = 1.0/sqrt(dx_a1b2*dx_a1b2 + dy_a1b2*dy_a1b2 + dz_a1b2*dz_a1b2);
         residuals1b_prolonged[VAR_DENSITY]        += idist_a1b2*residuals1b[VAR_DENSITY];
@@ -150,6 +154,14 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
 
   if (set_size >0) {
 
+    if ((OP_kernels[20].count==1) || (opDat0_down_v2_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      opDat0_down_v2_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      opDat0_down_v2_kernel_stride_OP2CONSTANT = opDat0_down_v2_kernel_stride_OP2HOST;
+    }
+    if ((OP_kernels[20].count==1) || (opDat2_down_v2_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg2))) {
+      opDat2_down_v2_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg2);
+      opDat2_down_v2_kernel_stride_OP2CONSTANT = opDat2_down_v2_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
     int *map0 = arg0.map_data_d;
@@ -177,21 +189,25 @@ void op_par_loop_down_v2_kernel(char const *name, op_set set,
       #pragma acc parallel loop independent deviceptr(col_reord,map0,map2,data0,data2,data4,data6,data8)
       for ( int e=start; e<end; e++ ){
         int n = col_reord[e];
-        int map0idx = map0[n + set_size1 * 0];
-        int map1idx = map0[n + set_size1 * 1];
-        int map2idx = map2[n + set_size1 * 0];
-        int map3idx = map2[n + set_size1 * 1];
+        int map0idx;
+        int map1idx;
+        int map2idx;
+        int map3idx;
+        map0idx = map0[n + set_size1 * 0];
+        map1idx = map0[n + set_size1 * 1];
+        map2idx = map2[n + set_size1 * 0];
+        map3idx = map2[n + set_size1 * 1];
 
 
         down_v2_kernel_openacc(
-          &data0[3 * map0idx],
-          &data0[3 * map1idx],
-          &data2[3 * map2idx],
-          &data2[3 * map3idx],
-          &data4[5 * map2idx],
-          &data4[5 * map3idx],
-          &data6[5 * map0idx],
-          &data6[5 * map1idx],
+          &data0[map0idx],
+          &data0[map1idx],
+          &data2[map2idx],
+          &data2[map3idx],
+          &data4[map2idx],
+          &data4[map3idx],
+          &data6[map0idx],
+          &data6[map1idx],
           &data8[1 * map0idx],
           &data8[1 * map1idx]);
       }

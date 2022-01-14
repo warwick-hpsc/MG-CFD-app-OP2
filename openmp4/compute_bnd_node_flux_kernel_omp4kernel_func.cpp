@@ -23,7 +23,9 @@ void compute_bnd_node_flux_kernel_omp4_kernel(
   int start,
   int end,
   int num_teams,
-  int nthread){
+  int nthread,
+  int opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT,
+  int direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT){
 
   #pragma omp target teams num_teams(num_teams) thread_limit(nthread) map(to:data0[0:dat0size],data1[0:dat1size]) \
     map(to: ff_variable_ompkernel[:5], ff_flux_contribution_momentum_x_ompkernel[:3], ff_flux_contribution_momentum_y_ompkernel[:3], ff_flux_contribution_momentum_z_ompkernel[:3], ff_flux_contribution_density_energy_ompkernel[:3])\
@@ -31,13 +33,14 @@ void compute_bnd_node_flux_kernel_omp4_kernel(
   #pragma omp distribute parallel for schedule(static,1)
   for ( int e=start; e<end; e++ ){
     int n_op = col_reord[e];
-    int map2idx = map2[n_op + set_size1 * 0];
+    int map2idx;
+    map2idx = map2[n_op + set_size1 * 0];
 
     //variable mapping
     const int *g = &data0[1*n_op];
-    const double *edge_weight = &data1[3*n_op];
-    const double *variables_b = &data2[5 * map2idx];
-    double *fluxes_b = &data3[5 * map2idx];
+    const double *edge_weight = &data1[n_op];
+    const double *variables_b = &data2[map2idx];
+    double *fluxes_b = &data3[map2idx];
 
     //inline function
     
@@ -84,7 +87,7 @@ void compute_bnd_node_flux_kernel_omp4_kernel(
             #endif
         
             double speed_sqd_b = compute_speed_sqd(velocity_b);
-            double speed_b = std::sqrt(speed_sqd_b);
+            double speed_b = sqrt(speed_sqd_b);
             pressure_b = compute_pressure(p_b, pe_b, speed_sqd_b);
         
             #ifdef IDIVIDE
@@ -101,9 +104,9 @@ void compute_bnd_node_flux_kernel_omp4_kernel(
                 flux_contribution_i_density_energy_b);
         
             fluxes_b[VAR_DENSITY]        += 0;
-            fluxes_b[VAR_MOMENTUM +0]    += edge_weight[0]*pressure_b;
-            fluxes_b[VAR_MOMENTUM +1]    += edge_weight[1]*pressure_b;
-            fluxes_b[VAR_MOMENTUM +2]    += edge_weight[2]*pressure_b;
+            fluxes_b[VAR_MOMENTUM +0]    += edge_weight[(0)*direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT]*pressure_b;
+            fluxes_b[VAR_MOMENTUM +1]    += edge_weight[(1)*direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT]*pressure_b;
+            fluxes_b[VAR_MOMENTUM +2]    += edge_weight[(2)*direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT]*pressure_b;
             fluxes_b[VAR_DENSITY_ENERGY] += 0;
         
 
@@ -142,7 +145,7 @@ void compute_bnd_node_flux_kernel_omp4_kernel(
             #endif
         
             double speed_sqd_b = compute_speed_sqd(velocity_b);
-            double speed_b = std::sqrt(speed_sqd_b);
+            double speed_b = sqrt(speed_sqd_b);
             pressure_b = compute_pressure(p_b, pe_b, speed_sqd_b);
         
             #ifdef IDIVIDE
@@ -158,9 +161,9 @@ void compute_bnd_node_flux_kernel_omp4_kernel(
                                       flux_contribution_i_momentum_z_b,
                                       flux_contribution_i_density_energy_b);
         
-            double factor_x = 0.5 * edge_weight[0],
-                   factor_y = 0.5 * edge_weight[1],
-                   factor_z = 0.5 * edge_weight[2];
+            double factor_x = 0.5 * edge_weight[(0)*direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT],
+                   factor_y = 0.5 * edge_weight[(1)*direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT],
+                   factor_z = 0.5 * edge_weight[(2)*direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT];
         
             fluxes_b[VAR_DENSITY] +=
                   factor_x*(ff_variable_ompkernel[VAR_MOMENTUM+0] + momentum_b.x)

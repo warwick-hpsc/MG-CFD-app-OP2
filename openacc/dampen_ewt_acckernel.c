@@ -8,13 +8,15 @@
 #include "structures.h"
 #include "global.h"
 
+int direct_dampen_ewt_stride_OP2CONSTANT;
+int direct_dampen_ewt_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void dampen_ewt_openacc( 
     double* ewt) {
-    ewt[0] *= 1e-7;
-    ewt[1] *= 1e-7;
-    ewt[2] *= 1e-7;
+    ewt[(0)*direct_dampen_ewt_stride_OP2CONSTANT] *= 1e-7;
+    ewt[(1)*direct_dampen_ewt_stride_OP2CONSTANT] *= 1e-7;
+    ewt[(2)*direct_dampen_ewt_stride_OP2CONSTANT] *= 1e-7;
 }
 
 // host stub function
@@ -43,6 +45,10 @@ void op_par_loop_dampen_ewt(char const *name, op_set set,
 
   if (set_size >0) {
 
+    if ((OP_kernels[4].count==1) || (direct_dampen_ewt_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_dampen_ewt_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_dampen_ewt_stride_OP2CONSTANT = direct_dampen_ewt_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
 
@@ -50,7 +56,7 @@ void op_par_loop_dampen_ewt(char const *name, op_set set,
     #pragma acc parallel loop independent deviceptr(data0)
     for ( int n=0; n<set->size; n++ ){
       dampen_ewt_openacc(
-        &data0[3*n]);
+        &data0[n]);
     }
   }
 

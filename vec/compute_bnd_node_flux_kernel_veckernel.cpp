@@ -262,7 +262,7 @@ inline void compute_bnd_node_flux_kernel_vec( const int g[][SIMD_VEC], const dou
           #endif
       
           double speed_sqd_b = compute_speed_sqd(velocity_b);
-          double speed_b = std::sqrt(speed_sqd_b);
+          double speed_b = sqrt(speed_sqd_b);
           pressure_b = compute_pressure(p_b, pe_b, speed_sqd_b);
       
           #ifdef IDIVIDE
@@ -320,7 +320,7 @@ inline void compute_bnd_node_flux_kernel_vec( const int g[][SIMD_VEC], const dou
           #endif
       
           double speed_sqd_b = compute_speed_sqd(velocity_b);
-          double speed_b = std::sqrt(speed_sqd_b);
+          double speed_b = sqrt(speed_sqd_b);
           pressure_b = compute_pressure(p_b, pe_b, speed_sqd_b);
       
           #ifdef IDIVIDE
@@ -411,6 +411,8 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
     #ifdef VECTORIZE
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
+      if (n<set->core_size && n>0 && n % OP_mpi_test_frequency == 0)
+        op_mpi_test_all(nargs,args);
       if ((n+SIMD_VEC >= set->core_size) && (n+SIMD_VEC-set->core_size < SIMD_VEC)) {
         op_mpi_wait_all(nargs, args);
       }
@@ -472,7 +474,8 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
       if (n==set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      int map2idx = arg2.map_data[n * arg2.map->dim + 0];
+      int map2idx;
+      map2idx = arg2.map_data[n * arg2.map->dim + 0];
 
       compute_bnd_node_flux_kernel(
         &(ptr0)[1 * n],

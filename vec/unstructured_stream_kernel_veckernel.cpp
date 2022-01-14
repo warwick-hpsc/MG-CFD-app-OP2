@@ -6,10 +6,6 @@
 #ifndef UNSTRUCTURED_STREAM_H
 #define UNSTRUCTURED_STREAM_H
 
-#ifdef PAPI
-#include "papi_funcs.h"
-#endif
-
 // Unstructured stream kernel
 // - performs same data movement as compute_flux_edge() but with minimal arithmetic. 
 //   Measures upper bound on performance achievable by compute_flux_edge()
@@ -127,24 +123,6 @@ void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
   op_arg arg3,
   op_arg arg4){
 
-  
-  op_par_loop_unstructured_stream_kernel_instrumented(name, set, 
-    arg0, arg1, arg2, arg3, arg4
-    #ifdef PAPI
-    , NULL
-    #endif
-    );
-};
-
-void op_par_loop_unstructured_stream_kernel_instrumented(
-  char const *name, op_set set,
-  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef PAPI
-  , long_long** restrict event_counts
-  #endif
-  )
-{
-
   int nargs = 5;
   op_arg args[5];
 
@@ -177,30 +155,15 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
   int exec_size = op_mpi_halo_exchanges(set, nargs, args);
 
   if (exec_size >0) {
-    #ifdef MEASURE_MEM_BW
-      // Need to ensure that MPI complete before timing. 
-	  // Not necessary to insert an explicit barrier, at least for 
-	  // single node benchmarking.
-      op_mpi_wait_all(nargs, args);
-      op_timers_core(&cpu_t1, &wall_t1);
-    #endif
-
-    #ifdef PAPI
-      my_papi_start();
-    #endif
 
     #ifdef VECTORIZE
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
-     if ((n+SIMD_VEC >= set->core_size) && (n+SIMD_VEC-set->core_size < SIMD_VEC)) {
-       #ifdef PAPI
-         my_papi_stop(event_counts);
-       #endif
-       op_mpi_wait_all(nargs, args);
-       #ifdef PAPI
-         my_papi_start();
-       #endif
-     }
+      if (n<set->core_size && n>0 && n % OP_mpi_test_frequency == 0)
+        op_mpi_test_all(nargs,args);
+      if ((n+SIMD_VEC >= set->core_size) && (n+SIMD_VEC-set->core_size < SIMD_VEC)) {
+        op_mpi_wait_all(nargs, args);
+      }
       ALIGNED_double double dat0[5][SIMD_VEC];
       ALIGNED_double double dat1[5][SIMD_VEC];
       ALIGNED_double double dat2[3][SIMD_VEC];
@@ -269,6 +232,7 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
 
       }
     }
+
     //remainder
     for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
     #else
@@ -277,8 +241,10 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
       if (n==set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      int map0idx = arg0.map_data[n * arg0.map->dim + 0];
-      int map1idx = arg0.map_data[n * arg0.map->dim + 1];
+      int map0idx;
+      int map1idx;
+      map0idx = arg0.map_data[n * arg0.map->dim + 0];
+      map1idx = arg0.map_data[n * arg0.map->dim + 1];
 
       unstructured_stream_kernel(
         &(ptr0)[5 * map0idx],
@@ -287,10 +253,6 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
         &(ptr3)[5 * map0idx],
         &(ptr4)[5 * map1idx]);
     }
-    
-    #ifdef PAPI
-      my_papi_stop(event_counts);
-    #endif
   }
 
   if (exec_size == 0 || exec_size == set->core_size) {

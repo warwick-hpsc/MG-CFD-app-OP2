@@ -10,7 +10,8 @@ void calc_rms_kernel_omp4_kernel(
   double *arg1,
   int count,
   int num_teams,
-  int nthread){
+  int nthread,
+  int direct_calc_rms_kernel_stride_OP2CONSTANT){
 
   double arg1_l = *arg1;
   #pragma omp target teams num_teams(num_teams) thread_limit(nthread) map(to:data0[0:dat0size])\
@@ -18,13 +19,13 @@ void calc_rms_kernel_omp4_kernel(
   #pragma omp distribute parallel for schedule(static,1) reduction(+:arg1_l)
   for ( int n_op=0; n_op<count; n_op++ ){
     //variable mapping
-    const double* residual = &data0[5*n_op];
+    const double* residual = &data0[n_op];
     double* rms = &arg1_l;
 
     //inline function
     
       for (int i=0; i<NVAR; i++) {
-          *rms += residual[i]*residual[i];
+          *rms += residual[(i)*direct_calc_rms_kernel_stride_OP2CONSTANT]*residual[(i)*direct_calc_rms_kernel_stride_OP2CONSTANT];
       }
     //end inline func
   }

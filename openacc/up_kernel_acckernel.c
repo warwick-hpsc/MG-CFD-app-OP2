@@ -6,6 +6,10 @@
 #include <math.h>
 #include "const.h"
 
+int opDat1_up_kernel_stride_OP2CONSTANT;
+int opDat1_up_kernel_stride_OP2HOST=-1;
+int direct_up_kernel_stride_OP2CONSTANT;
+int direct_up_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void up_kernel_openacc( 
@@ -61,6 +65,14 @@ void op_par_loop_up_kernel(char const *name, op_set set,
 
   if (set_size >0) {
 
+    if ((OP_kernels[17].count==1) || (opDat1_up_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg1))) {
+      opDat1_up_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg1);
+      opDat1_up_kernel_stride_OP2CONSTANT = opDat1_up_kernel_stride_OP2HOST;
+    }
+    if ((OP_kernels[17].count==1) || (direct_up_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_up_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_up_kernel_stride_OP2CONSTANT = direct_up_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
     int *map1 = arg1.map_data_d;
@@ -85,12 +97,13 @@ void op_par_loop_up_kernel(char const *name, op_set set,
       #pragma acc parallel loop independent deviceptr(col_reord,map1,data0,data1,data2)
       for ( int e=start; e<end; e++ ){
         int n = col_reord[e];
-        int map1idx = map1[n + set_size1 * 0];
+        int map1idx;
+        map1idx = map1[n + set_size1 * 0];
 
 
         up_kernel_openacc(
-          &data0[5 * n],
-          &data1[5 * map1idx],
+          &data0[n],
+          &data1[map1idx],
           &data2[1 * map1idx]);
       }
 

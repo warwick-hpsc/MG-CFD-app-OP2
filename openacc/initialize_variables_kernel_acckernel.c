@@ -8,12 +8,14 @@
 #include "structures.h"
 #include "global.h"
 
+int direct_initialize_variables_kernel_stride_OP2CONSTANT;
+int direct_initialize_variables_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void initialize_variables_kernel_openacc( 
     double* variables) {
     for(int j = 0; j < NVAR; j++) {
-        variables[j] = ff_variable[j];
+        variables[(j)*direct_initialize_variables_kernel_stride_OP2CONSTANT] = ff_variable[j];
     }
 }
 
@@ -43,6 +45,10 @@ void op_par_loop_initialize_variables_kernel(char const *name, op_set set,
 
   if (set_size >0) {
 
+    if ((OP_kernels[0].count==1) || (direct_initialize_variables_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_initialize_variables_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_initialize_variables_kernel_stride_OP2CONSTANT = direct_initialize_variables_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
 
@@ -50,7 +56,7 @@ void op_par_loop_initialize_variables_kernel(char const *name, op_set set,
     #pragma acc parallel loop independent deviceptr(data0)
     for ( int n=0; n<set->size; n++ ){
       initialize_variables_kernel_openacc(
-        &data0[5*n]);
+        &data0[n]);
     }
   }
 

@@ -3,6 +3,8 @@
 //
 
 //user function
+int direct_calc_rms_kernel_stride_OP2CONSTANT;
+int direct_calc_rms_kernel_stride_OP2HOST=-1;
 //user function
 
 void calc_rms_kernel_omp4_kernel(
@@ -11,7 +13,8 @@ void calc_rms_kernel_omp4_kernel(
   double *arg1,
   int count,
   int num_teams,
-  int nthread);
+  int nthread,
+  int direct_calc_rms_kernel_stride_OP2CONSTANT);
 
 // host stub function
 void op_par_loop_calc_rms_kernel(char const *name, op_set set,
@@ -54,6 +57,11 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
 
   if (set_size >0) {
 
+    if ((OP_kernels[14].count==1) || (direct_calc_rms_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_calc_rms_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_calc_rms_kernel_stride_OP2CONSTANT = direct_calc_rms_kernel_stride_OP2HOST;
+    }
+
     //Set up typed device pointers for OpenMP
 
     double* data0 = (double*)arg0.data_d;
@@ -64,7 +72,8 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
       &arg1_l,
       set->size,
       part_size!=0?(set->size-1)/part_size+1:(set->size-1)/nthread,
-      nthread);
+      nthread,
+      direct_calc_rms_kernel_stride_OP2CONSTANT);
 
   }
 

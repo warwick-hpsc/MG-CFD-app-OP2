@@ -16,23 +16,24 @@ void down_v2_kernel_post_omp4_kernel(
   int dat3size,
   int count,
   int num_teams,
-  int nthread){
+  int nthread,
+  int direct_down_v2_kernel_post_stride_OP2CONSTANT){
 
   #pragma omp target teams num_teams(num_teams) thread_limit(nthread) map(to:data0[0:dat0size],data1[0:dat1size],data2[0:dat2size],data3[0:dat3size])
   #pragma omp distribute parallel for schedule(static,1)
   for ( int n_op=0; n_op<count; n_op++ ){
     //variable mapping
-    const double* residuals1_prolonged = &data0[5*n_op];
+    const double* residuals1_prolonged = &data0[n_op];
     const double* residuals1_prolonged_wsum = &data1[1*n_op];
-    const double* residuals2 = &data2[5*n_op];
-    double* variables2 = &data3[5*n_op];
+    const double* residuals2 = &data2[n_op];
+    double* variables2 = &data3[n_op];
 
     //inline function
     
 
 
       for (int i=0; i<NVAR; i++) {
-          variables2[i] += residuals2[i] - (residuals1_prolonged[i] / (*residuals1_prolonged_wsum));
+          variables2[(i)*direct_down_v2_kernel_post_stride_OP2CONSTANT] += residuals2[(i)*direct_down_v2_kernel_post_stride_OP2CONSTANT] - (residuals1_prolonged[(i)*direct_down_v2_kernel_post_stride_OP2CONSTANT] / (*residuals1_prolonged_wsum));
       }
     //end inline func
   }

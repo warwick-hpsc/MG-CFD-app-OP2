@@ -8,6 +8,8 @@
 #include "const.h"
 #include "inlined_funcs.h"
 
+int direct_calculate_dt_kernel_stride_OP2CONSTANT;
+int direct_calculate_dt_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void calculate_dt_kernel_openacc( 
@@ -60,6 +62,10 @@ void op_par_loop_calculate_dt_kernel(char const *name, op_set set,
 
   if (set_size >0) {
 
+    if ((OP_kernels[6].count==1) || (direct_calculate_dt_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_calculate_dt_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_calculate_dt_kernel_stride_OP2CONSTANT = direct_calculate_dt_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
 
@@ -69,7 +75,7 @@ void op_par_loop_calculate_dt_kernel(char const *name, op_set set,
     #pragma acc parallel loop independent deviceptr(data0,data1,data2)
     for ( int n=0; n<set->size; n++ ){
       calculate_dt_kernel_openacc(
-        &data0[5*n],
+        &data0[n],
         &data1[1*n],
         &data2[1*n]);
     }

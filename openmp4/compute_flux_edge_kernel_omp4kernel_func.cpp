@@ -21,7 +21,9 @@ void compute_flux_edge_kernel_omp4_kernel(
   int start,
   int end,
   int num_teams,
-  int nthread){
+  int nthread,
+  int opDat0_compute_flux_edge_kernel_stride_OP2CONSTANT,
+  int direct_compute_flux_edge_kernel_stride_OP2CONSTANT){
 
   #pragma omp target teams num_teams(num_teams) thread_limit(nthread) map(to:data2[0:dat2size]) \
     map(to: smoothing_coefficient_ompkernel)\
@@ -29,21 +31,23 @@ void compute_flux_edge_kernel_omp4_kernel(
   #pragma omp distribute parallel for schedule(static,1)
   for ( int e=start; e<end; e++ ){
     int n_op = col_reord[e];
-    int map0idx = map0[n_op + set_size1 * 0];
-    int map1idx = map0[n_op + set_size1 * 1];
+    int map0idx;
+    int map1idx;
+    map0idx = map0[n_op + set_size1 * 0];
+    map1idx = map0[n_op + set_size1 * 1];
 
     //variable mapping
-    const double *variables_a = &data0[5 * map0idx];
-    const double *variables_b = &data0[5 * map1idx];
-    const double *edge_weight = &data2[3*n_op];
-    double *fluxes_a = &data3[5 * map0idx];
-    double *fluxes_b = &data3[5 * map1idx];
+    const double *variables_a = &data0[map0idx];
+    const double *variables_b = &data0[map1idx];
+    const double *edge_weight = &data2[n_op];
+    double *fluxes_a = &data3[map0idx];
+    double *fluxes_b = &data3[map1idx];
 
     //inline function
     
-    double ewt = std::sqrt(edge_weight[0]*edge_weight[0] +
-                           edge_weight[1]*edge_weight[1] +
-                           edge_weight[2]*edge_weight[2]);
+    double ewt = std::sqrt(edge_weight[(0)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT]*edge_weight[(0)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT] +
+                           edge_weight[(1)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT]*edge_weight[(1)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT] +
+                           edge_weight[(2)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT]*edge_weight[(2)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT]);
 
     double p_b = variables_b[VAR_DENSITY];
 
@@ -138,7 +142,7 @@ void compute_flux_edge_kernel_omp4_kernel(
                *(speed_b + std::sqrt(speed_sqd_a)
                + speed_of_sound_b + speed_of_sound_a);
 
-    double factor_x = -0.5*edge_weight[0], factor_y = -0.5*edge_weight[1], factor_z = -0.5*edge_weight[2];
+    double factor_x = -0.5*edge_weight[(0)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT], factor_y = -0.5*edge_weight[(1)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT], factor_z = -0.5*edge_weight[(2)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT];
 
     fluxes_a[VAR_DENSITY] +=
         factor_a*(p_a - p_b)

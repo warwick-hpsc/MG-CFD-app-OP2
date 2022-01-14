@@ -5,10 +5,6 @@
 //user function
 #include ".././src/Kernels/flux.h"
 
-#ifdef PAPI
-#include "papi_funcs.h"
-#endif
-
 // host stub function
 void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   op_arg arg0,
@@ -16,32 +12,6 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   op_arg arg2,
   op_arg arg3,
   op_arg arg4){
-
-  
-  op_par_loop_compute_flux_edge_kernel_instrumented(name, set, 
-    arg0, arg1, arg2, arg3, arg4
-    #ifdef VERIFY_OP2_TIMING
-      , NULL, NULL
-    #endif
-    , NULL
-    #ifdef PAPI
-    , NULL
-    #endif
-    );
-};
-
-void op_par_loop_compute_flux_edge_kernel_instrumented(
-  char const *name, op_set set,
-  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef VERIFY_OP2_TIMING
-    , double* compute_time_ptr, double* sync_time_ptr
-  #endif
-  , long* iter_counts_ptr
-  #ifdef PAPI
-  , long_long** restrict event_counts
-  #endif
-  )
-{
 
   int nargs = 5;
   op_arg args[5];
@@ -54,12 +24,10 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  double inner_cpu_t1, inner_cpu_t2, inner_wall_t1, inner_wall_t2;
-  double compute_time=0.0, sync_time=0.0;
-  op_timing_realloc_manytime(9, omp_get_max_threads());
+  op_timing_realloc(9);
+  OP_kernels[9].name      = name;
+  OP_kernels[9].count    += 1;
   op_timers_core(&cpu_t1, &wall_t1);
-  double non_thread_walltime = 0.0;
-  long iter_counts=0;
 
   int  ninds   = 2;
   int  inds[5] = {0,0,-1,1,1};
@@ -75,10 +43,7 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
     int part_size = OP_part_size;
   #endif
 
-  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
-  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
-  sync_time += inner_wall_t2 - inner_wall_t1;
 
   if (set_size >0) {
 
@@ -88,102 +53,44 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
     int block_offset = 0;
     for ( int col=0; col<Plan->ncolors; col++ ){
       if (col==Plan->ncolors_core) {
-        op_timers_core(&inner_cpu_t1, &inner_wall_t1);
         op_mpi_wait_all(nargs, args);
-        op_timers_core(&inner_cpu_t2, &inner_wall_t2);
-        sync_time += inner_wall_t2 - inner_wall_t1;
       }
       int nblocks = Plan->ncolblk[col];
 
-      op_timers_core(&inner_cpu_t1, &inner_wall_t1);
-      // Pause process timing and switch to per-thread timing:
-      op_timers_core(&cpu_t2, &wall_t2);
-      non_thread_walltime += wall_t2 - wall_t1;
-      #pragma omp parallel
-      {
-        #ifdef PAPI
-          my_papi_start();
-        #endif
-
-        double thr_wall_t1, thr_wall_t2, thr_cpu_t1, thr_cpu_t2;
-        op_timers_core(&thr_cpu_t1, &thr_wall_t1);
-
-        int nthreads = omp_get_num_threads();
-        int thr = omp_get_thread_num();
-        int thr_start = (nblocks * thr) / nthreads;
-        int thr_end = (nblocks * (thr+1)) / nthreads;
-        if (thr_end > nblocks) thr_end = nblocks;
-        for ( int blockIdx=thr_start; blockIdx<thr_end; blockIdx++ ){
-          int blockId  = Plan->blkmap[blockIdx + block_offset];
-          int nelem    = Plan->nelems[blockId];
-          int offset_b = Plan->offset[blockId];
-          for ( int n=offset_b; n<offset_b+nelem; n++ ){
-            int map0idx = arg0.map_data[n * arg0.map->dim + 0];
-            int map1idx = arg0.map_data[n * arg0.map->dim + 1];
-
-
-            compute_flux_edge_kernel(
-              &((double*)arg0.data)[5 * map0idx],
-              &((double*)arg0.data)[5 * map1idx],
-              &((double*)arg2.data)[3 * n],
-              &((double*)arg3.data)[5 * map0idx],
-              &((double*)arg3.data)[5 * map1idx]);
-          }
-        }
-
-        op_timers_core(&thr_cpu_t2, &thr_wall_t2);
-        OP_kernels[9].times[thr]  += thr_wall_t2 - thr_wall_t1;
-        
-        #ifdef PAPI
-          my_papi_stop(event_counts);
-        #endif
-      }
-
-      // Revert to process-level timing:
-      op_timers_core(&cpu_t1, &wall_t1);
-
-      op_timers_core(&inner_cpu_t2, &inner_wall_t2);
-      compute_time += inner_wall_t2 - inner_wall_t1;
-
-      block_offset += nblocks;
-    }
-
-    block_offset = 0;
-    for ( int col=0; col<Plan->ncolors; col++ ){
-      int nblocks = Plan->ncolblk[col];
+      #pragma omp parallel for
       for ( int blockIdx=0; blockIdx<nblocks; blockIdx++ ){
         int blockId  = Plan->blkmap[blockIdx + block_offset];
-        iter_counts += Plan->nelems[blockId];
+        int nelem    = Plan->nelems[blockId];
+        int offset_b = Plan->offset[blockId];
+        for ( int n=offset_b; n<offset_b+nelem; n++ ){
+          int map0idx;
+          int map1idx;
+          map0idx = arg0.map_data[n * arg0.map->dim + 0];
+          map1idx = arg0.map_data[n * arg0.map->dim + 1];
+
+
+          compute_flux_edge_kernel(
+            &((double*)arg0.data)[5 * map0idx],
+            &((double*)arg0.data)[5 * map1idx],
+            &((double*)arg2.data)[3 * n],
+            &((double*)arg3.data)[5 * map0idx],
+            &((double*)arg3.data)[5 * map1idx]);
+        }
       }
+
       block_offset += nblocks;
     }
-
     OP_kernels[9].transfer  += Plan->transfer;
     OP_kernels[9].transfer2 += Plan->transfer2;
   }
 
-  op_timers_core(&inner_cpu_t1, &inner_wall_t1);
   if (set_size == 0 || set_size == set->core_size) {
     op_mpi_wait_all(nargs, args);
   }
   // combine reduction data
   op_mpi_set_dirtybit(nargs, args);
-  op_timers_core(&inner_cpu_t2, &inner_wall_t2);
-  sync_time += inner_wall_t2 - inner_wall_t1;
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  non_thread_walltime += wall_t2 - wall_t1;
-  OP_kernels[9].name      = name;
-  OP_kernels[9].count    += 1;
-  OP_kernels[9].times[0] += non_thread_walltime;
-
-  #ifdef VERIFY_OP2_TIMING
-    if (compute_time_ptr != NULL)
-        *compute_time_ptr += compute_time;
-    if (sync_time_ptr != NULL)
-        *sync_time_ptr += sync_time;
-  #endif
-  if (iter_counts_ptr != NULL)
-    *iter_counts_ptr += iter_counts;
+  OP_kernels[9].time     += wall_t2 - wall_t1;
 }

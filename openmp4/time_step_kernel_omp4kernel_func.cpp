@@ -19,7 +19,8 @@ void time_step_kernel_omp4_kernel(
   int dat4size,
   int count,
   int num_teams,
-  int nthread){
+  int nthread,
+  int direct_time_step_kernel_stride_OP2CONSTANT){
 
   int arg0_l = *arg0;
   #pragma omp target teams num_teams(num_teams) thread_limit(nthread) map(to:data1[0:dat1size],data2[0:dat2size],data3[0:dat3size],data4[0:dat4size])
@@ -28,9 +29,9 @@ void time_step_kernel_omp4_kernel(
     //variable mapping
     const int* rkCycle = &arg0_l;
     const double* step_factor = &data1[1*n_op];
-    double* flux = &data2[5*n_op];
-    const double* old_variable = &data3[5*n_op];
-    double* variable = &data4[5*n_op];
+    double* flux = &data2[n_op];
+    const double* old_variable = &data3[n_op];
+    double* variable = &data4[n_op];
 
     //inline function
     
