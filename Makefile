@@ -8,8 +8,8 @@
 
 
 ifdef OP2_INSTALL_PATH
-  OP2_INC = -I$(OP2_INSTALL_PATH)/c/include
-  OP2_LIB = -L$(OP2_INSTALL_PATH)/c/lib
+  OP2_INC = -I$(OP2_INSTALL_PATH)/include
+  OP2_LIB = -L$(OP2_INSTALL_PATH)/lib
 endif
 
 ifdef CUDA_INSTALL_PATH
@@ -307,6 +307,13 @@ ifeq ($(NV_ARCH),Volta)
 ifeq ($(OP2_COMPILER),hipsycl)
   SYCL_FLAGS += --hipsycl-gpu-arch=sm_70
 endif
+else
+ifeq ($(NV_ARCH),Ampere)
+  CODE_GEN_CUDA=-gencode arch=compute_80,code=sm_80
+ifeq ($(OP2_COMPILER),hipsycl)
+  SYCL_FLAGS += --hipsycl-gpu-arch=sm_80
+endif
+endif
 endif
 endif
 endif
@@ -317,7 +324,7 @@ NVCCFLAGS =
 ifdef NVCC_BIN
 	NVCCFLAGS = -ccbin $(NVCC_BIN)
 endif
-NVCCFLAGS += $(CODE_GEN_CUDA) -m64 -Xptxas -dlcm=ca -Xptxas=-v -use_fast_math -O3
+NVCCFLAGS += $(CODE_GEN_CUDA) -m64 -Xptxas=-v -use_fast_math -O3
 
 
 MGCFD_INCS := -Isrc -Isrc/Kernels
