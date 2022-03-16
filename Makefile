@@ -61,9 +61,9 @@ ifdef TREETIMER_INSTALL_PATH
     TREETIMER_LIB = -L$(TREETIMER_INSTALL_PATH) -ltt
 endif
 
-ifdef CUP_CFD_INSTALL_PATH
-    CUP_CFD_INC = -I$(CUP_CFD_INSTALL_PATH)/include
-    CUP_CFD_LIB = -L$(CUP_CFD_INSTALL_PATH)/libcupcfd_lib.a
+ifdef SIMPIC_INSTALL_PATH
+    SIMPIC_INC = -I$(SIMPIC_INSTALL_PATH)
+    SIMPIC_LIB = -L$(SIMPIC_INSTALL_PATH)/libsimpic.a
 endif
 
 ifdef FENICS
@@ -74,12 +74,9 @@ ifdef FENICS
     PETSC_LIB += -lpetsc
 endif
 
-ifdef CUPCFD
-    CUP_DEF = -Ddefcup
-	CUP_LIB = $(CUP_CFD_INSTALL_PATH)/libcupcfd_lib.a
-    PETSC_INC += -DHAVE_PETSC
-    PETSC_LIB += -lpetsc
-	SQLITE_LIB += -lsqlite3
+ifdef SIMPIC
+    SIMPIC_DEF = -Ddefsimpic
+	SIMPIC_LIB = $(SIMPIC_INSTALL_PATH)/libsimpic.a
 endif
 
 ifdef DEBUG
@@ -403,12 +400,12 @@ $(BIN_DIR)/mgcfd_cpx.a: $(OP2_MPI_CPX_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	ar rcs $(BIN_DIR)/mgcfd_cpx.a $(OP2_MPI_CPX_OBJECTS)
 
-$(BIN_DIR)/mgcfd_cpx_runtime: $(OP2_MPI_CPX_MAIN) $(BIN_DIR)/mgcfd_cpx.a $(FENICS_LIB) $(CUP_LIB)
+$(BIN_DIR)/mgcfd_cpx_runtime: $(OP2_MPI_CPX_MAIN) $(BIN_DIR)/mgcfd_cpx.a $(FENICS_LIB) $(SIMPIC_LIB)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(BIN_DIR)/mgcfd_cpx.a $(CUP_LIB) $(MGCFD_LIBS) \
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(BIN_DIR)/mgcfd_cpx.a $(SIMPIC_LIB) $(MGCFD_LIBS) \
         -lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(DOLFINX_LIB) $(PETSC_LIB) \
 		$(SQLITE_LIB) $(TREETIMER_INC) $(TREETIMER_LIB) \
-        $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) $(CUP_DEF) -o $@ 
+        $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) $(SIMPIC_DEF) -o $@ 
 
 
 ## MPI_CPX CUDA
@@ -427,12 +424,12 @@ $(BIN_DIR)/mgcfd_cpx_cuda.a: $(OP2_MPI_CPX_CUDA_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	ar rcs $(BIN_DIR)/mgcfd_cpx_cuda.a $(OP2_MPI_CPX_CUDA_OBJECTS)
 
-$(BIN_DIR)/mgcfd_cpx_cuda_runtime: $(OP2_MPI_CPX_MAIN) $(BIN_DIR)/mgcfd_cpx_cuda.a $(FENICS_LIB) $(CUP_LIB)
+$(BIN_DIR)/mgcfd_cpx_cuda_runtime: $(OP2_MPI_CPX_MAIN) $(BIN_DIR)/mgcfd_cpx_cuda.a $(FENICS_LIB) $(SIMPIC_LIB)
 	mkdir -p $(BIN_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(BIN_DIR)/mgcfd_cpx_cuda.a $(CUP_LIB) $(MGCFD_LIBS) \
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(BIN_DIR)/mgcfd_cpx_cuda.a $(SIMPIC_LIB) $(MGCFD_LIBS) \
         $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_cuda $(PARMETIS_LIB) $(DOLFINX_LIB) $(PETSC_LIB) \
 		$(SQLITE_LIB) $(TREETIMER_INC) $(TREETIMER_LIB) \
-        $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) $(CUP_DEF) -o $@ 
+        $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) $(SIMPIC_DEF) -o $@ 
 
 ## MPI_VEC
 $(OBJ_DIR)/mgcfd_mpi_vec_main.o: $(OP2_MAIN_SRC)

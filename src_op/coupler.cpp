@@ -2,9 +2,8 @@
 #ifdef deffenics 
     #include "dolfinx_lib.h"
 #endif
-#ifdef defcup
-    #include "cup_lib.h"
-	#include "tt_interface_c.h"
+#ifdef defsimpic
+    #include "simpic_lib.h"
 #endif
 #include <stdio.h>
 #include <mpi.h>
@@ -32,7 +31,7 @@ int main(int argc, char** argv){
 	char coupler[] = "COUPLER";
 	char mgcfd[] = "MG-CFD";
 	char fenics[] = "FENICS";
-	char cupcfd[] = "CUP-CFD";
+	char simpic[] = "SIMPIC";
 	char unit_1[] = "UNIT_1";
 	char unit_2[] = "UNIT_2";
 	char total[] = "TOTAL";
@@ -46,7 +45,7 @@ int main(int argc, char** argv){
 	int coupler_count = 0;//used to count total number of coupler units
 	int mgcfd_count = 0;//used to count total umber of MG-CFD units
 	int fenics_count = 0;//used to count the number of FENICS units
-	int cupcfd_count = 0;//used to count the number of CUP-CFD units
+	int simpic_count = 0;//used to count the number of CUP-CFD units
 
 	fscanf(ifp, "%s %d", keyword, &temp_unit);
 	if(strcmp(keyword, total) == 0){
@@ -91,11 +90,11 @@ int main(int argc, char** argv){
 			temp_count++;
 			fenics_count++;
 			mpi_ranks += temp_unit;
-		}else if(strcmp(keyword, cupcfd) == 0){
+		}else if(strcmp(keyword, simpic) == 0){
 			units[temp_count].type = 'P';
 			units[temp_count].processes = temp_unit;
 			temp_count++;
-			cupcfd_count++;
+			simpic_count++;
 			mpi_ranks += temp_unit;
 		}else if(strcmp(keyword, unit_1) == 0 || strcmp(keyword, unit_2) == 0){
 			units[temp_count-1].mgcfd_units.push_back(temp_unit);
@@ -117,7 +116,7 @@ int main(int argc, char** argv){
 
   if(rank == 0){
     printf("It's coupler time ;)");
-		printf("\n Total number of units: %d\n No of MG-CFD units: %d\n No of FENICS units: %d\n No of CUP-CFD units: %d\n No of Coupler units: %d\n\n Unit list:\n", num_of_units, mgcfd_count, fenics_count, cupcfd_count, coupler_count);
+		printf("\n Total number of units: %d\n No of MG-CFD units: %d\n No of FENICS units: %d\n No of SIMPIC units: %d\n No of Coupler units: %d\n\n Unit list:\n", num_of_units, mgcfd_count, fenics_count, simpic_count, coupler_count);
 
 		int coupler_count_temp = 0;
 		int work_count_temp = 0;
@@ -287,61 +286,16 @@ int main(int argc, char** argv){
 			#endif
             MPI_Finalize();
 		}else{
-			#ifdef defcup
-				printf("launch cup here");
-				main_cup(argc, argv, comms_shell, instance_number, units, relative_positions);
+			#ifdef defsimpic
+				//printf("launch simpic here");
+				main_simpic(argc, argv, comms_shell);
+				//main_cup(argc, argv, comms_shell, instance_number, units, relative_positions);
             #endif
+			MPI_Finalize();
 		}
 	}else{
 		if(superdebug){
-			#ifdef defcup
-				TreeTimerInit();
-
-				#include "coupler_config.h"
-				MPI_Comm coupler_comm = MPI_Comm_f2c(comms_shell);
-				int cycle_counter = 0;
-				int left_recv;
-				int right_recv;
-				int my_rank;
-				MPI_Comm_rank(coupler_comm, &my_rank);
-
-				bool found = false;
-				int unit_count = 0;
-				while(!found){
-					for(int j=units[unit_count].coupler_ranks[0][0]; j<units[unit_count].coupler_ranks[0][0]+units[unit_count].coupler_ranks[0].size();j++){//if rank of processes matches a rank for a particular coupler unit, assign the new communicator
-						if(units[unit_count].type == 'C' && rank == j){
-							found=true;
-						}
-					}
-					if(found == false){
-						unit_count++;
-					}
-				}
-
-				int left_rank = units[unit_count].mgcfd_ranks[0][0];
-				//int left_size = static_cast<int>(units[unit_count].mgcfd_ranks[0].size());
-				int right_rank = units[unit_count].mgcfd_ranks[1][0];
-				int root_rank = units[unit_count].coupler_ranks[0][0];
-				printf("My later rank is %d\n",rank);
-				printf("The rank I need is %d\n",root_rank);
-
-				if(rank == root_rank){
-					fflush(stdout);
-					printf("Left rank is %d\n",left_rank);
-					fflush(stdout);
-					printf("Right rank is %d\n",right_rank);
-					fflush(stdout);
-					MPI_Recv(&left_recv, 1, MPI_INT, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-					MPI_Recv(&right_recv, 1, MPI_INT, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-					printf("Recieved value %d from rank %d\n", left_recv, left_rank);
-					fflush(stdout);
-					printf("Recieved value %d from rank %d\n", right_recv, right_rank);
-					fflush(stdout);
-					MPI_Send(&right_rank, 1, MPI_INT, left_rank, 0, MPI_COMM_WORLD);
-					MPI_Send(&left_rank, 1, MPI_INT, right_rank, 0, MPI_COMM_WORLD);
-				}
-				
-				TreeTimerFinalize();
+			#ifdef defsimpic
 			#endif
 			MPI_Finalize();
 			
