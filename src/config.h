@@ -73,6 +73,7 @@ typedef struct {
     bool legacy_mode;
 
     int num_cycles;
+    int num_chains;
 
     Partitioners::Partitioners partitioner;
     char* partitioner_string;
@@ -113,6 +114,7 @@ static struct option long_opts[] =
     { "papi-config-file",     required_argument, NULL, 'p' },
     { "output-file-prefix",   required_argument, NULL, 'o' },
     { "num-cycles",           required_argument, NULL, 'g' },
+    { "num-chains",           required_argument, NULL, 'q' },
     { "partitioner",          required_argument, NULL, 'm' },
     { "partitioner-method",   required_argument, NULL, 'r' },
     { "renumber",             no_argument,       NULL, 'n' },
@@ -123,7 +125,7 @@ static struct option long_opts[] =
     { "output-step-factors",  no_argument,       (int*)&conf.output_step_factors, 1 },
     { "output-flow-interval", required_argument, NULL, 'I' },
 };
-#define GETOPTS "hc:li:d:p:o:g:m:r:vbI:"
+#define GETOPTS "hc:li:d:p:o:g:q:m:r:vbI:"
 
 inline void set_config_defaults() {
     conf.config_filepath = (char*)malloc(sizeof(char));
@@ -147,6 +149,7 @@ inline void set_config_defaults() {
     conf.measure_mem_bound = false;
 
     conf.num_cycles = 25;
+    conf.num_chains = 1;
 
     conf.partitioner = Partitioners::Parmetis;
     conf.partitioner_method = PartitionerMethods::NotSet;
@@ -197,6 +200,10 @@ inline void set_config_param(const char* const key, const char* const value) {
 
     else if (strcmp(key, "cycles")==0) {
         conf.num_cycles = atoi(value);
+    }
+
+    else if (strcmp(key, "chains")==0) {
+        conf.num_chains = atoi(value);
     }
 
     else if (strcmp(key, "partitioner")==0) {
@@ -408,6 +415,9 @@ inline bool parse_arguments(int argc, char** argv) {
                 break;
             case 'g':
                 conf.num_cycles = atoi(optarg);
+                break;
+            case 'q':
+                conf.num_chains = atoi(optarg);
                 break;
             case 'm':
                 set_config_param("partitioner", strdup(optarg));

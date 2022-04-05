@@ -21,7 +21,7 @@ ifdef HDF5_INSTALL_PATH
   HDF5_INC = -I$(HDF5_INSTALL_PATH)/include
   HDF5_LIB = -L$(HDF5_INSTALL_PATH)/lib
 endif
-HDF5_LIB += -lhdf5 -lz
+HDF5_LIB += -lhdf5
 
 PARMETIS_VER=4
 ifdef PARMETIS_INSTALL_PATH
@@ -46,7 +46,7 @@ PTSCOTCH_LIB += -lptscotch -lscotch -lptscotcherr
 ifdef DEBUG
   OPTIMISE := -pg -g -O0
 else
-  OPTIMISE := -O3 -DVECTORIZE
+  OPTIMISE := -O3 -g -DVECTORIZE
 endif
 
 BIN_DIR = bin
@@ -243,7 +243,7 @@ ifeq ($(OP2_COMPILER),intel-sycl)
   ifdef DEBUG
     CCFLAGS  = -g -O0
   else
-    CCFLAGS  = -O3
+    CCFLAGS  = -O3 -g
   endif
   CXX       = g++
   SYCLCXX   = dpcpp 
@@ -348,7 +348,7 @@ endif
 
 
 #all: seq openmp mpi mpi_vec mpi_openmp
-all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda sycl
+all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda sycl mpi_ca
 # all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda openacc openmp4
 
 parallel: N = $(shell nproc)
@@ -366,6 +366,7 @@ cuda: $(BIN_DIR)/mgcfd_cuda
 mpi_cuda: $(BIN_DIR)/mgcfd_mpi_cuda
 openmp4: $(BIN_DIR)/mgcfd_openmp4
 openacc: $(BIN_DIR)/mgcfd_openacc
+mpi_ca: $(BIN_DIR)/mgcfd_mpi_ca
 
 
 OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
@@ -401,6 +402,8 @@ OP2_OMP4_OBJECTS := $(OBJ_DIR)/mgcfd_omp4_main.o \
 OP2_OPENACC_OBJECTS := $(OBJ_DIR)/mgcfd_openacc_main.o \
                        $(OBJ_DIR)/mgcfd_openacc_kernels.o
 
+OP2_MPI_CA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_main.o \
+                   $(OBJ_DIR)/mgcfd_mpi_ca_kernels.o
 
 KERNELS := calc_rms_kernel \
 	calculate_cell_volumes \
@@ -504,6 +507,22 @@ $(BIN_DIR)/mgcfd_mpi: $(OP2_MPI_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+		-o $@
+    
+
+## MPI_CA
+$(OBJ_DIR)/mgcfd_mpi_ca_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC)  -DCOMM_AVOID \
+	     -DMPI_ON -c -o $@ $^
+$(OBJ_DIR)/mgcfd_mpi_ca_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(SEQ_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC)  -DCOMM_AVOID \
+	     -DMPI_ON -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
+$(BIN_DIR)/mgcfd_mpi_ca: $(OP2_MPI_CA_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
 
 
