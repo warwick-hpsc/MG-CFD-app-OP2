@@ -626,7 +626,6 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
     double nodes_size = 0;
     double boundary_nodes_size = 0;
-    bool hide_search = true;
     char *data_l0;
     int null_check;
 
