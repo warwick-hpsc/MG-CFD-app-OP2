@@ -274,6 +274,7 @@ void check_validation_files(int level, op_dat* dat, op_set set, std::string dat_
         }
         variables_solution_filepath += "solution." + dat_name + ".L" + number_to_string(level);
         variables_solution_filepath += ".cycles=" + number_to_string(conf.num_cycles);
+        variables_solution_filepath += ".chains=" + number_to_string(conf.num_chains);
         variables_solution_filepath += ".h5";
 
         // op_printf("Checking access of file %s ...\n", variables_solution_filepath.c_str());
@@ -520,9 +521,9 @@ int main(int argc, char** argv)
 
     // #define COMM_AVOID 1
     int nchains = conf.num_chains;
-    printf("nchains=%d\n", nchains);
+    op_printf("nchains=%d\n", nchains);
     int nloops = 2;
-    int nhalos = nchains * nloops;
+    int nhalos = nloops; // * nchains;
 
     // Setup OP2
     char* op_name = alloc<char>(100);
@@ -985,7 +986,8 @@ int main(int argc, char** argv)
         for (int l=0; l<levels; l++)
         {
             suffix = std::string(".L") + number_to_string(l) 
-                               + "." + "cycles=" + number_to_string(conf.num_cycles);
+                               + "." + "cycles=" + number_to_string(conf.num_cycles)
+                               + "." + "chains=" + number_to_string(conf.num_chains);
 
             int number_of_edges = op_get_size(op_edges[l]);
             int nel     = op_get_size(op_nodes[l]);

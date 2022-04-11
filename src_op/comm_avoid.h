@@ -105,8 +105,6 @@ void ca_par_loop_test_read_kernel(char const *name, op_set set,
       &((double*)arg3.data)[5 * map1idx]);
   }
   
-
-
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
   OP_kernels[26].name      = name;
@@ -125,7 +123,7 @@ void ca_par_loop_test_read_kernel(char const *name, op_set set,
 void test_comm_avoid(char const *name, op_dat p_variables, op_dat p_edge_weights, op_dat p_fluxes, op_map p_edge_to_nodes, op_set set,
                       int nloops, int nchains){
    
-    int nhalos = nloops * nchains;
+    int nhalos = nloops; // * nchains;
     int map_index = nhalos;
 
     int nargs_ex0 = 1;
@@ -166,10 +164,9 @@ void test_comm_avoid(char const *name, op_dat p_variables, op_dat p_edge_weights
     args1[3] = arg5;
     args1[4] = arg6;
 
-    // printf("test_comm_avoid new1> nhalos=%d nloops=%d 2=%d 1=%d\n", nhalos, nloops,
-    //                 get_set_size_with_nhalos(set, 2), get_set_size_with_nhalos(set, 1));
-
-    int core_sizes[nhalos];
+    // this will do the latency hiding for the first two loops in the chain, since halo extension is done for two levels.
+    // other levels will receive 0 as core size.
+    int core_sizes[nloops * nchains];
     for(int i = 0; i < nchains; i++){
       core_sizes[nloops * i] = get_set_core_size(set, nloops * i + 1);
       ca_loop_test_write_kernel("ca_test_write_kernel",set,
