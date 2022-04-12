@@ -507,8 +507,15 @@ int main(int argc, char** argv)
     op_dat fluxes_correct[levels];
     op_dat dummy_fluxes_correct[levels];
 
+    // #define COMM_AVOID 1
+    int nchains = conf.num_chains;
+    op_printf("nchains=%d\n", nchains);
+    int nloops = 2;
+    int nhalos = nloops; // * nchains;
+    #define DEFAULT_VARIABLE_INDEX 0
+
     // Temporary set data (ie, arrays that are populated by kernels)
-    op_dat p_variables[levels], 
+    op_dat p_variables[levels][nchains], 
            p_old_variables[levels], 
            p_residuals[levels],
            p_residuals_prolonged[levels],
@@ -518,12 +525,6 @@ int main(int argc, char** argv)
            p_fluxes[levels];
     op_dat p_dummy_fluxes[levels]; // strictly for unstructured_stream
     op_dat p_up_scratch[levels];
-
-    // #define COMM_AVOID 1
-    int nchains = conf.num_chains;
-    op_printf("nchains=%d\n", nchains);
-    int nloops = 2;
-    int nhalos = nloops; // * nchains;
 
     // Setup OP2
     char* op_name = alloc<char>(100);
@@ -652,8 +653,13 @@ int main(int argc, char** argv)
         if (conf.renumber) op_renumber(p_edge_to_nodes[0]);
 
         for (int i=0; i<levels; i++) {
-            sprintf(op_name, "p_variables_L%d", i);
-            p_variables[i] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
+
+            for(int j = 0; j < nchains; j++){
+                sprintf(op_name, "p_variables_L%d", i);
+                sprintf(&op_name[14], "_C%d", j);
+                p_variables[i][j] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
+            }
+
             sprintf(op_name, "p_old_variables_L%d", i);
             p_old_variables[i] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
             sprintf(op_name, "p_residuals_L%d", i);
@@ -686,8 +692,10 @@ int main(int argc, char** argv)
 
     // Initialise variables:
     for (int i=0; i<levels; i++) {
-        op_par_loop_initialize_variables_kernel("initialize_variables_kernel",op_nodes[i],
-                    op_arg_dat(p_variables[i],-1,OP_ID,5,"double",OP_WRITE));
+        for(int j = 0; j < nchains; j++){
+            op_par_loop_initialize_variables_kernel("initialize_variables_kernel",op_nodes[i],
+                    op_arg_dat(p_variables[i][j],-1,OP_ID,5,"double",OP_WRITE));
+        }
         op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[i],
                     op_arg_dat(p_fluxes[i],-1,OP_ID,5,"double",OP_WRITE));
         // if (conf.measure_mem_bound) {    // this dat is used for comm avoid testing
@@ -742,12 +750,12 @@ int main(int argc, char** argv)
         current_level = level;
 
         op_par_loop_copy_double_kernel("copy_double_kernel",op_nodes[level],
-                    op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_READ),
+                    op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],-1,OP_ID,5,"double",OP_READ),
                     op_arg_dat(p_old_variables[level],-1,OP_ID,5,"double",OP_WRITE));
 
         // for the first iteration we compute the time step
         op_par_loop_calculate_dt_kernel("calculate_dt_kernel",op_nodes[level],
-                    op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_READ),
+                    op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],-1,OP_ID,5,"double",OP_READ),
                     op_arg_dat(p_volumes[level],-1,OP_ID,1,"double",OP_READ),
                     op_arg_dat(p_step_factors[level],-1,OP_ID,1,"double",OP_WRITE));
         min_dt = std::numeric_limits<double>::max();
@@ -760,7 +768,7 @@ int main(int argc, char** argv)
           return 1;
         }
         op_par_loop_compute_step_factor_kernel("compute_step_factor_kernel",op_nodes[level],
-                    op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_READ),
+                    op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],-1,OP_ID,5,"double",OP_READ),
                     op_arg_dat(p_volumes[level],-1,OP_ID,1,"double",OP_READ),
                     op_arg_gbl(&min_dt,1,"double",OP_READ),
                     op_arg_dat(p_step_factors[level],-1,OP_ID,1,"double",OP_WRITE));
@@ -773,8 +781,8 @@ int main(int argc, char** argv)
             #endif
 
             op_par_loop_compute_flux_edge_kernel_instrumented("compute_flux_edge_kernel",op_edges[level],
-                        op_arg_dat(p_variables[level],0,p_edge_to_nodes[level],5,"double",OP_READ),
-                        op_arg_dat(p_variables[level],1,p_edge_to_nodes[level],5,"double",OP_READ),
+                        op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_edge_to_nodes[level],5,"double",OP_READ),
+                        op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],1,p_edge_to_nodes[level],5,"double",OP_READ),
                         op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                         op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
                         op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
@@ -790,17 +798,17 @@ int main(int argc, char** argv)
             
 #ifdef COMM_AVOID
             test_comm_avoid("ca_test_comm_avoid", p_variables[level], p_edge_weights[level], p_dummy_fluxes[level], p_edge_to_nodes[level], op_edges[level],
-                    nloops, nchains);
+                    nloops, nchains, DEFAULT_VARIABLE_INDEX);
 #else
 
             for(int i = 0; i < nchains; i++){
                 op_par_loop_test_write_kernel("ca_test_write_kernel",op_edges[level],
-                            op_arg_dat(p_variables[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                            op_arg_dat(p_variables[level],1,p_edge_to_nodes[level],5,"double",OP_INC));
+                            op_arg_dat(p_variables[level][i],0,p_edge_to_nodes[level],5,"double",OP_INC),
+                            op_arg_dat(p_variables[level][i],1,p_edge_to_nodes[level],5,"double",OP_INC));
 
                 op_par_loop_test_read_kernel("ca_test_read_kernel",op_edges[level],
-                            op_arg_dat(p_variables[level],0,p_edge_to_nodes[level],5,"double",OP_READ),
-                            op_arg_dat(p_variables[level],1,p_edge_to_nodes[level],5,"double",OP_READ),
+                            op_arg_dat(p_variables[level][i],0,p_edge_to_nodes[level],5,"double",OP_READ),
+                            op_arg_dat(p_variables[level][i],1,p_edge_to_nodes[level],5,"double",OP_READ),
                             op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                             op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
                             op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));          
@@ -808,8 +816,8 @@ int main(int argc, char** argv)
 #endif
             
             op_par_loop_test_negate_kernel("ca_test_negate_kernel",op_edges[level],
-                            op_arg_dat(p_variables[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                            op_arg_dat(p_variables[level],1,p_edge_to_nodes[level],5,"double",OP_INC),
+                            op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_edge_to_nodes[level],5,"double",OP_INC),
+                            op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],1,p_edge_to_nodes[level],5,"double",OP_INC),
                             op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
                             op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC), nchains);
             
@@ -817,7 +825,7 @@ int main(int argc, char** argv)
             op_par_loop_compute_bnd_node_flux_kernel("compute_bnd_node_flux_kernel",op_bnd_nodes[level],
                         op_arg_dat(p_bnd_node_groups[level],-1,OP_ID,1,"int",OP_READ),
                         op_arg_dat(p_bnd_node_weights[level],-1,OP_ID,3,"double",OP_READ),
-                        op_arg_dat(p_variables[level],0,p_bnd_node_to_node[level],5,"double",OP_READ),
+                        op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_bnd_node_to_node[level],5,"double",OP_READ),
                         op_arg_dat(p_fluxes[level],0,p_bnd_node_to_node[level],5,"double",OP_INC));
 
             op_par_loop_time_step_kernel("time_step_kernel",op_nodes[level],
@@ -825,13 +833,13 @@ int main(int argc, char** argv)
                         op_arg_dat(p_step_factors[level],-1,OP_ID,1,"double",OP_READ),
                         op_arg_dat(p_fluxes[level],-1,OP_ID,5,"double",OP_INC),
                         op_arg_dat(p_old_variables[level],-1,OP_ID,5,"double",OP_READ),
-                        op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_WRITE));
+                        op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],-1,OP_ID,5,"double",OP_WRITE));
 
                     
             if (conf.measure_mem_bound) {
                 op_par_loop_unstructured_stream_kernel_instrumented("unstructured_stream_kernel",op_edges[level],
-                            op_arg_dat(p_variables[level],0,p_edge_to_nodes[level],5,"double",OP_READ),
-                            op_arg_dat(p_variables[level],1,p_edge_to_nodes[level],5,"double",OP_READ),
+                            op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_edge_to_nodes[level],5,"double",OP_READ),
+                            op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],1,p_edge_to_nodes[level],5,"double",OP_READ),
                             op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                             op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
                             op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
@@ -844,7 +852,7 @@ int main(int argc, char** argv)
 
         op_par_loop_residual_kernel("residual_kernel",op_nodes[level],
                     op_arg_dat(p_old_variables[level],-1,OP_ID,5,"double",OP_READ),
-                    op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_READ),
+                    op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],-1,OP_ID,5,"double",OP_READ),
                     op_arg_dat(p_residuals[level],-1,OP_ID,5,"double",OP_WRITE));
         if (level == 0) {
             rms = 0.0;
@@ -859,7 +867,7 @@ int main(int argc, char** argv)
               // count_bad_vals() invokes isnan(), unsupported with OpenACC.
             #else
                 op_par_loop_count_bad_vals("count_bad_vals",op_nodes[level],
-                            op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_READ),
+                            op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],-1,OP_ID,5,"double",OP_READ),
                             op_arg_gbl(&bad_val_count,1,"int",OP_INC));
             #endif
             if (bad_val_count > 0) {
@@ -874,21 +882,21 @@ int main(int argc, char** argv)
             ((i+1) % conf.output_flow_interval) == 0 &&
             level == 0)
         {
-            const char* old_name = p_variables[level]->name;
+            const char* old_name = p_variables[level][DEFAULT_VARIABLE_INDEX]->name;
             sprintf(op_name, "p_variables");
-            p_variables[level]->name = strdup(op_name);
+            p_variables[level][DEFAULT_VARIABLE_INDEX]->name = strdup(op_name);
             suffix = std::string(".L") + number_to_string(level) + "." + "cycle=" + number_to_string(i+1);
             sprintf(h5_out_name, "%svariables%s.h5", prefix.c_str(), suffix.c_str());
 
             double cpu_tmp1, wall_tmp1;
             op_timers(&cpu_tmp1, &wall_tmp1);
-            op_fetch_data_hdf5_file(p_variables[level], h5_out_name);
+            op_fetch_data_hdf5_file(p_variables[level][DEFAULT_VARIABLE_INDEX], h5_out_name);
             double cpu_tmp2, wall_tmp2;
             op_timers(&cpu_tmp2, &wall_tmp2);
             file_io_times[level] += wall_tmp2 - wall_tmp1;
             number_of_file_io_writes++;
 
-            p_variables[level]->name = old_name;
+            p_variables[level][DEFAULT_VARIABLE_INDEX]->name = old_name;
         }
 
         if (levels <= 1) {
@@ -900,16 +908,16 @@ int main(int argc, char** argv)
                 level++;
 
                 op_par_loop_up_pre_kernel("up_pre_kernel",op_nodes[level-1],
-                            op_arg_dat(p_variables[level],0,p_node_to_mg_node[level-1],5,"double",OP_WRITE),
+                            op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_node_to_mg_node[level-1],5,"double",OP_WRITE),
                             op_arg_dat(p_up_scratch[level],0,p_node_to_mg_node[level-1],1,"int",OP_WRITE));
 
                 op_par_loop_up_kernel("up_kernel",op_nodes[level-1],
-                            op_arg_dat(p_variables[level-1],-1,OP_ID,5,"double",OP_READ),
-                            op_arg_dat(p_variables[level],0,p_node_to_mg_node[level-1],5,"double",OP_INC),
+                            op_arg_dat(p_variables[DEFAULT_VARIABLE_INDEX][level-1],-1,OP_ID,5,"double",OP_READ),
+                            op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_node_to_mg_node[level-1],5,"double",OP_INC),
                             op_arg_dat(p_up_scratch[level],0,p_node_to_mg_node[level-1],1,"int",OP_INC));
 
                 op_par_loop_up_post_kernel("up_post_kernel",op_nodes[level],
-                            op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_INC),
+                            op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],-1,OP_ID,5,"double",OP_INC),
                             op_arg_dat(p_up_scratch[level],-1,OP_ID,1,"int",OP_READ));
 
                 if(level == levels-1)
@@ -942,10 +950,10 @@ int main(int argc, char** argv)
                                 op_arg_dat(p_residuals_prolonged[level],-1,OP_ID,5,"double",OP_READ),
                                 op_arg_dat(p_residuals_prolonged_wsum[level],-1,OP_ID,1,"double",OP_READ),
                                 op_arg_dat(p_residuals[level],-1,OP_ID,5,"double",OP_READ),
-                                op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_INC));
+                                op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],-1,OP_ID,5,"double",OP_INC));
                 } else {
                     op_par_loop_down_kernel("down_kernel",op_nodes[level],
-                                op_arg_dat(p_variables[level],-1,OP_ID,5,"double",OP_INC),
+                                op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],-1,OP_ID,5,"double",OP_INC),
                                 op_arg_dat(p_residuals[level],-1,OP_ID,5,"double",OP_READ),
                                 op_arg_dat(p_node_coords[level],-1,OP_ID,3,"double",OP_READ),
                                 op_arg_dat(p_residuals[level+1],0,p_node_to_mg_node[level],5,"double",OP_READ),
@@ -976,7 +984,11 @@ int main(int argc, char** argv)
     op_printf("Writing OP2 timings to file: %s\n", csv_out_filepath.c_str());
     op_timings_to_csv(csv_out_filepath.c_str());
 
-    validate_result(variables_correct, p_variables, op_nodes, "var");
+    op_dat p_var[levels];
+    for(int i = 0; i < levels; i++){
+        p_var[i] = p_variables[i][DEFAULT_VARIABLE_INDEX];
+    }
+    validate_result(variables_correct, p_var, op_nodes, "var");
     validate_result(fluxes_correct, p_fluxes, op_nodes, "flux");
     validate_result(dummy_fluxes_correct, p_dummy_fluxes, op_nodes, "dummy_flux");
 
@@ -1034,12 +1046,12 @@ int main(int argc, char** argv)
             
             // Dump variables:
             if (conf.output_variables) {
-                const char* old_name = p_variables[l]->name;
+                const char* old_name = p_variables[DEFAULT_VARIABLE_INDEX][l]->name;
                 sprintf(op_name, "p_variables_result_L%d", l);
-                p_variables[l]->name = strdup(op_name);
+                p_variables[DEFAULT_VARIABLE_INDEX][l]->name = strdup(op_name);
                 sprintf(h5_out_name, "%svariables%s.h5", prefix.c_str(), suffix.c_str());
-                op_fetch_data_hdf5_file(p_variables[l], h5_out_name);
-                p_variables[l]->name = old_name;
+                op_fetch_data_hdf5_file(p_variables[DEFAULT_VARIABLE_INDEX][l], h5_out_name);
+                p_variables[DEFAULT_VARIABLE_INDEX][l]->name = old_name;
             }
 
             double cpu_tmp2, wall_tmp2;

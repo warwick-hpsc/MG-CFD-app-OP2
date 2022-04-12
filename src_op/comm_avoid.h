@@ -120,49 +120,41 @@ void ca_par_loop_test_read_kernel(char const *name, op_set set,
 #include "op_lib_mpi.h"
 #include "op_mpi_core.h"
 
-void test_comm_avoid(char const *name, op_dat p_variables, op_dat p_edge_weights, op_dat p_fluxes, op_map p_edge_to_nodes, op_set set,
-                      int nloops, int nchains){
+void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weights, op_dat p_fluxes, op_map p_edge_to_nodes, op_set set,
+                      int nloops, int nchains, int default_variable_index){
    
     int nhalos = nloops; // * nchains;
     int map_index = nhalos;
 
-    int nargs_ex0 = 1;
-    op_arg args_ex0[1];
+    int nargs_ex0 = nchains;
+    op_arg args_ex0[nchains];
 
-    op_arg arg_ex0 = op_arg_dat_halo(p_variables,0,p_edge_to_nodes,5,"double",OP_READ, nhalos, map_index);
-    set_dat_dirty(&arg_ex0);
-
-    args_ex0[0] = arg_ex0;
+    for(int i = 0; i < nchains; i++){
+      args_ex0[i] = op_arg_dat_halo(p_variables[i],0,p_edge_to_nodes,5,"double",OP_READ, nhalos, map_index);
+      set_dat_dirty(&args_ex0[i]);
+    }
 
     double cpu_t1, cpu_t2, wall_t1, wall_t2;
     op_timing_realloc(28);
     op_timers_core(&cpu_t1, &wall_t1);
     op_mpi_halo_exchanges_chained(set, nargs_ex0, args_ex0, nhalos, 1);
 
-    op_arg arg0 = op_arg_dat_halo(p_variables,0,p_edge_to_nodes,5,"double",OP_INC, nhalos, map_index);
-    op_arg arg1 = op_arg_dat_halo(p_variables,1,p_edge_to_nodes,5,"double",OP_INC, nhalos, map_index);
-
     int nargs0 = 2;
-    op_arg args0[2];
-
-    args0[0] = arg0;
-    args0[1] = arg1;
-
-    op_arg arg2 = op_arg_dat_halo(p_variables,0,p_edge_to_nodes,5,"double",OP_READ, nhalos, map_index);
-    op_arg arg3 = op_arg_dat_halo(p_variables,1,p_edge_to_nodes,5,"double",OP_READ, nhalos, map_index);
-    op_arg arg4 = op_arg_dat(p_edge_weights,-1,OP_ID,3,"double",OP_READ);
-    op_arg arg5 = op_arg_dat_halo(p_fluxes,0,p_edge_to_nodes,5,"double",OP_INC, nhalos, map_index);
-    op_arg arg6 = op_arg_dat_halo(p_fluxes,1,p_edge_to_nodes,5,"double",OP_INC, nhalos, map_index);
-    
+    op_arg args0[nchains][2];
 
     int nargs1 = 5;
-    op_arg args1[5];
+    op_arg args1[nchains][5];
 
-    args1[0] = arg2;
-    args1[1] = arg3;
-    args1[2] = arg4;
-    args1[3] = arg5;
-    args1[4] = arg6;
+    for(int i = 0; i < nchains; i++){
+      args0[i][0] = op_arg_dat_halo(p_variables[i],0,p_edge_to_nodes,5,"double",OP_INC, nhalos, map_index);
+      args0[i][1] = op_arg_dat_halo(p_variables[i],1,p_edge_to_nodes,5,"double",OP_INC, nhalos, map_index);
+
+      args1[i][0] = op_arg_dat_halo(p_variables[i],0,p_edge_to_nodes,5,"double",OP_READ, nhalos, map_index);
+      args1[i][1] = op_arg_dat_halo(p_variables[i],1,p_edge_to_nodes,5,"double",OP_READ, nhalos, map_index);
+      args1[i][2] = op_arg_dat(p_edge_weights,-1,OP_ID,3,"double",OP_READ);
+      args1[i][3] = op_arg_dat_halo(p_fluxes,0,p_edge_to_nodes,5,"double",OP_INC, nhalos, map_index);
+      args1[i][4] = op_arg_dat_halo(p_fluxes,1,p_edge_to_nodes,5,"double",OP_INC, nhalos, map_index);
+    }
 
     // this will do the latency hiding for the first two loops in the chain, since halo extension is done for two levels.
     // other levels will receive 0 as core size.
@@ -170,11 +162,11 @@ void test_comm_avoid(char const *name, op_dat p_variables, op_dat p_edge_weights
     for(int i = 0; i < nchains; i++){
       core_sizes[nloops * i] = get_set_core_size(set, nloops * i + 1);
       ca_loop_test_write_kernel("ca_test_write_kernel",set,
-                            arg0, arg1, 0, core_sizes[nloops * i]);
+                            args0[i][0], args0[i][1], 0, core_sizes[nloops * i]);
 
       core_sizes[nloops * i + 1] = get_set_core_size(set, nloops * i + 2);
       ca_par_loop_test_read_kernel("ca_test_read_kernel",set,
-                            arg2, arg3, arg4, arg5, arg6, 0, core_sizes[nloops * i + 1]);
+                            args1[i][0], args1[i][1], args1[i][2], args1[i][3], args1[i][4], 0, core_sizes[nloops * i + 1]);
     }
 
    
@@ -186,23 +178,23 @@ void test_comm_avoid(char const *name, op_dat p_variables, op_dat p_edge_weights
     for(int i = 0; i < nchains; i++){
 
       ca_loop_test_write_kernel("ca_test_write_kernel",set,
-                            arg0, arg1, core_sizes[nloops * i], n_upper0);
+                            args0[i][0], args0[i][1], core_sizes[nloops * i], n_upper0);
       ca_par_loop_test_read_kernel("ca_test_read_kernel",set,
-                            arg2, arg3, arg4, arg5, arg6, core_sizes[nloops * i + 1], n_upper1);
+                            args1[i][0], args1[i][1], args1[i][2], args1[i][3], args1[i][4], core_sizes[nloops * i + 1], n_upper1);
 
     }
 
     // op_mpi_set_dirtybit(nargs0, args0);
-    op_mpi_set_dirtybit(nargs1, args1);
+    op_mpi_set_dirtybit(nargs1, args1[default_variable_index]);
 
     op_timers_core(&cpu_t2, &wall_t2);
     OP_kernels[28].name      = name;
     OP_kernels[28].count    += 1;
     OP_kernels[28].time     += wall_t2 - wall_t1;
-    OP_kernels[28].transfer += (float)set->size * arg_ex0.size;
-    OP_kernels[28].transfer += (float)set->size * arg_ex0.size * 2.0f;
-    OP_kernels[28].transfer += (float)set->size * arg_ex0.size;
-    OP_kernels[28].transfer += (float)set->size * arg_ex0.map->dim * 4.0f;
+    OP_kernels[28].transfer += (float)set->size * args_ex0[default_variable_index].size;
+    OP_kernels[28].transfer += (float)set->size * args_ex0[default_variable_index].size * 2.0f;
+    OP_kernels[28].transfer += (float)set->size * args_ex0[default_variable_index].size;
+    OP_kernels[28].transfer += (float)set->size * args_ex0[default_variable_index].map->dim * 4.0f;
    
 }
 #endif
