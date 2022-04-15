@@ -158,15 +158,15 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
 
     // this will do the latency hiding for the first two loops in the chain, since halo extension is done for two levels.
     // other levels will receive 0 as core size.
-    int core_sizes[nloops * nchains];
-    for(int i = 0; i < nchains; i++){
-      core_sizes[nloops * i] = get_set_core_size(set, nloops * i + 1);
-      ca_loop_test_write_kernel("ca_test_write_kernel",set,
-                            args0[i][0], args0[i][1], 0, core_sizes[nloops * i]);
+    int n_lower0 = get_set_core_size(set, nloops - 1);
+    int n_lower1 = get_set_core_size(set, nloops);
 
-      core_sizes[nloops * i + 1] = get_set_core_size(set, nloops * i + 2);
+    for(int i = 0; i < nchains; i++){
+      ca_loop_test_write_kernel("ca_test_write_kernel",set,
+                            args0[i][0], args0[i][1], 0, n_lower0);
+
       ca_par_loop_test_read_kernel("ca_test_read_kernel",set,
-                            args1[i][0], args1[i][1], args1[i][2], args1[i][3], args1[i][4], 0, core_sizes[nloops * i + 1]);
+                            args1[i][0], args1[i][1], args1[i][2], args1[i][3], args1[i][4], 0, n_lower1);
     }
 
    
@@ -178,9 +178,9 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
     for(int i = 0; i < nchains; i++){
 
       ca_loop_test_write_kernel("ca_test_write_kernel",set,
-                            args0[i][0], args0[i][1], core_sizes[nloops * i], n_upper0);
+                            args0[i][0], args0[i][1], n_lower0, n_upper0);
       ca_par_loop_test_read_kernel("ca_test_read_kernel",set,
-                            args1[i][0], args1[i][1], args1[i][2], args1[i][3], args1[i][4], core_sizes[nloops * i + 1], n_upper1);
+                            args1[i][0], args1[i][1], args1[i][2], args1[i][3], args1[i][4], n_lower1, n_upper1);
 
     }
 
