@@ -40,8 +40,11 @@ int** events = NULL;
 // OP2:
 #include  "op_lib_cpp.h"
 #include "op_mpi_core.h"
-#include "comm_avoid.h"
 
+#ifdef COMM_AVOID
+#include "op_mpi_comm_avoid.h"
+#include "comm_avoid.h"
+#endif
 //
 // op_par_loop declarations
 //
@@ -723,10 +726,20 @@ int main(int argc, char** argv)
                     op_arg_dat(p_bnd_node_weights[l],-1,OP_ID,3,"double",OP_INC));
     }
 
+    int my_rank=0;
+    #ifdef MPI_ON
+    op_rank(&my_rank);
+    #endif
+
+    #ifdef COMM_AVOID
+    for (int l = 0; l < levels; l++) {
+        calculate_dat_size(my_rank, p_variables[l][DEFAULT_VARIABLE_INDEX]);
+    }
+    #endif
+
     char* h5_out_name = alloc<char>(100);
     std::string prefix(conf.output_file_prefix);
     std::string suffix;
-
     op_printf("-----------------------------------------------------\n");
     op_printf("Compute beginning\n");
 
@@ -1061,10 +1074,6 @@ int main(int argc, char** argv)
         }
     }
 
-    int my_rank=0;
-    #ifdef MPI_ON
-    op_rank(&my_rank);
-    #endif
     #ifdef PAPI
         dump_papi_counters_to_file(
             my_rank,
