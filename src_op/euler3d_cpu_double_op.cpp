@@ -39,12 +39,7 @@ int** events = NULL;
 
 // OP2:
 #include  "op_lib_cpp.h"
-#include "op_mpi_core.h"
 
-#ifdef COMM_AVOID
-#include "op_mpi_comm_avoid.h"
-#include "comm_avoid.h"
-#endif
 //
 // op_par_loop declarations
 //
@@ -92,6 +87,13 @@ void op_par_loop_compute_step_factor_kernel(char const *, op_set,
   op_arg,
   op_arg );
 
+void op_par_loop_compute_flux_edge_kernel(char const *, op_set,
+  op_arg,
+  op_arg,
+  op_arg,
+  op_arg,
+  op_arg );
+
 void op_par_loop_test_write_kernel(char const *, op_set,
   op_arg,
   op_arg );
@@ -107,30 +109,7 @@ void op_par_loop_test_negate_kernel(char const *, op_set,
   op_arg,
   op_arg,
   op_arg,
-  op_arg, int );
-
-void op_par_loop_compute_flux_edge_kernel(char const *, op_set,
-  op_arg,
-  op_arg,
-  op_arg,
-  op_arg,
   op_arg );
-
-void op_par_loop_compute_flux_edge_kernel_instrumented(char const *, op_set,
-  op_arg,
-  op_arg,
-  op_arg,
-  op_arg,
-  op_arg
-  #ifdef VERIFY_OP2_TIMING
-    , double* // compute time
-    , double* // sync time
-  #endif
-  , long* // iterations
-  #ifdef PAPI
-    , long_long**
-  #endif
-);
 
 void op_par_loop_compute_bnd_node_flux_kernel(char const *, op_set,
   op_arg,
@@ -151,17 +130,6 @@ void op_par_loop_unstructured_stream_kernel(char const *, op_set,
   op_arg,
   op_arg,
   op_arg );
-
-void op_par_loop_unstructured_stream_kernel_instrumented(char const *, op_set,
-  op_arg,
-  op_arg,
-  op_arg,
-  op_arg,
-  op_arg
-  #ifdef PAPI
-    , long_long**
-  #endif
-);
 
 void op_par_loop_residual_kernel(char const *, op_set,
   op_arg,
@@ -233,6 +201,18 @@ void op_par_loop_count_non_zeros(char const *, op_set,
 #endif
 
 #include "op_hdf5.h"
+#include  "op_lib_cpp.h"
+#include "op_mpi_core.h"
+
+// #define COMM_AVOID 1
+#ifdef COMM_AVOID
+#include "op_mpi_comm_avoid.h"
+#ifdef COMM_AVOID_CUDA
+#include "comm_avoid_cu.h"
+#else
+#include "comm_avoid.h"
+#endif
+#endif
 
 // MG-CFD base:
 #include "const.h"
@@ -267,98 +247,8 @@ config conf;
 #include "test_read.h"
 #include "test_negate.h"
 
-
-
-void check_validation_files(int level, op_dat* dat, op_set set, std::string dat_name){
-    if (conf.validate_result) {
-        std::string variables_solution_filepath(conf.input_file_directory);
-        if (variables_solution_filepath.size() > 0) {
-            variables_solution_filepath += "/";
-        }
-        variables_solution_filepath += "solution." + dat_name + ".L" + number_to_string(level);
-        variables_solution_filepath += ".cycles=" + number_to_string(conf.num_cycles);
-        variables_solution_filepath += ".chains=" + number_to_string(conf.num_chains);
-        variables_solution_filepath += ".h5";
-
-        // op_printf("Checking access of file %s ...\n", variables_solution_filepath.c_str());
-        if (access(variables_solution_filepath.c_str(), R_OK) != -1) {
-            std::string dataset_name("p_" + dat_name + "_result_L");
-            dataset_name += number_to_string(level);
-            *dat = op_decl_dat_hdf5(set, NVAR, "double", variables_solution_filepath.c_str(), dataset_name.c_str());
-        }
-        else {
-            op_printf("Cannot find level %d solution file: %s\n", level, variables_solution_filepath.c_str());
-            *dat = NULL;
-        }
-    } else {
-        *dat = NULL;
-    }
-}
-
-void validate_result(op_dat* correct_dat, op_dat* dat, op_set* set, std::string dat_name){
-    if (conf.validate_result) {
-        op_printf("-----------------------------------------------------\n");
-
-        bool value_check_failed = false;
-        op_printf("Looking for NaN and infinity values in %s ...", dat_name.c_str());
-        for (int l=0; l<levels; l++) {
-            int bad_val_count = 0;
-            op_par_loop_count_bad_vals("count_bad_vals",set[l],
-                        op_arg_dat(dat[l],-1,OP_ID,5,"double",OP_READ),
-                        op_arg_gbl(&bad_val_count,1,"int",OP_INC));
-            if (bad_val_count > 0) {
-                value_check_failed = true;
-                op_printf("\n");
-                op_printf("Value check of MG level %d failed: %d bad values detected\n", l, bad_val_count);
-                break;
-            }
-        }
-        if (!value_check_failed) {
-            op_printf(" None found\n");
-            bool validation_failed = false;
-            op_printf("Validating result against solution ...");
-            for (int l=0; l<levels; l++) {
-                if (correct_dat[l] == NULL) {
-                    op_printf("\n");
-                    op_printf("- Do not have solution for level %d, cannot validate\n", l);
-                    validation_failed = true;
-                    continue;
-                }
-                char* op_name = alloc<char>(100);
-                std::string dataset_name("p_" + dat_name + "_diff_L");
-                sprintf(op_name, dataset_name.c_str(), l);
-                op_dat variables_difference = op_decl_dat_temp_char(set[l], NVAR, "double", sizeof(double), op_name);
-
-                op_par_loop_identify_differences("identify_differences",set[l],
-                            op_arg_dat(dat[l],-1,OP_ID,5,"double",OP_READ),
-                            op_arg_dat(correct_dat[l],-1,OP_ID,5,"double",OP_READ),
-                            op_arg_dat(variables_difference,-1,OP_ID,5,"double",OP_WRITE));
-
-                int count = 0;
-                op_par_loop_count_non_zeros("count_non_zeros",set[l],
-                            op_arg_dat(variables_difference,-1,OP_ID,5,"double",OP_READ),
-                            op_arg_gbl(&count,1,"int",OP_INC));
-                // Tolerate a tiny number of differences (as false positives):
-                int threshold = op_get_size(set[l]) / 5000;
-                if (count > threshold) {
-                    validation_failed = true;
-                    op_printf("\n");
-                    op_printf("Validation of MG level %d failed: %d incorrect values in %s array\n", l, count, dat_name.c_str());
-                    break;
-                } else {
-                    // op_printf("Validation of MG level %d successful\n", l);
-                }
-            }
-
-            if (validation_failed) {
-                op_printf("Validation failed %s\n", dat_name.c_str());
-            } else {
-                op_printf(" Result correct %s\n", dat_name.c_str());
-                op_printf("Validation passed %s\n", dat_name.c_str());
-            }
-        }
-    }
-}
+void check_validation_files(int level, op_dat* dat, op_set set, std::string dat_name);
+void validate_result(op_dat* correct_dat, op_dat* dat, op_set* set, std::string dat_name);
 
 int main(int argc, char** argv)
 {
@@ -510,7 +400,6 @@ int main(int argc, char** argv)
     op_dat fluxes_correct[levels];
     op_dat dummy_fluxes_correct[levels];
 
-    // #define COMM_AVOID 1
     int nchains = conf.num_chains;
     op_printf("nchains=%d\n", nchains);
     int nloops = 2;
@@ -624,7 +513,7 @@ int main(int argc, char** argv)
 #endif
         }
 
-        
+
         op_printf("-----------------------------------------------------\n");
         op_printf("Partitioning ...\n");
         if (conf.partitioner == Partitioners::Parmetis) {
@@ -662,7 +551,7 @@ int main(int argc, char** argv)
                 sprintf(&op_name[14], "_C%d", j);
                 p_variables[i][j] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
             }
-
+            
             sprintf(op_name, "p_old_variables_L%d", i);
             p_old_variables[i] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
             sprintf(op_name, "p_residuals_L%d", i);
@@ -697,11 +586,11 @@ int main(int argc, char** argv)
     for (int i=0; i<levels; i++) {
         for(int j = 0; j < nchains; j++){
             op_par_loop_initialize_variables_kernel("initialize_variables_kernel",op_nodes[i],
-                    op_arg_dat(p_variables[i][j],-1,OP_ID,5,"double",OP_WRITE));
+                        op_arg_dat(p_variables[i][j],-1,OP_ID,5,"double",OP_WRITE));
         }
         op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[i],
                     op_arg_dat(p_fluxes[i],-1,OP_ID,5,"double",OP_WRITE));
-        // if (conf.measure_mem_bound) {    // this dat is used for comm avoid testing
+        // if (conf.measure_mem_bound) { // this dat is used for comm avoid testing
             op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[i],
                         op_arg_dat(p_dummy_fluxes[i],-1,OP_ID,5,"double",OP_WRITE));
         // }
@@ -740,6 +629,7 @@ int main(int argc, char** argv)
     char* h5_out_name = alloc<char>(100);
     std::string prefix(conf.output_file_prefix);
     std::string suffix;
+
     op_printf("-----------------------------------------------------\n");
     op_printf("Compute beginning\n");
 
@@ -759,8 +649,6 @@ int main(int argc, char** argv)
             if (level==0)
             op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
         #endif
-
-        current_level = level;
 
         op_par_loop_copy_double_kernel("copy_double_kernel",op_nodes[level],
                     op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],-1,OP_ID,5,"double",OP_READ),
@@ -793,22 +681,13 @@ int main(int argc, char** argv)
                 op_printf(" RK cycle %d / %d\n", rkCycle+1, RK);
             #endif
 
-            op_par_loop_compute_flux_edge_kernel_instrumented("compute_flux_edge_kernel",op_edges[level],
+            op_par_loop_compute_flux_edge_kernel("compute_flux_edge_kernel",op_edges[level],
                         op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_edge_to_nodes[level],5,"double",OP_READ),
                         op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],1,p_edge_to_nodes[level],5,"double",OP_READ),
                         op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                         op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
-                        #ifdef VERIFY_OP2_TIMING
-                          , &flux_kernel_compute_times[level], &flux_kernel_sync_times[level]
-                        #endif
-                        , &flux_kernel_iter_counts[level]
-                        #ifdef PAPI
-                        , flux_kernel_event_counts
-                        #endif
-                        );
+                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));
 
-            
 #ifdef COMM_AVOID
             test_comm_avoid("ca_test_comm_avoid", p_variables[level], p_edge_weights[level], p_dummy_fluxes[level], p_edge_to_nodes[level], op_edges[level],
                     nloops, nchains, DEFAULT_VARIABLE_INDEX);
@@ -824,16 +703,17 @@ int main(int argc, char** argv)
                             op_arg_dat(p_variables[level][i],1,p_edge_to_nodes[level],5,"double",OP_READ),
                             op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                             op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                            op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));          
+                            op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)); 
+                // op_print_dat_to_txtfile(p_variables[DEFAULT_VARIABLE_INDEX][i], "variables.dat"); // ASCI
+                // op_exit();         
             }
 #endif
             
             op_par_loop_test_negate_kernel("ca_test_negate_kernel",op_edges[level],
-                            op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                            op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],1,p_edge_to_nodes[level],5,"double",OP_INC),
-                            op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                            op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC), nchains);
-            
+                        op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_edge_to_nodes[level],5,"double",OP_INC),
+                        op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],1,p_edge_to_nodes[level],5,"double",OP_INC),
+                        op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
+                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));
 
             op_par_loop_compute_bnd_node_flux_kernel("compute_bnd_node_flux_kernel",op_bnd_nodes[level],
                         op_arg_dat(p_bnd_node_groups[level],-1,OP_ID,1,"int",OP_READ),
@@ -848,18 +728,13 @@ int main(int argc, char** argv)
                         op_arg_dat(p_old_variables[level],-1,OP_ID,5,"double",OP_READ),
                         op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],-1,OP_ID,5,"double",OP_WRITE));
 
-                    
             if (conf.measure_mem_bound) {
-                op_par_loop_unstructured_stream_kernel_instrumented("unstructured_stream_kernel",op_edges[level],
+                op_par_loop_unstructured_stream_kernel("unstructured_stream_kernel",op_edges[level],
                             op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_edge_to_nodes[level],5,"double",OP_READ),
                             op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],1,p_edge_to_nodes[level],5,"double",OP_READ),
                             op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                             op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                            op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)
-                            #ifdef PAPI
-                            , ustream_kernel_event_counts
-                            #endif
-                            );
+                            op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));
             }
         }
 
@@ -925,7 +800,7 @@ int main(int argc, char** argv)
                             op_arg_dat(p_up_scratch[level],0,p_node_to_mg_node[level-1],1,"int",OP_WRITE));
 
                 op_par_loop_up_kernel("up_kernel",op_nodes[level-1],
-                            op_arg_dat(p_variables[DEFAULT_VARIABLE_INDEX][level-1],-1,OP_ID,5,"double",OP_READ),
+                            op_arg_dat(p_variables[level-1][DEFAULT_VARIABLE_INDEX],-1,OP_ID,5,"double",OP_READ),
                             op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_node_to_mg_node[level-1],5,"double",OP_INC),
                             op_arg_dat(p_up_scratch[level],0,p_node_to_mg_node[level-1],1,"int",OP_INC));
 
@@ -1055,6 +930,7 @@ int main(int argc, char** argv)
                 sprintf(h5_out_name, "%sdummy_fluxes%s.h5", prefix.c_str(), suffix.c_str());
                 op_fetch_data_hdf5_file(p_dummy_fluxes[l], h5_out_name);
                 p_dummy_fluxes[l]->name = old_name;
+                op_print_dat_to_txtfile(p_dummy_fluxes[l], "dummy_fluxes.dat"); // ASCI
             }
             
             // Dump variables:
@@ -1065,6 +941,7 @@ int main(int argc, char** argv)
                 sprintf(h5_out_name, "%svariables%s.h5", prefix.c_str(), suffix.c_str());
                 op_fetch_data_hdf5_file(p_variables[DEFAULT_VARIABLE_INDEX][l], h5_out_name);
                 p_variables[DEFAULT_VARIABLE_INDEX][l]->name = old_name;
+                op_print_dat_to_txtfile(p_variables[DEFAULT_VARIABLE_INDEX][l], "variables.dat"); // ASCI
             }
 
             double cpu_tmp2, wall_tmp2;
@@ -1076,7 +953,7 @@ int main(int argc, char** argv)
 
     #ifdef PAPI
         dump_papi_counters_to_file(
-            my_rank,
+            my_rank, 
             flux_kernel_event_counts, 
             ustream_kernel_event_counts,
             conf.output_file_prefix);
@@ -1113,8 +990,100 @@ int main(int argc, char** argv)
 
     op_printf("-----------------------------------------------------\n");
     op_printf("Winding down OP2\n");
-    op_mpi_halo_exchange_summary();
+    // op_mpi_halo_exchange_summary();
     op_exit();
 
     return 0;
 }
+
+void check_validation_files(int level, op_dat* dat, op_set set, std::string dat_name){
+    if (conf.validate_result) {
+        std::string variables_solution_filepath(conf.input_file_directory);
+        if (variables_solution_filepath.size() > 0) {
+            variables_solution_filepath += "/";
+        }
+        variables_solution_filepath += "solution." + dat_name + ".L" + number_to_string(level);
+        variables_solution_filepath += ".cycles=" + number_to_string(conf.num_cycles);
+        variables_solution_filepath += ".chains=" + number_to_string(conf.num_chains);
+        variables_solution_filepath += ".h5";
+
+        // op_printf("Checking access of file %s ...\n", variables_solution_filepath.c_str());
+        if (access(variables_solution_filepath.c_str(), R_OK) != -1) {
+            std::string dataset_name("p_" + dat_name + "_result_L");
+            dataset_name += number_to_string(level);
+            *dat = op_decl_dat_hdf5(set, NVAR, "double", variables_solution_filepath.c_str(), dataset_name.c_str());
+        }
+        else {
+            op_printf("Cannot find level %d solution file: %s\n", level, variables_solution_filepath.c_str());
+            *dat = NULL;
+        }
+    } else {
+        *dat = NULL;
+    }
+}
+
+void validate_result(op_dat* correct_dat, op_dat* dat, op_set* set, std::string dat_name){
+    if (conf.validate_result) {
+        op_printf("-----------------------------------------------------\n");
+
+        bool value_check_failed = false;
+        op_printf("Looking for NaN and infinity values in %s ...", dat_name.c_str());
+        for (int l=0; l<levels; l++) {
+            int bad_val_count = 0;
+            op_par_loop_count_bad_vals("count_bad_vals",set[l],
+                        op_arg_dat(dat[l],-1,OP_ID,5,"double",OP_READ),
+                        op_arg_gbl(&bad_val_count,1,"int",OP_INC));
+            if (bad_val_count > 0) {
+                value_check_failed = true;
+                op_printf("\n");
+                op_printf("Value check of MG level %d failed: %d bad values detected\n", l, bad_val_count);
+                break;
+            }
+        }
+        if (!value_check_failed) {
+            op_printf(" None found\n");
+            bool validation_failed = false;
+            op_printf("Validating result against solution ...");
+            for (int l=0; l<levels; l++) {
+                if (correct_dat[l] == NULL) {
+                    op_printf("\n");
+                    op_printf("- Do not have solution for level %d, cannot validate\n", l);
+                    validation_failed = true;
+                    continue;
+                }
+                char* op_name = alloc<char>(100);
+                std::string dataset_name("p_" + dat_name + "_diff_L");
+                sprintf(op_name, dataset_name.c_str(), l);
+                op_dat variables_difference = op_decl_dat_temp_char(set[l], NVAR, "double", sizeof(double), op_name);
+
+                op_par_loop_identify_differences("identify_differences",set[l],
+                            op_arg_dat(dat[l],-1,OP_ID,5,"double",OP_READ),
+                            op_arg_dat(correct_dat[l],-1,OP_ID,5,"double",OP_READ),
+                            op_arg_dat(variables_difference,-1,OP_ID,5,"double",OP_WRITE));
+
+                int count = 0;
+                op_par_loop_count_non_zeros("count_non_zeros",set[l],
+                            op_arg_dat(variables_difference,-1,OP_ID,5,"double",OP_READ),
+                            op_arg_gbl(&count,1,"int",OP_INC));
+                // Tolerate a tiny number of differences (as false positives):
+                int threshold = op_get_size(set[l]) / 5000;
+                if (count > threshold) {
+                    validation_failed = true;
+                    op_printf("\n");
+                    op_printf("Validation of MG level %d failed: %d incorrect values in %s array\n", l, count, dat_name.c_str());
+                    break;
+                } else {
+                    // op_printf("Validation of MG level %d successful\n", l);
+                }
+            }
+
+            if (validation_failed) {
+                op_printf("Validation failed %s\n", dat_name.c_str());
+            } else {
+                op_printf(" Result correct %s\n", dat_name.c_str());
+                op_printf("Validation passed %s\n", dat_name.c_str());
+            }
+        }
+    }
+}
+

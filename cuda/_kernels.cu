@@ -28,22 +28,37 @@ int size, char *dat, char const *name){
   }
   else
   if (!strcmp(name,"ff_variable")) {
+    if (!strcmp(name,"ff_variable") && size>MAX_CONST_SIZE) {
+      printf("error: MAX_CONST_SIZE not big enough\n"); exit(1);
+    }
     cutilSafeCall(cudaMemcpyToSymbol(ff_variable_cuda, dat, dim*size));
   }
   else
   if (!strcmp(name,"ff_flux_contribution_momentum_x")) {
+    if (!strcmp(name,"ff_flux_contribution_momentum_x") && size>MAX_CONST_SIZE) {
+      printf("error: MAX_CONST_SIZE not big enough\n"); exit(1);
+    }
     cutilSafeCall(cudaMemcpyToSymbol(ff_flux_contribution_momentum_x_cuda, dat, dim*size));
   }
   else
   if (!strcmp(name,"ff_flux_contribution_momentum_y")) {
+    if (!strcmp(name,"ff_flux_contribution_momentum_y") && size>MAX_CONST_SIZE) {
+      printf("error: MAX_CONST_SIZE not big enough\n"); exit(1);
+    }
     cutilSafeCall(cudaMemcpyToSymbol(ff_flux_contribution_momentum_y_cuda, dat, dim*size));
   }
   else
   if (!strcmp(name,"ff_flux_contribution_momentum_z")) {
+    if (!strcmp(name,"ff_flux_contribution_momentum_z") && size>MAX_CONST_SIZE) {
+      printf("error: MAX_CONST_SIZE not big enough\n"); exit(1);
+    }
     cutilSafeCall(cudaMemcpyToSymbol(ff_flux_contribution_momentum_z_cuda, dat, dim*size));
   }
   else
   if (!strcmp(name,"ff_flux_contribution_density_energy")) {
+    if (!strcmp(name,"ff_flux_contribution_density_energy") && size>MAX_CONST_SIZE) {
+      printf("error: MAX_CONST_SIZE not big enough\n"); exit(1);
+    }
     cutilSafeCall(cudaMemcpyToSymbol(ff_flux_contribution_density_energy_cuda, dat, dim*size));
   }
   else
@@ -56,27 +71,6 @@ int size, char *dat, char const *name){
   }
 }
 
-#ifdef PAPI
-#include <papi.h>
-#endif
-void op_par_loop_compute_flux_edge_kernel_instrumented(
-  char const *name, op_set set,
-  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef VERIFY_OP2_TIMING
-    , double* compute_time_ptr, double* sync_time_ptr
-  #endif
-  , long* iter_counts_ptr
-  #ifdef PAPI
-  , long_long** restrict event_counts
-  #endif
-);
-void op_par_loop_unstructured_stream_kernel_instrumented(
-  char const *name, op_set set,
-  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef PAPI
-  , long_long** restrict event_counts
-  #endif
-);
 //user kernel files
 #include "initialize_variables_kernel_kernel.cu"
 #include "zero_5d_array_kernel_kernel.cu"
@@ -88,6 +82,9 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
 #include "get_min_dt_kernel_kernel.cu"
 #include "compute_step_factor_kernel_kernel.cu"
 #include "compute_flux_edge_kernel_kernel.cu"
+#include "test_write_kernel_kernel.cu"
+#include "test_read_kernel_kernel.cu"
+#include "test_negate_kernel_kernel.cu"
 #include "compute_bnd_node_flux_kernel_kernel.cu"
 #include "time_step_kernel_kernel.cu"
 #include "unstructured_stream_kernel_kernel.cu"

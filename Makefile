@@ -173,7 +173,7 @@ ifeq ($(COMPILER),intel)
   ifdef ISET
     OPTIMISE += -x$(ISET)
   else
-    OPTIMISE += -xHost
+    OPTIMISE += -xAVX -axCORE-AVX2 #-xHost
   endif
 else
 ifeq ($(COMPILER),xl)
@@ -348,7 +348,7 @@ endif
 
 
 #all: seq openmp mpi mpi_vec mpi_openmp
-all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda sycl mpi_ca
+all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda sycl mpi_ca mpi_ca_cuda
 # all: seq openmp mpi mpi_vec mpi_openmp cuda mpi_cuda openacc openmp4
 
 parallel: N = $(shell nproc)
@@ -367,6 +367,7 @@ mpi_cuda: $(BIN_DIR)/mgcfd_mpi_cuda
 openmp4: $(BIN_DIR)/mgcfd_openmp4
 openacc: $(BIN_DIR)/mgcfd_openacc
 mpi_ca: $(BIN_DIR)/mgcfd_mpi_ca
+mpi_ca_cuda: $(BIN_DIR)/mgcfd_mpi_ca_cuda
 
 
 OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
@@ -404,6 +405,9 @@ OP2_OPENACC_OBJECTS := $(OBJ_DIR)/mgcfd_openacc_main.o \
 
 OP2_MPI_CA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_main.o \
                    $(OBJ_DIR)/mgcfd_mpi_ca_kernels.o
+
+OP2_MPI_CA_CUDA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_cuda_main.o \
+                   $(OBJ_DIR)/mgcfd_mpi_ca_kernels_cu.o
 
 KERNELS := calc_rms_kernel \
 	calculate_cell_volumes \
@@ -587,6 +591,22 @@ $(BIN_DIR)/mgcfd_mpi_cuda: $(OP2_MPI_CUDA_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
 	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+        -o $@
+
+
+## MPI_CA CUDA
+$(OBJ_DIR)/mgcfd_mpi_ca_kernels_cu.o: $(SRC_DIR)/../cuda/_kernels.cu $(CUDA_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	nvcc $(NVCCFLAGS) $(MGCFD_INCS) $(OP2_INC) -I $(MPI_INSTALL_PATH)/include -DCOMM_AVOID -DCOMM_AVOID_CUDA \
+        -c -o $@ $(SRC_DIR)/../cuda/_kernels.cu
+$(OBJ_DIR)/mgcfd_mpi_ca_cuda_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DCOMM_AVOID -DCOMM_AVOID_CUDA \
+        -DCUDA_ON -c -o $@ $^
+$(BIN_DIR)/mgcfd_mpi_ca_cuda: $(OP2_MPI_CA_CUDA_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_comm_avoid_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
         -o $@
 
 
