@@ -71,6 +71,28 @@ int size, char *dat, char const *name){
   }
 }
 
+#ifdef PAPI
+#include <papi.h>
+#endif
+void op_par_loop_compute_flux_edge_kernel_instrumented(
+  char const *name, op_set set,
+  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
+  #ifdef VERIFY_OP2_TIMING
+    , double* compute_time_ptr, double* sync_time_ptr
+  #endif
+  , long* iter_counts_ptr
+  #ifdef PAPI
+  , long_long** restrict event_counts
+  #endif
+);
+void op_par_loop_unstructured_stream_kernel_instrumented(
+  char const *name, op_set set,
+  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
+  #ifdef PAPI
+  , long_long** restrict event_counts
+  #endif
+);
+
 //user kernel files
 #include "initialize_variables_kernel_kernel.cu"
 #include "zero_5d_array_kernel_kernel.cu"
