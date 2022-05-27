@@ -109,7 +109,8 @@ void op_par_loop_test_negate_kernel(char const *, op_set,
   op_arg,
   op_arg,
   op_arg,
-  op_arg );
+  op_arg,
+  int );
 
 void op_par_loop_compute_bnd_node_flux_kernel(char const *, op_set,
   op_arg,
@@ -713,7 +714,7 @@ int main(int argc, char** argv)
                         op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_edge_to_nodes[level],5,"double",OP_INC),
                         op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],1,p_edge_to_nodes[level],5,"double",OP_INC),
                         op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));
+                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC), nchains);
 
             op_par_loop_compute_bnd_node_flux_kernel("compute_bnd_node_flux_kernel",op_bnd_nodes[level],
                         op_arg_dat(p_bnd_node_groups[level],-1,OP_ID,1,"int",OP_READ),

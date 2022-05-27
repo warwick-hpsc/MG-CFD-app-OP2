@@ -12,8 +12,8 @@ __device__ void test_negate_kernel_gpu(
     double *variables_a,
     double *variables_b,
     double *flux_a,
-    double *flux_b) {
-  int diff = 0;
+    double *flux_b,
+    int diff) {
 
 
 
@@ -45,6 +45,7 @@ __global__ void op_cuda_test_negate_kernel(
   double *__restrict ind_arg0,
   double *__restrict ind_arg1,
   const int *__restrict opDat0Map,
+  int diff,
   int start,
   int end,
   int   set_size) {
@@ -77,7 +78,8 @@ __global__ void op_cuda_test_negate_kernel(
     test_negate_kernel_gpu(arg0_l,
                        arg1_l,
                        arg2_l,
-                       arg3_l);
+                       arg3_l,
+                       diff);
     atomicAdd(&ind_arg0[0+map0idx*5],arg0_l[0]);
     atomicAdd(&ind_arg0[1+map0idx*5],arg0_l[1]);
     atomicAdd(&ind_arg0[2+map0idx*5],arg0_l[2]);
@@ -107,7 +109,8 @@ void op_par_loop_test_negate_kernel(char const *name, op_set set,
   op_arg arg0,
   op_arg arg1,
   op_arg arg2,
-  op_arg arg3){
+  op_arg arg3,
+  int diff){
 
   int nargs = 4;
   op_arg args[4];
@@ -153,6 +156,7 @@ void op_par_loop_test_negate_kernel(char const *name, op_set set,
         (double *)arg0.data_d,
         (double *)arg2.data_d,
         arg0.map_data_d,
+        diff,
         start,end,set->size+set->exec_size);
       }
     }
