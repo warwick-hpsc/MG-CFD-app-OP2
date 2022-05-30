@@ -128,7 +128,7 @@ void op_par_loop_test_read_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(11);
+  op_timing_realloc(26);
   op_timers_core(&cpu_t1, &wall_t1);
   OP_kernels[26].name      = name;
   OP_kernels[26].count    += 1;
@@ -145,8 +145,8 @@ void op_par_loop_test_read_kernel(char const *name, op_set set,
   if (set_size > 0) {
 
     //set CUDA execution parameters
-    #ifdef OP_BLOCK_SIZE_11
-      int nthread = OP_BLOCK_SIZE_11;
+    #ifdef OP_BLOCK_SIZE_26
+      int nthread = OP_BLOCK_SIZE_26;
     #else
       int nthread = OP_block_size;
     #endif
@@ -194,7 +194,7 @@ void ca_op_par_loop_test_read_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(11);
+  op_timing_realloc(26);
   op_timers_core(&cpu_t1, &wall_t1);
   OP_kernels[26].name      = name;
   OP_kernels[26].count    += 1;
@@ -206,8 +206,8 @@ void ca_op_par_loop_test_read_kernel(char const *name, op_set set,
     printf(" kernel routine with indirection: test_read_kernel\n");
   }
   //set CUDA execution parameters
-  #ifdef OP_BLOCK_SIZE_11
-    int nthread = OP_BLOCK_SIZE_11;
+  #ifdef OP_BLOCK_SIZE_26
+    int nthread = OP_BLOCK_SIZE_26;
   #else
     int nthread = OP_block_size;
   #endif
