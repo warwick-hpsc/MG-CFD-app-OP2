@@ -41,7 +41,11 @@ int** events = NULL;
 
 #ifdef COMM_AVOID
 #include "op_mpi_comm_avoid.h"
+#ifdef COMM_AVOID_CUDA
+#include "comm_avoid_cu.h"
+#else
 #include "comm_avoid.h"
+#endif
 #endif
 
 // MG-CFD base:
@@ -817,7 +821,7 @@ int main(int argc, char** argv)
 
     op_printf("-----------------------------------------------------\n");
     op_printf("Winding down OP2\n");
-    // op_mpi_halo_exchange_summary();
+    op_mpi_halo_exchange_summary();
     op_exit();
 
     return 0;

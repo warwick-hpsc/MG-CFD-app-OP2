@@ -10,7 +10,7 @@ void op_par_loop_test_negate_kernel(char const *name, op_set set,
   op_arg arg0,
   op_arg arg1,
   op_arg arg2,
-  op_arg arg3, int diff){
+  op_arg arg3){
 
   int nargs = 4;
   op_arg args[4];
@@ -22,7 +22,7 @@ void op_par_loop_test_negate_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(27);
+  op_timing_realloc(12);
   op_timers_core(&cpu_t1, &wall_t1);
 
   if (OP_diags>2) {
@@ -47,7 +47,7 @@ void op_par_loop_test_negate_kernel(char const *name, op_set set,
         &((double*)arg0.data)[5 * map0idx],
         &((double*)arg0.data)[5 * map1idx],
         &((double*)arg2.data)[5 * map0idx],
-        &((double*)arg2.data)[5 * map1idx], diff);
+        &((double*)arg2.data)[5 * map1idx]);
     }
   }
 
@@ -59,10 +59,10 @@ void op_par_loop_test_negate_kernel(char const *name, op_set set,
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[27].name      = name;
-  OP_kernels[27].count    += 1;
-  OP_kernels[27].time     += wall_t2 - wall_t1;
-  OP_kernels[27].transfer += (float)set->size * arg0.size;
-  OP_kernels[27].transfer += (float)set->size * arg2.size * 2.0f;
-  OP_kernels[27].transfer += (float)set->size * arg0.map->dim * 4.0f;
+  OP_kernels[12].name      = name;
+  OP_kernels[12].count    += 1;
+  OP_kernels[12].time     += wall_t2 - wall_t1;
+  OP_kernels[12].transfer += (float)set->size * arg0.size * 2.0f;
+  OP_kernels[12].transfer += (float)set->size * arg2.size * 2.0f;
+  OP_kernels[12].transfer += (float)set->size * arg0.map->dim * 4.0f;
 }

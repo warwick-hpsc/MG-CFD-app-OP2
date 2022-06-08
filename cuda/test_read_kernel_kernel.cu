@@ -72,7 +72,6 @@ __global__ void op_cuda_test_read_kernel(
   int end,
   int   set_size) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
-
   if (tid + start < end) {
     int n = tid + start;
     //initialise local variables
@@ -108,7 +107,7 @@ __global__ void op_cuda_test_read_kernel(
   }
 }
 
-#include "op_mpi_core.h"
+
 //host stub function
 void op_par_loop_test_read_kernel(char const *name, op_set set,
   op_arg arg0,
@@ -128,10 +127,10 @@ void op_par_loop_test_read_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(26);
+  op_timing_realloc(11);
   op_timers_core(&cpu_t1, &wall_t1);
-  OP_kernels[26].name      = name;
-  OP_kernels[26].count    += 1;
+  OP_kernels[11].name      = name;
+  OP_kernels[11].count    += 1;
 
 
   int    ninds   = 2;
@@ -140,13 +139,12 @@ void op_par_loop_test_read_kernel(char const *name, op_set set,
   if (OP_diags>2) {
     printf(" kernel routine with indirection: test_read_kernel\n");
   }
-
   int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
   if (set_size > 0) {
 
     //set CUDA execution parameters
-    #ifdef OP_BLOCK_SIZE_26
-      int nthread = OP_BLOCK_SIZE_26;
+    #ifdef OP_BLOCK_SIZE_11
+      int nthread = OP_BLOCK_SIZE_11;
     #else
       int nthread = OP_block_size;
     #endif
@@ -172,7 +170,7 @@ void op_par_loop_test_read_kernel(char const *name, op_set set,
   cutilSafeCall(cudaDeviceSynchronize());
   //update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[26].time     += wall_t2 - wall_t1;
+  OP_kernels[11].time     += wall_t2 - wall_t1;
 }
 
 void ca_op_par_loop_test_read_kernel(char const *name, op_set set,
@@ -181,7 +179,7 @@ void ca_op_par_loop_test_read_kernel(char const *name, op_set set,
   op_arg arg2,
   op_arg arg3,
   op_arg arg4,
-  int start, int end){
+  int start, int end, int is_core){
 
   int nargs = 5;
   op_arg args[5];
@@ -194,10 +192,10 @@ void ca_op_par_loop_test_read_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(26);
+  op_timing_realloc(11);
   op_timers_core(&cpu_t1, &wall_t1);
-  OP_kernels[26].name      = name;
-  OP_kernels[26].count    += 1;
+  OP_kernels[11].name      = name;
+  OP_kernels[11].count    += 1;
 
   int    ninds   = 2;
   int    inds[5] = {0,0,-1,1,1};
@@ -206,7 +204,7 @@ void ca_op_par_loop_test_read_kernel(char const *name, op_set set,
     printf(" kernel routine with indirection: test_read_kernel\n");
   }
   //set CUDA execution parameters
-  #ifdef OP_BLOCK_SIZE_26
+  #ifdef OP_BLOCK_SIZE_11
     int nthread = OP_BLOCK_SIZE_26;
   #else
     int nthread = OP_block_size;
@@ -222,10 +220,13 @@ void ca_op_par_loop_test_read_kernel(char const *name, op_set set,
     (double*)arg2.data_d,
     start,end,set->size+set->total_exec_size);
   }
+
+  if(is_core == 0){
+    cutilSafeCall(cudaDeviceSynchronize());
+  }
     
-  cutilSafeCall(cudaDeviceSynchronize());
   //update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[26].time     += wall_t2 - wall_t1;
+  OP_kernels[11].time     += wall_t2 - wall_t1;
 }
 

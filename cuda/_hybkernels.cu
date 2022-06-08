@@ -14,6 +14,9 @@
 #define op_par_loop_get_min_dt_kernel op_par_loop_get_min_dt_kernel_gpu
 #define op_par_loop_compute_step_factor_kernel op_par_loop_compute_step_factor_kernel_gpu
 #define op_par_loop_compute_flux_edge_kernel op_par_loop_compute_flux_edge_kernel_gpu
+#define op_par_loop_test_write_kernel op_par_loop_test_write_kernel_gpu
+#define op_par_loop_test_read_kernel op_par_loop_test_read_kernel_gpu
+#define op_par_loop_test_negate_kernel op_par_loop_test_negate_kernel_gpu
 #define op_par_loop_compute_bnd_node_flux_kernel op_par_loop_compute_bnd_node_flux_kernel_gpu
 #define op_par_loop_time_step_kernel op_par_loop_time_step_kernel_gpu
 #define op_par_loop_unstructured_stream_kernel op_par_loop_unstructured_stream_kernel_gpu
@@ -40,6 +43,9 @@
 #undef op_par_loop_get_min_dt_kernel
 #undef op_par_loop_compute_step_factor_kernel
 #undef op_par_loop_compute_flux_edge_kernel
+#undef op_par_loop_test_write_kernel
+#undef op_par_loop_test_read_kernel
+#undef op_par_loop_test_negate_kernel
 #undef op_par_loop_compute_bnd_node_flux_kernel
 #undef op_par_loop_time_step_kernel
 #undef op_par_loop_unstructured_stream_kernel
@@ -66,6 +72,9 @@
 #define op_par_loop_get_min_dt_kernel op_par_loop_get_min_dt_kernel_cpu
 #define op_par_loop_compute_step_factor_kernel op_par_loop_compute_step_factor_kernel_cpu
 #define op_par_loop_compute_flux_edge_kernel op_par_loop_compute_flux_edge_kernel_cpu
+#define op_par_loop_test_write_kernel op_par_loop_test_write_kernel_cpu
+#define op_par_loop_test_read_kernel op_par_loop_test_read_kernel_cpu
+#define op_par_loop_test_negate_kernel op_par_loop_test_negate_kernel_cpu
 #define op_par_loop_compute_bnd_node_flux_kernel op_par_loop_compute_bnd_node_flux_kernel_cpu
 #define op_par_loop_time_step_kernel op_par_loop_time_step_kernel_cpu
 #define op_par_loop_unstructured_stream_kernel op_par_loop_unstructured_stream_kernel_cpu
@@ -92,6 +101,9 @@
 #undef op_par_loop_get_min_dt_kernel
 #undef op_par_loop_compute_step_factor_kernel
 #undef op_par_loop_compute_flux_edge_kernel
+#undef op_par_loop_test_write_kernel
+#undef op_par_loop_test_read_kernel
+#undef op_par_loop_test_negate_kernel
 #undef op_par_loop_compute_bnd_node_flux_kernel
 #undef op_par_loop_time_step_kernel
 #undef op_par_loop_unstructured_stream_kernel
@@ -476,6 +488,138 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
     arg2,
     arg3,
     arg4);
+
+  }
+#endif //OP_HYBRID_GPU
+
+void op_par_loop_test_write_kernel_gpu(char const *name, op_set set,
+  op_arg arg0,
+  op_arg arg1);
+
+//GPU host stub function
+#if OP_HYBRID_GPU
+void op_par_loop_test_write_kernel(char const *name, op_set set,
+  op_arg arg0,
+  op_arg arg1){
+
+  if (OP_hybrid_gpu) {
+    op_par_loop_test_write_kernel_gpu(name, set,
+      arg0,
+      arg1);
+
+    }else{
+    op_par_loop_test_write_kernel_cpu(name, set,
+      arg0,
+      arg1);
+
+  }
+}
+#else
+void op_par_loop_test_write_kernel(char const *name, op_set set,
+  op_arg arg0,
+  op_arg arg1){
+
+  op_par_loop_test_write_kernel_gpu(name, set,
+    arg0,
+    arg1);
+
+  }
+#endif //OP_HYBRID_GPU
+
+void op_par_loop_test_read_kernel_gpu(char const *name, op_set set,
+  op_arg arg0,
+  op_arg arg1,
+  op_arg arg2,
+  op_arg arg3,
+  op_arg arg4);
+
+//GPU host stub function
+#if OP_HYBRID_GPU
+void op_par_loop_test_read_kernel(char const *name, op_set set,
+  op_arg arg0,
+  op_arg arg1,
+  op_arg arg2,
+  op_arg arg3,
+  op_arg arg4){
+
+  if (OP_hybrid_gpu) {
+    op_par_loop_test_read_kernel_gpu(name, set,
+      arg0,
+      arg1,
+      arg2,
+      arg3,
+      arg4);
+
+    }else{
+    op_par_loop_test_read_kernel_cpu(name, set,
+      arg0,
+      arg1,
+      arg2,
+      arg3,
+      arg4);
+
+  }
+}
+#else
+void op_par_loop_test_read_kernel(char const *name, op_set set,
+  op_arg arg0,
+  op_arg arg1,
+  op_arg arg2,
+  op_arg arg3,
+  op_arg arg4){
+
+  op_par_loop_test_read_kernel_gpu(name, set,
+    arg0,
+    arg1,
+    arg2,
+    arg3,
+    arg4);
+
+  }
+#endif //OP_HYBRID_GPU
+
+void op_par_loop_test_negate_kernel_gpu(char const *name, op_set set,
+  op_arg arg0,
+  op_arg arg1,
+  op_arg arg2,
+  op_arg arg3);
+
+//GPU host stub function
+#if OP_HYBRID_GPU
+void op_par_loop_test_negate_kernel(char const *name, op_set set,
+  op_arg arg0,
+  op_arg arg1,
+  op_arg arg2,
+  op_arg arg3){
+
+  if (OP_hybrid_gpu) {
+    op_par_loop_test_negate_kernel_gpu(name, set,
+      arg0,
+      arg1,
+      arg2,
+      arg3);
+
+    }else{
+    op_par_loop_test_negate_kernel_cpu(name, set,
+      arg0,
+      arg1,
+      arg2,
+      arg3);
+
+  }
+}
+#else
+void op_par_loop_test_negate_kernel(char const *name, op_set set,
+  op_arg arg0,
+  op_arg arg1,
+  op_arg arg2,
+  op_arg arg3){
+
+  op_par_loop_test_negate_kernel_gpu(name, set,
+    arg0,
+    arg1,
+    arg2,
+    arg3);
 
   }
 #endif //OP_HYBRID_GPU

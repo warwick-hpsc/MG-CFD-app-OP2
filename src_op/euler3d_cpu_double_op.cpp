@@ -109,8 +109,7 @@ void op_par_loop_test_negate_kernel(char const *, op_set,
   op_arg,
   op_arg,
   op_arg,
-  op_arg,
-  int );
+  op_arg );
 
 void op_par_loop_compute_bnd_node_flux_kernel(char const *, op_set,
   op_arg,
@@ -205,7 +204,6 @@ void op_par_loop_count_non_zeros(char const *, op_set,
 #include  "op_lib_cpp.h"
 #include "op_mpi_core.h"
 
-// #define COMM_AVOID 1
 #ifdef COMM_AVOID
 #include "op_mpi_comm_avoid.h"
 #ifdef COMM_AVOID_CUDA
@@ -401,6 +399,7 @@ int main(int argc, char** argv)
     op_dat fluxes_correct[levels];
     op_dat dummy_fluxes_correct[levels];
 
+    // #define COMM_AVOID 1
     int nchains = conf.num_chains;
     op_printf("nchains=%d\n", nchains);
     int nloops = 2;
@@ -704,9 +703,7 @@ int main(int argc, char** argv)
                             op_arg_dat(p_variables[level][i],1,p_edge_to_nodes[level],5,"double",OP_READ),
                             op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                             op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                            op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC)); 
-                // op_print_dat_to_txtfile(p_variables[DEFAULT_VARIABLE_INDEX][i], "variables.dat"); // ASCI
-                // op_exit();         
+                            op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));          
             }
 #endif
             
@@ -714,7 +711,7 @@ int main(int argc, char** argv)
                         op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_edge_to_nodes[level],5,"double",OP_INC),
                         op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],1,p_edge_to_nodes[level],5,"double",OP_INC),
                         op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC), nchains);
+                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));
 
             op_par_loop_compute_bnd_node_flux_kernel("compute_bnd_node_flux_kernel",op_bnd_nodes[level],
                         op_arg_dat(p_bnd_node_groups[level],-1,OP_ID,1,"int",OP_READ),
@@ -931,7 +928,6 @@ int main(int argc, char** argv)
                 sprintf(h5_out_name, "%sdummy_fluxes%s.h5", prefix.c_str(), suffix.c_str());
                 op_fetch_data_hdf5_file(p_dummy_fluxes[l], h5_out_name);
                 p_dummy_fluxes[l]->name = old_name;
-                op_print_dat_to_txtfile(p_dummy_fluxes[l], "dummy_fluxes.dat"); // ASCI
             }
             
             // Dump variables:
@@ -942,7 +938,6 @@ int main(int argc, char** argv)
                 sprintf(h5_out_name, "%svariables%s.h5", prefix.c_str(), suffix.c_str());
                 op_fetch_data_hdf5_file(p_variables[DEFAULT_VARIABLE_INDEX][l], h5_out_name);
                 p_variables[DEFAULT_VARIABLE_INDEX][l]->name = old_name;
-                op_print_dat_to_txtfile(p_variables[DEFAULT_VARIABLE_INDEX][l], "variables.dat"); // ASCI
             }
 
             double cpu_tmp2, wall_tmp2;
@@ -991,7 +986,7 @@ int main(int argc, char** argv)
 
     op_printf("-----------------------------------------------------\n");
     op_printf("Winding down OP2\n");
-    // op_mpi_halo_exchange_summary();
+    op_mpi_halo_exchange_summary();
     op_exit();
 
     return 0;

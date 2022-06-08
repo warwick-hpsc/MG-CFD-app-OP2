@@ -12,8 +12,8 @@ __device__ void test_negate_kernel_gpu(
     double *variables_a,
     double *variables_b,
     double *flux_a,
-    double *flux_b,
-    int diff) {
+    double *flux_b) {
+  int diff = 1;
 
 
 
@@ -45,7 +45,6 @@ __global__ void op_cuda_test_negate_kernel(
   double *__restrict ind_arg0,
   double *__restrict ind_arg1,
   const int *__restrict opDat0Map,
-  int diff,
   int start,
   int end,
   int   set_size) {
@@ -78,8 +77,7 @@ __global__ void op_cuda_test_negate_kernel(
     test_negate_kernel_gpu(arg0_l,
                        arg1_l,
                        arg2_l,
-                       arg3_l,
-                       diff);
+                       arg3_l);
     atomicAdd(&ind_arg0[0+map0idx*5],arg0_l[0]);
     atomicAdd(&ind_arg0[1+map0idx*5],arg0_l[1]);
     atomicAdd(&ind_arg0[2+map0idx*5],arg0_l[2]);
@@ -109,8 +107,7 @@ void op_par_loop_test_negate_kernel(char const *name, op_set set,
   op_arg arg0,
   op_arg arg1,
   op_arg arg2,
-  op_arg arg3,
-  int diff){
+  op_arg arg3){
 
   int nargs = 4;
   op_arg args[4];
@@ -122,10 +119,10 @@ void op_par_loop_test_negate_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(27);
+  op_timing_realloc(12);
   op_timers_core(&cpu_t1, &wall_t1);
-  OP_kernels[27].name      = name;
-  OP_kernels[27].count    += 1;
+  OP_kernels[12].name      = name;
+  OP_kernels[12].count    += 1;
 
 
   int    ninds   = 2;
@@ -138,8 +135,8 @@ void op_par_loop_test_negate_kernel(char const *name, op_set set,
   if (set_size > 0) {
 
     //set CUDA execution parameters
-    #ifdef OP_BLOCK_SIZE_27
-      int nthread = OP_BLOCK_SIZE_27;
+    #ifdef OP_BLOCK_SIZE_12
+      int nthread = OP_BLOCK_SIZE_12;
     #else
       int nthread = OP_block_size;
     #endif
@@ -156,7 +153,6 @@ void op_par_loop_test_negate_kernel(char const *name, op_set set,
         (double *)arg0.data_d,
         (double *)arg2.data_d,
         arg0.map_data_d,
-        diff,
         start,end,set->size+set->exec_size);
       }
     }
@@ -165,5 +161,5 @@ void op_par_loop_test_negate_kernel(char const *name, op_set set,
   cutilSafeCall(cudaDeviceSynchronize());
   //update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[27].time     += wall_t2 - wall_t1;
+  OP_kernels[12].time     += wall_t2 - wall_t1;
 }

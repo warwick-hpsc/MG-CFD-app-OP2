@@ -22,7 +22,7 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(10);
+  op_timing_realloc(13);
   op_timers_core(&cpu_t1, &wall_t1);
 
   if (OP_diags>2) {
@@ -31,13 +31,14 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
 
-  if (set_size >0) {
+  if (set_size > 0) {
 
     for ( int n=0; n<set_size; n++ ){
       if (n==set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      int map2idx = arg2.map_data[n * arg2.map->dim + 0];
+      int map2idx;
+      map2idx = arg2.map_data[n * arg2.map->dim + 0];
 
 
       compute_bnd_node_flux_kernel(
@@ -56,12 +57,12 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[10].name      = name;
-  OP_kernels[10].count    += 1;
-  OP_kernels[10].time     += wall_t2 - wall_t1;
-  OP_kernels[10].transfer += (float)set->size * arg2.size;
-  OP_kernels[10].transfer += (float)set->size * arg3.size * 2.0f;
-  OP_kernels[10].transfer += (float)set->size * arg0.size;
-  OP_kernels[10].transfer += (float)set->size * arg1.size;
-  OP_kernels[10].transfer += (float)set->size * arg2.map->dim * 4.0f;
+  OP_kernels[13].name      = name;
+  OP_kernels[13].count    += 1;
+  OP_kernels[13].time     += wall_t2 - wall_t1;
+  OP_kernels[13].transfer += (float)set->size * arg2.size;
+  OP_kernels[13].transfer += (float)set->size * arg3.size * 2.0f;
+  OP_kernels[13].transfer += (float)set->size * arg0.size;
+  OP_kernels[13].transfer += (float)set->size * arg1.size;
+  OP_kernels[13].transfer += (float)set->size * arg2.map->dim * 4.0f;
 }

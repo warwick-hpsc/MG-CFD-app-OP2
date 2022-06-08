@@ -80,10 +80,10 @@ void op_par_loop_test_write_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(25);
+  op_timing_realloc(10);
   op_timers_core(&cpu_t1, &wall_t1);
-  OP_kernels[25].name      = name;
-  OP_kernels[25].count    += 1;
+  OP_kernels[10].name      = name;
+  OP_kernels[10].count    += 1;
 
 
   int    ninds   = 1;
@@ -96,8 +96,8 @@ void op_par_loop_test_write_kernel(char const *name, op_set set,
   if (set_size > 0) {
 
     //set CUDA execution parameters
-    #ifdef OP_BLOCK_SIZE_25
-      int nthread = OP_BLOCK_SIZE_25;
+    #ifdef OP_BLOCK_SIZE_10
+      int nthread = OP_BLOCK_SIZE_10;
     #else
       int nthread = OP_block_size;
     #endif
@@ -121,13 +121,13 @@ void op_par_loop_test_write_kernel(char const *name, op_set set,
   cutilSafeCall(cudaDeviceSynchronize());
   //update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[25].time     += wall_t2 - wall_t1;
+  OP_kernels[10].time     += wall_t2 - wall_t1;
 }
 
 void ca_op_par_loop_test_write_kernel(char const *name, op_set set,
   op_arg arg0,
   op_arg arg1,
-  int start, int end){
+  int start, int end, int is_core){
 
   int nargs = 2;
   op_arg args[2];
@@ -137,10 +137,10 @@ void ca_op_par_loop_test_write_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(25);
+  op_timing_realloc(10);
   op_timers_core(&cpu_t1, &wall_t1);
-  OP_kernels[25].name      = name;
-  OP_kernels[25].count    += 1;
+  OP_kernels[10].name      = name;
+  OP_kernels[10].count    += 1;
 
 
   int    ninds   = 1;
@@ -155,7 +155,7 @@ void ca_op_par_loop_test_write_kernel(char const *name, op_set set,
 
     //set CUDA execution parameters
     #ifdef OP_BLOCK_SIZE_25
-      int nthread = OP_BLOCK_SIZE_25;
+      int nthread = OP_BLOCK_SIZE_10;
     #else
       int nthread = OP_block_size;
     #endif
@@ -170,9 +170,12 @@ void ca_op_par_loop_test_write_kernel(char const *name, op_set set,
     
   // }
   // op_mpi_set_dirtybit_cuda(nargs, args);
-  cutilSafeCall(cudaDeviceSynchronize());
+  if(is_core == 0){
+    cutilSafeCall(cudaDeviceSynchronize());
+  }
+    
   //update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[25].time     += wall_t2 - wall_t1;
+  OP_kernels[10].time     += wall_t2 - wall_t1;
 }
 

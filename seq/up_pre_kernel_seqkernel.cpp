@@ -18,7 +18,7 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(16);
+  op_timing_realloc(19);
   op_timers_core(&cpu_t1, &wall_t1);
 
   if (OP_diags>2) {
@@ -27,13 +27,14 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
 
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
 
-  if (set_size >0) {
+  if (set_size > 0) {
 
     for ( int n=0; n<set_size; n++ ){
       if (n==set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      int map0idx = arg0.map_data[n * arg0.map->dim + 0];
+      int map0idx;
+      map0idx = arg0.map_data[n * arg0.map->dim + 0];
 
 
       up_pre_kernel(
@@ -50,10 +51,10 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[16].name      = name;
-  OP_kernels[16].count    += 1;
-  OP_kernels[16].time     += wall_t2 - wall_t1;
-  OP_kernels[16].transfer += (float)set->size * arg0.size;
-  OP_kernels[16].transfer += (float)set->size * arg1.size;
-  OP_kernels[16].transfer += (float)set->size * arg0.map->dim * 4.0f;
+  OP_kernels[19].name      = name;
+  OP_kernels[19].count    += 1;
+  OP_kernels[19].time     += wall_t2 - wall_t1;
+  OP_kernels[19].transfer += (float)set->size * arg0.size;
+  OP_kernels[19].transfer += (float)set->size * arg1.size;
+  OP_kernels[19].transfer += (float)set->size * arg0.map->dim * 4.0f;
 }
