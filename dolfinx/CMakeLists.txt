@@ -1,32 +1,56 @@
-Project(CPX)
 cmake_minimum_required(VERSION 3.10)
+
+set(PROJECT_NAME dolfinx_cpx)
+project(${PROJECT_NAME})
+
+# Use C++17
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 #Set the output location.
 set(BIN "${CMAKE_SOURCE_DIR}/../bin")
 set(EXECUTABLE_OUTPUT_PATH ${BIN} CACHE PATH "Build directory" FORCE)
 set(LIBRARY_OUTPUT_PATH ${BIN} CACHE PATH "Build directory" FORCE)
 
-# Get DOLFINX configuration data (DOLFINXConfig.cmake must be in
-# DOLFINX_CMAKE_CONFIG_PATH)
+# Get DOLFIN configuration data (DOLFINConfig.cmake must be in
+# DOLFIN_CMAKE_CONFIG_PATH)
+#find_package(Eigen3 REQUIRED)
 find_package(DOLFINX REQUIRED)
-find_package(HDF5 REQUIRED)
+find_package(Basix REQUIRED)
+
+set(CMAKE_BUILD_TYPE "Release")
+
+# Compile UFL files
+add_custom_command(
+  OUTPUT Structural.c
+  COMMAND ffcx ${CMAKE_CURRENT_SOURCE_DIR}/Structural.ufl
+  DEPENDS Structural.ufl
+)
+add_custom_command(
+  OUTPUT TransientThermal.c
+  COMMAND ffcx ${CMAKE_CURRENT_SOURCE_DIR}/TransientThermal.ufl
+  DEPENDS TransientThermal.ufl
+)
+
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # Executable
-add_library(dolfinx_cpx STATIC "main.cpp" "poisson.c")
+add_library(${PROJECT_NAME} main.cpp 
+  ${CMAKE_CURRENT_BINARY_DIR}/Structural.c
+  ${CMAKE_CURRENT_BINARY_DIR}/TransientThermal.c)
 
-# Set C++17 standard
-target_compile_features(dolfinx_cpx PRIVATE cxx_std_17)
-
-if(CMAKE_C_COMPILER_ID MATCHES GNU)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -pedantic") #-Werror")
-    set(CMAKE_CXX_FLAGS ${CMAKE_C_FLAGS})
+# Find Boost program_options
+if(DEFINED ENV{BOOST_ROOT} OR DEFINED BOOST_ROOT)
+  set(Boost_NO_SYSTEM_PATHS on)
 endif()
+set(Boost_USE_MULTITHREADED $ENV{BOOST_USE_MULTITHREADED})
+set(Boost_VERBOSE TRUE)
+find_package(Boost 1.70 REQUIRED program_options)
 
 # Target libraries
-target_link_libraries(dolfinx_cpx dolfinx)
-target_include_directories(dolfinx_cpx PRIVATE "../src_op" "../src" "../src/Kernels")
-# Do not throw error for 'multi-line comments' (these are typical in
-# rst which includes LaTeX)
-#include(CheckCXXCompilerFlag)
-#CHECK_CXX_COMPILER_FLAG("-Wno-comment" HAVE_NO_MULTLINE)
-#set_source_files_properties(entry.cpp PROPERTIES COMPILE_FLAGS "$<$<BOOL:${HAVE_NO_MULTLINE}>:-Wno-comment -Wall -Wextra -pedantic -Werror>")
+#target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${EIGEN3_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME} dolfinx Boost::program_options)
+target_include_directories(${PROJECT_NAME} PRIVATE ../src_op ../src ../src/Kernels)
+
+#install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)

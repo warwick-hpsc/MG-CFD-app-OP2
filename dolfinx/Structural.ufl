@@ -1,0 +1,84 @@
+#from ufl_fm import *
+from ufl import *
+
+cell = tetrahedron
+temp_element = FiniteElement("Lagrange", cell, 1)
+element = VectorElement("Lagrange", cell, 1, dim=3)
+mesh = Mesh(element)
+
+Vt = FunctionSpace(mesh, temp_element)
+V = FunctionSpace(mesh, element)
+
+One = Constant(mesh)
+
+T = Coefficient(Vt)
+u = Coefficient(V)
+du = TrialFunction(V)
+v = TestFunction(V)
+
+
+x = SpatialCoordinate(mesh)
+r = sqrt(x[1]**2 + x[2]**2)
+
+n = FacetNormal(mesh)
+time = Constant(mesh)
+
+T_ref = 293.15
+
+#model = read_model_json("../crescendo-mesh/CRESCENDO_ENGINE_LTMS_order1_cpp.json", {"T": T, "time": time}, r)
+
+mat_data = {"TNM" : {"rho":0.443000E-08, "nu":0.33, "E":116000.0, "alpha":0.852000E-05, "kappa":6.77000, "Cp":0.545000E+09},\
+		"NKL" : {"rho":0.822000E-08, "nu":0.32, "E":207000.0, "alpha":0.129000E-04, "kappa":10.9000, "Cp":0.424000E+09}, \
+		"STL": {"rho":0.777000E-08, "nu":0.28, "E":212000.0, "alpha":0.979000E-05, "kappa":20.9000, "Cp":0.449000E+09}
+		}
+dom_map = {1:"NKL", 2:"TNM", 3:"NKL", 4:"NKL", 5:"STL"}
+
+PRES = 100.0
+TL = 1000.0
+F = 0
+
+for dom in range(1,6):
+	material = mat_data[dom_map[dom]]
+	alpha = material["alpha"]
+	E = material["E"]
+	nu = material["nu"]
+	
+	mu = E/(2.0*(1.0 + nu))
+	lmbda = E*nu/((1.0 + nu)*(1.0 - 2.0*nu))
+	
+	def epsilon_t(t):
+		return alpha*(t - T_ref)*Identity(3)
+	
+	def epsilon(u):
+		return 0.5*(grad(u) + grad(u).T)
+	
+	def sigma(u, t):
+		eps = epsilon(u) - epsilon_t(t)
+		return 2.0*mu*eps + lmbda*tr(eps)*Identity(3)
+	
+	F += inner(sigma(u, T), epsilon(v)) * dx(dom)
+
+
+pres_faces = [521, 526]
+tl_faces = []
+
+for ents in pres_faces :
+	F -= dot(PRES*n, v) * ds(ents)
+"""
+for ents in tl_faces :
+	area = One*ds(ents)
+	F -= dot((TL/area)*n, v) * ds(ents)
+
+"""
+
+
+J = derivative(F, u, du)
+
+forms = [J, F]
+
+# Before the form file can be used in the C++ program, it must be
+# compiled using FFC by running (on the command-line):
+# 
+# .. code-block:: sh
+# 
+#    ffcx Structural.ufl

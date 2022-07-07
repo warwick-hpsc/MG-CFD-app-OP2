@@ -48,7 +48,11 @@ endif
 
 ifdef DOLFINX_INSTALL_PATH
     DOLFINX_INC = -I$(DOLFINX_INSTALL_PATH)/include
-    DOLFINX_LIB = -L$(DOLFINX_INSTALL_PATH)/lib
+    DOLFINX_LIB = -L$(DOLFINX_INSTALL_PATH)
+endif
+
+ifdef BOOST_INSTALL_PATH
+    BOOST_LIB = -L$(BOOST_INSTALL_PATH)/lib
 endif
 
 ifdef SQLITE_INSTALL_PATH
@@ -72,6 +76,7 @@ ifdef FENICS
     FENICS_LIB = $(BIN_DIR)/libdolfinx_cpx.a
     PETSC_INC += -DHAVE_PETSC
     PETSC_LIB += -lpetsc
+    BOOST_LIB += -lboost_filesystem -lboost_program_options -lboost_timer
 endif
 
 ifdef SIMPIC
@@ -124,11 +129,12 @@ ifdef OP2_COMPILER
   endif
 endif
 ifeq ($(COMPILER),gnu)
-  CPP := g++
+  CPP := CC
   CFLAGS	= -fPIC -DUNIX -Wall -Wextra
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -fopenmp
   MPIFLAGS 	= $(CPPFLAGS)
+  MPICPP = CC
 else
 ifeq ($(COMPILER),intel)
   CPP = icpc
@@ -403,7 +409,7 @@ $(BIN_DIR)/mgcfd_cpx.a: $(OP2_MPI_CPX_OBJECTS)
 $(BIN_DIR)/mgcfd_cpx_runtime: $(OP2_MPI_CPX_MAIN) $(BIN_DIR)/mgcfd_cpx.a $(FENICS_LIB) $(SIMPIC_LIB)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(BIN_DIR)/mgcfd_cpx.a $(SIMPIC_LIB) $(MGCFD_LIBS) \
-        -lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(DOLFINX_LIB) $(PETSC_LIB) \
+        -lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(DOLFINX_LIB) $(PETSC_LIB) $(BOOST_LIB)\
 		$(SQLITE_LIB) $(TREETIMER_INC) $(TREETIMER_LIB) \
         $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) $(SIMPIC_DEF) -o $@ 
 

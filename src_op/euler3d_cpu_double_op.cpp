@@ -283,6 +283,9 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     
     op_printf("MG-CFD Instance %s running!\n", filename);
     op_printf("MG-CFD Instance %s output is saved in file %s\n", filename, default_name);
+
+	//Set number of cycles
+	conf.num_cycles = mg_conversion_factor * coupler_cycles;
     
     // timer
     double cpu_t1, cpu_t2, wall_t1, wall_t2;
@@ -663,7 +666,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             }
         #endif
 
-        if((i != prev_cycle && (i % conversion_factor) == 0) || (hide_search == true && i != prev_cycle && ((i % upd_freq) == conversion_factor - 1))){
+        if((i != prev_cycle && ((i+1) % mg_conversion_factor) == 0) || (hide_search == true && i != prev_cycle && (((i+1) % mg_conversion_factor) == mg_conversion_factor - 1))){
             prev_cycle=i;
 
             op_dat temp_dat_l0 = (op_dat) malloc(sizeof(op_dat_core));
@@ -689,9 +692,9 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             
             if(internal_rank == MPI_ROOT){
                 if(hide_search == true){
-                    op_printf("Cycle %d comms starting\n", i);
-                } else if (hide_search == false && ((i % upd_freq) != conversion_factor - 1)){
-                    op_printf("Cycle %d comms starting\n", i);
+                    op_printf("MG_CFD cycle %d comms starting\n", ((int) (i+1) / mg_conversion_factor));
+                } else if (hide_search == false && ((i+1 % mg_conversion_factor) != mg_conversion_factor - 1)){
+                    op_printf("MG-CFD cycle %d comms starting\n", ((int) (i+1) / mg_conversion_factor));
                 }
 
                 for(int z = 0; z < total_coupler_unit_count; z++){
@@ -717,10 +720,11 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 						coupler_vars = 1;
 					}
                     if(hide_search == true){
-                        if((i % upd_freq) == 0){
-                            op_printf("Cycle %d - search taking place\n", i);
+                        if((i % (search_freq*mg_conversion_factor)) == 0){
+                            op_printf("Cycle %d - search taking place\n", (i+1) % mg_conversion_factor);
                             MPI_Send(p_variables_data, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                        }else if((i % upd_freq) == conversion_factor - 1){
+                        }else if((i % mg_conversion_factor) == mg_conversion_factor - 1){
+
                             auto start = std::chrono::steady_clock::now();
                             MPI_Recv(p_variables_recv, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                             auto end = std::chrono::steady_clock::now();
@@ -745,10 +749,10 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                 }
             }
 
-            op_printf("Cycle %d comms ending\n", i);
-            free(temp_dat_l0->data);
-            free(temp_dat_l0->set);
-            free(temp_dat_l0);
+            op_printf("MG-CFD cycle %d comms ending\n", ((int) (i+1) / mg_conversion_factor));
+            //free(temp_dat_l0->data);
+            //free(temp_dat_l0->set);
+            //free(temp_dat_l0);
         }
         
 
