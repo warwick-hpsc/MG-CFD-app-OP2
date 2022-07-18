@@ -38,6 +38,7 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
     double cpu_t1, cpu_t2, wall_t1, wall_t2;
     op_timing_realloc(28);
     op_timers_core(&cpu_t1, &wall_t1);
+    OP_kern_curr = 28;
     op_mpi_halo_exchanges_cuda_chained(set, nargs_ex0, args_ex0, nhalos, 1);
 
     int nargs0 = 2;
@@ -70,6 +71,7 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
                             args1[i][0], args1[i][1], args1[i][2], args1[i][3], args1[i][4], 0, n_lower1, 1);
     }
 
+    OP_kern_curr = 28;
     op_mpi_wait_all_cuda_chained(nargs_ex0, args_ex0);
 
     int n_upper0 = get_set_size_with_nhalos(set, nloops);
