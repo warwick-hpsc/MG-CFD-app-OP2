@@ -229,11 +229,50 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         return 1;
     }
 
-    const char* input_file_name = conf.input_file;
+    char* input_file_name = conf.input_file;
     const char* input_directory = conf.input_file_directory;
     if (strcmp(input_directory, "")!=0) {
         input_file_name = strdup((std::string(input_directory) + "/" + input_file_name).c_str());
     }
+
+    /* If the user wants to load different MG-CFD input files for different instances */
+    if(strcmp(input_file_name, "file")==0){
+        
+        /* The input flag must be set to 'file' and input file names */
+        printf("Reading input from file\n");
+        FILE *mg_files = fopen("mg_files.input", "r");
+        size_t line_buf_size = 0;
+        ssize_t line_size;
+        std::vector<std::string> file_names;
+        std::string temp_string;
+        char *line_buf = NULL;
+
+        if(mg_files == NULL){
+            fprintf(stderr, "Can't open input file mg_files.input\n");
+            return 1;
+        }
+        
+        line_size = getline(&line_buf, &line_buf_size, mg_files);
+
+        while (line_size >= 0){
+            /* Increment our line count */
+            file_names.push_back(line_buf);
+
+            /* Get the next line */
+            line_size = getline(&line_buf, &line_buf_size, mg_files);
+        }
+        temp_string = file_names[instance_number - 1];
+
+        free(line_buf);
+        line_buf = NULL;
+        
+        
+        fclose(mg_files);
+        temp_string.erase(std::remove(temp_string.begin(), temp_string.end(), '\n'), temp_string.cend());
+        /* Required filename is found at vector index of the instance number */
+        strcpy(input_file_name, temp_string.c_str());
+    }
+
 
     int problem_size = 0;
     int levels = 0;
@@ -273,9 +312,9 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     #else
         op_mpi_init_custom(argc, argv, 0, custom);
     #endif
-    char filename[2];
+    char filename[3];
     char buffer[100]; 
-	char default_name[24] = "MG-CFD_output_instance_";
+	char default_name[25] = "MG-CFD_output_instance_";
     sprintf(filename,"%d",instance_number);
     strcat(default_name, filename);
 
