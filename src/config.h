@@ -45,7 +45,8 @@ namespace Partitioners
     enum Partitioners {
         Inertial, 
         Parmetis, 
-        Ptscotch
+        Ptscotch,
+	    Kahip
     };
 }
 
@@ -206,6 +207,9 @@ inline void set_config_param(const char* const key, const char* const value) {
         else if (strcmp(value, "parmetis")==0) {
             conf.partitioner = Partitioners::Parmetis;
         }
+	    else if (strcmp(value, "kahip")==0) {
+	        conf.partitioner = Partitioners::Kahip;
+	    }
         else if (strcmp(value, "ptscotch")==0) {
             conf.partitioner = Partitioners::Ptscotch;
         }
@@ -444,7 +448,8 @@ inline bool parse_arguments(int argc, char** argv) {
 
     if (conf.partitioner_method == PartitionerMethods::NotSet) {
         // Set to method partitioner-specific default:
-        if (conf.partitioner == Partitioners::Ptscotch) {
+        if (conf.partitioner == Partitioners::Ptscotch
+            || conf.partitioner == Partitioners::Kahip) {
             conf.partitioner_method = PartitionerMethods::KWay;
         }
         else if (conf.partitioner == Partitioners::Parmetis) {
@@ -459,6 +464,12 @@ inline bool parse_arguments(int argc, char** argv) {
     if (conf.partitioner == Partitioners::Ptscotch) {
         if (conf.partitioner_method != PartitionerMethods::KWay) {
             printf("Incompatible method requested for PT-SCOTCH, overriding with KWay\n");
+            conf.partitioner_method = PartitionerMethods::KWay;
+        }
+    }
+    if (conf.partitioner == Partitioners::Kahip) {
+        if (conf.partitioner_method != PartitionerMethods::KWay) {
+            printf("Incompatible method requested for KAHIP, overriding with KWay\n");
             conf.partitioner_method = PartitionerMethods::KWay;
         }
     }
@@ -478,6 +489,8 @@ inline bool parse_arguments(int argc, char** argv) {
         conf.partitioner == Partitioners::Parmetis || 
         conf.partitioner == Partitioners::Ptscotch) {
         new_str_len += 8;
+    } else if (conf.partitioner == Partitioners::Kahip) {
+	    new_str_len += 5;
     }
     new_str_len += 1;
     if (conf.partitioner_method == PartitionerMethods::Geom || 
@@ -499,6 +512,10 @@ inline bool parse_arguments(int argc, char** argv) {
             strcpy(conf.partitioner_string, "parmetis");
             i += 8;
             break;
+	    case Partitioners::Kahip:
+	        strcpy(conf.partitioner_string, "kahip");
+	        i += 5;
+	        break;
         case Partitioners::Ptscotch:
             strcpy(conf.partitioner_string, "ptscotch");
             i += 8;
