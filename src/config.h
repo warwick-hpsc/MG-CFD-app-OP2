@@ -46,7 +46,7 @@ namespace Partitioners
         Inertial, 
         Parmetis, 
         Ptscotch,
-	    Kahip
+        Kahip
     };
 }
 
@@ -207,9 +207,9 @@ inline void set_config_param(const char* const key, const char* const value) {
         else if (strcmp(value, "parmetis")==0) {
             conf.partitioner = Partitioners::Parmetis;
         }
-	    else if (strcmp(value, "kahip")==0) {
-	        conf.partitioner = Partitioners::Kahip;
-	    }
+        else if (strcmp(value, "kahip")==0) {
+            conf.partitioner = Partitioners::Kahip;
+        }
         else if (strcmp(value, "ptscotch")==0) {
             conf.partitioner = Partitioners::Ptscotch;
         }
@@ -512,10 +512,10 @@ inline bool parse_arguments(int argc, char** argv) {
             strcpy(conf.partitioner_string, "parmetis");
             i += 8;
             break;
-	    case Partitioners::Kahip:
-	        strcpy(conf.partitioner_string, "kahip");
-	        i += 5;
-	        break;
+        case Partitioners::Kahip:
+            strcpy(conf.partitioner_string, "kahip");
+            i += 5;
+            break;
         case Partitioners::Ptscotch:
             strcpy(conf.partitioner_string, "ptscotch");
             i += 8;

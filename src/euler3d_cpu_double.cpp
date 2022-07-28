@@ -359,7 +359,7 @@ int main(int argc, char** argv)
                 op_partition("PTSCOTCH", "GEOMKWAY", op_nodes[0], p_edge_to_nodes[0], p_node_coords[0]);
             }
         }
-	    else if (conf.partitioner == Partitioners::Kahip) {
+        else if (conf.partitioner == Partitioners::Kahip) {
             if (conf.partitioner_method == PartitionerMethods::Geom) {
                 op_partition("KAHIP", "GEOM", op_nodes[0], OP_ID, p_node_coords[0]);
             }
