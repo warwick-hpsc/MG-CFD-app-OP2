@@ -34,6 +34,13 @@ ifeq ($(PARMETIS_VER),4)
   PARMETIS_INC += -DPARMETIS_VER_4
 endif
 
+ifdef KAHIP_INSTALL_PATH
+  KAHIP_INC = -I$(KAHIP_INSTALL_PATH)/include
+  KAHIP_LIB = -L$(KAHIP_INSTALL_PATH)/lib
+endif
+KAHIP_INC += -DHAVE_KAHIP
+KAHIP_LIB += -lparhip_interface
+
 ifdef PTSCOTCH_INSTALL_PATH
   PTSCOTCH_INC 	= -I$(PTSCOTCH_INSTALL_PATH)/include
   PTSCOTCH_LIB 	= -L$(PTSCOTCH_INSTALL_PATH)/lib
@@ -510,7 +517,7 @@ $(OBJ_DIR)/mgcfd_mpi_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(SEQ_KERNELS)
 $(BIN_DIR)/mgcfd_mpi: $(OP2_MPI_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(KAHIP_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
 
 
@@ -526,7 +533,7 @@ $(OBJ_DIR)/mgcfd_mpi_vec_kernels.o: $(SRC_DIR)/../vec/_veckernels.cpp $(VEC_KERN
 $(BIN_DIR)/mgcfd_mpi_vec: $(OP2_MPI_VEC_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-        -lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+        -lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(KAHIP_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
         -o $@
 
 
@@ -542,7 +549,7 @@ $(OBJ_DIR)/mgcfd_mpi_openmp_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(OMP_K
 $(BIN_DIR)/mgcfd_mpi_openmp: $(OP2_MPI_OMP_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(KAHIP_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
 
 
@@ -574,7 +581,8 @@ $(OBJ_DIR)/mgcfd_mpi_cuda_main.o: $(OP2_MAIN_SRC)
 $(BIN_DIR)/mgcfd_mpi_cuda: $(OP2_MPI_CUDA_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_cuda \
+      $(PARMETIS_LIB) $(KAHIP_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
         -o $@
 
 
