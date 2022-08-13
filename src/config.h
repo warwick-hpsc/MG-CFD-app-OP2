@@ -448,7 +448,7 @@ inline bool parse_arguments(int argc, char** argv) {
             conf.partitioner_method = PartitionerMethods::KWay;
         }
         else if (conf.partitioner == Partitioners::Parmetis) {
-            conf.partitioner_method = PartitionerMethods::Geom;
+            conf.partitioner_method = PartitionerMethods::KWay;
         }
         else if (conf.partitioner == Partitioners::Inertial) {
             conf.partitioner_method = PartitionerMethods::Geom;
