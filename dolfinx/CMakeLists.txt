@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
 set(PROJECT_NAME dolfinx_cpx)
 project(${PROJECT_NAME})
@@ -13,32 +13,37 @@ set(BIN "${CMAKE_SOURCE_DIR}/../bin")
 set(EXECUTABLE_OUTPUT_PATH ${BIN} CACHE PATH "Build directory" FORCE)
 set(LIBRARY_OUTPUT_PATH ${BIN} CACHE PATH "Build directory" FORCE)
 
-# Get DOLFIN configuration data (DOLFINConfig.cmake must be in
-# DOLFIN_CMAKE_CONFIG_PATH)
-#find_package(Eigen3 REQUIRED)
+# Get DOLFIN configuration data (DOLFINXConfig.cmake must be in
+# DOLFINX_CMAKE_CONFIG_PATH)
 find_package(DOLFINX REQUIRED)
 find_package(Basix REQUIRED)
 
-set(CMAKE_BUILD_TYPE "Release")
+if (PETSC_SCALAR_COMPLEX EQUAL 1)
+  set(SCALAR_TYPE "--scalar_type=double _Complex")
+endif()
 
-# Compile UFL files
-add_custom_command(
-  OUTPUT Structural.c
-  COMMAND ffcx ${CMAKE_CURRENT_SOURCE_DIR}/Structural.ufl
-  DEPENDS Structural.ufl
-)
-add_custom_command(
-  OUTPUT TransientThermal.c
-  COMMAND ffcx ${CMAKE_CURRENT_SOURCE_DIR}/TransientThermal.ufl
-  DEPENDS TransientThermal.ufl
-)
+set(CMAKE_BUILD_TYPE "Release")
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+# Compile UFL files
+set(ufl_files Structural TransientThermal)
+set(PYTHONPATH "$ENV{PYTHONPATH}:${CMAKE_CURRENT_SOURCE_DIR}")
+foreach(ufl_file IN LISTS ufl_files)
+  add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${ufl_file}.c
+  COMMAND PYTHONPATH=${PYTHONPATH} python3 -m ffcx ${SCALAR_TYPE} ${CMAKE_CURRENT_SOURCE_DIR}/${ufl_file}.py
+  VERBATIM DEPENDS ${ufl_file}.py problem_specification.py COMMENT "Run ffcx on ${ufl_file}.py"
+)
+endforeach()
+
 # Executable
-add_library(${PROJECT_NAME} main.cpp 
-  ${CMAKE_CURRENT_BINARY_DIR}/Structural.c
-  ${CMAKE_CURRENT_BINARY_DIR}/TransientThermal.c)
+set(c_files)
+foreach(ufl_file IN LISTS ufl_files)
+  list(APPEND c_files ${ufl_file}.c)
+endforeach()
+
+add_library(${PROJECT_NAME} main.cpp ${c_files})
 
 # Find Boost program_options
 if(DEFINED ENV{BOOST_ROOT} OR DEFINED BOOST_ROOT)
