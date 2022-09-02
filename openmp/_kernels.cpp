@@ -7,32 +7,10 @@
 #endif
 
 // global constants
-#include "const.h"
 
 // header
 #include "op_lib_cpp.h"
 
-#ifdef PAPI
-#include <papi.h>
-#endif
-void op_par_loop_compute_flux_edge_kernel_instrumented(
-  char const *name, op_set set,
-  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef VERIFY_OP2_TIMING
-    , double* compute_time_ptr, double* sync_time_ptr
-  #endif
-  , long* iter_counts_ptr
-  #ifdef PAPI
-  , long_long** restrict event_counts
-  #endif
-);
-void op_par_loop_unstructured_stream_kernel_instrumented(
-  char const *name, op_set set,
-  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef PAPI
-  , long_long** restrict event_counts
-  #endif
-);
 // user kernel files
 #include "initialize_variables_kernel_kernel.cpp"
 #include "zero_5d_array_kernel_kernel.cpp"
@@ -44,6 +22,9 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
 #include "get_min_dt_kernel_kernel.cpp"
 #include "compute_step_factor_kernel_kernel.cpp"
 #include "compute_flux_edge_kernel_kernel.cpp"
+#include "test_write_kernel_kernel.cpp"
+#include "test_read_kernel_kernel.cpp"
+#include "test_negate_kernel_kernel.cpp"
 #include "compute_bnd_node_flux_kernel_kernel.cpp"
 #include "time_step_kernel_kernel.cpp"
 #include "unstructured_stream_kernel_kernel.cpp"

@@ -3,42 +3,36 @@
 //
 
 //user function
-#include ".././src/Kernels/flux.h"
+#include ".././src/Kernels/test_write.h"
 
 // host stub function
-void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
+void op_par_loop_test_write_kernel(char const *name, op_set set,
   op_arg arg0,
-  op_arg arg1,
-  op_arg arg2,
-  op_arg arg3,
-  op_arg arg4){
+  op_arg arg1){
 
-  int nargs = 5;
-  op_arg args[5];
+  int nargs = 2;
+  op_arg args[2];
 
   args[0] = arg0;
   args[1] = arg1;
-  args[2] = arg2;
-  args[3] = arg3;
-  args[4] = arg4;
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
-  op_timing_realloc(9);
-  OP_kernels[9].name      = name;
-  OP_kernels[9].count    += 1;
+  op_timing_realloc(10);
+  OP_kernels[10].name      = name;
+  OP_kernels[10].count    += 1;
   op_timers_core(&cpu_t1, &wall_t1);
 
-  int  ninds   = 2;
-  int  inds[5] = {0,0,-1,1,1};
+  int  ninds   = 1;
+  int  inds[2] = {0,0};
 
   if (OP_diags>2) {
-    printf(" kernel routine with indirection: compute_flux_edge_kernel\n");
+    printf(" kernel routine with indirection: test_write_kernel\n");
   }
 
   // get plan
-  #ifdef OP_PART_SIZE_9
-    int part_size = OP_PART_SIZE_9;
+  #ifdef OP_PART_SIZE_10
+    int part_size = OP_PART_SIZE_10;
   #else
     int part_size = OP_part_size;
   #endif
@@ -68,20 +62,17 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
           map0idx = arg0.map_data[n * arg0.map->dim + 0];
           map1idx = arg0.map_data[n * arg0.map->dim + 1];
 
-
-          compute_flux_edge_kernel(
+          printf("map0idx=%d map1idx=%d\n", map0idx, map1idx);
+          test_write_kernel(
             &((double*)arg0.data)[5 * map0idx],
-            &((double*)arg0.data)[5 * map1idx],
-            &((double*)arg2.data)[3 * n],
-            &((double*)arg3.data)[5 * map0idx],
-            &((double*)arg3.data)[5 * map1idx]);
+            &((double*)arg0.data)[5 * map1idx]);
         }
       }
 
       block_offset += nblocks;
     }
-    OP_kernels[9].transfer  += Plan->transfer;
-    OP_kernels[9].transfer2 += Plan->transfer2;
+    OP_kernels[10].transfer  += Plan->transfer;
+    OP_kernels[10].transfer2 += Plan->transfer2;
   }
 
   if (set_size == 0 || set_size == set->core_size) {
@@ -92,5 +83,5 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
 
   // update kernel record
   op_timers_core(&cpu_t2, &wall_t2);
-  OP_kernels[9].time     += wall_t2 - wall_t1;
+  OP_kernels[10].time     += wall_t2 - wall_t1;
 }
