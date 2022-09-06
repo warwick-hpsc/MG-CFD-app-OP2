@@ -74,15 +74,35 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
     OP_kern_curr = 28;
     op_mpi_wait_all_cuda_chained(nargs_ex0, args_ex0);
 
-    int n_upper0 = get_set_size_with_nhalos(set, nloops);
-    int n_upper1 = get_set_size_with_nhalos(set, nloops - 1);
-
+    int n_upper0 = 0;
+    int n_upper1 = 0;
+    
     for(int i = 0; i < nchains; i++){
+
+      n_lower0 = get_set_core_size(set, nloops - 1);
+      n_upper0 = set->size;
       ca_op_par_loop_test_write_kernel("ca_test_write_kernel",set,
                             args0[i][0], args0[i][1], n_lower0, n_upper0, 0);
-      
+
+      for(int j = 1; j <= nloops; j++){
+        n_lower0 = get_halo_start_size(set, j);
+        n_upper0 = get_halo_end_size(set, j);
+        ca_op_par_loop_test_write_kernel("ca_test_write_kernel",set,
+                            args0[i][0], args0[i][1], n_lower0, n_upper0, 0);
+      }
+
+      n_lower1 = get_set_core_size(set, nloops);
+      n_upper1 = set->size;
+
       ca_op_par_loop_test_read_kernel("ca_test_read_kernel",set,
                             args1[i][0], args1[i][1], args1[i][2], args1[i][3], args1[i][4], n_lower1, n_upper1, 0);
+      
+      for(int j = 1; j <= nloops - 1; j++){
+        n_lower1 = get_halo_start_size(set, j);
+        n_upper1 = get_halo_end_size(set, j);
+        ca_op_par_loop_test_read_kernel("ca_test_read_kernel",set,
+                            args1[i][0], args1[i][1], args1[i][2], args1[i][3], args1[i][4], n_lower1, n_upper1, 0);
+      }
     }
 
     op_mpi_set_dirtybit_cuda(nargs1, args1[default_variable_index]);

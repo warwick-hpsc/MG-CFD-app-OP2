@@ -623,7 +623,7 @@ int main(int argc, char** argv)
             insp[i] = insp_init(avg_tile_size, OMP_MPI);
             insp[i]->meshMaps = &mesh_maps[i];
 
-            for(int n = 0; n < nchains; n++){
+            for(int n = 0; n < 1; /*nchains;*/ n++){
                 sprintf(sl_name, "test_write_L%d", i);
                 insp_add_parloop(insp[i], sl_name, sl_edges[i], &test_write_desc[i], 2);
 
@@ -639,7 +639,7 @@ int main(int argc, char** argv)
 
             for (int k = 0; k < comm_size; k++) {
                 if (k == 0){//sl_rank) {
-                    // insp_print (insp[i], LOW);
+                    insp_print (insp[i], LOW);
                     // generate_vtk (insp, HIGH, vertices, mesh->coords, DIM2, rank);
                 }
                 MPI_Barrier(MPI_COMM_WORLD);
@@ -844,11 +844,13 @@ int main(int argc, char** argv)
                         tile_t* tile = exec_tile_at (exec[level], color, j, LOCAL);
                         if(tile == NULL)
                                 continue;
+                        // printf("LOCAL tile=%d color=%d ntiles=%d\n", j, color, n_tiles_per_color);
                         int loop_size;
                         int tile_id = 0;
 
                         // loop test_write_kernel
-                        tile_id = 2 * i + 0;
+                        // tile_id = 2 * i + 0;
+                        tile_id = 0;
                         iterations_list& le2n_0 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         loop_size = tile_loop_size (tile, tile_id);
 
@@ -859,7 +861,8 @@ int main(int argc, char** argv)
                         }
 
                         // loop test_read_kernel
-                        tile_id =  2 * i + 1;
+                        // tile_id =  2 * i + 1;
+                        tile_id = 1;
                         iterations_list& le2n_1 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         iterations_list& iterations_1 = tile_get_iterations (tile, tile_id);
                         loop_size = tile_loop_size (tile, tile_id);
@@ -889,11 +892,13 @@ int main(int argc, char** argv)
                         tile_t* tile = exec_tile_at (exec[level], color, j, EXEC_HALO);
                         if(tile == NULL)
                                 continue;
+                        // printf("EXEC tile=%d color=%d ntiles=%d\n", j, color, n_tiles_per_color);
                         int loop_size;
                         int tile_id = 0;
 
                         // loop test_write_kernel
-                        tile_id = 2 * i + 0;
+                        // tile_id = 2 * i + 0;
+                        tile_id = 0;
                         iterations_list& le2n_0 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         loop_size = tile_loop_size (tile, tile_id);
 
@@ -904,7 +909,8 @@ int main(int argc, char** argv)
                         }
 
                         // loop test_read_kernel
-                        tile_id =  2 * i + 1;
+                        // tile_id =  2 * i + 1;
+                        tile_id = 1;
                         iterations_list& le2n_1 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         iterations_list& iterations_1 = tile_get_iterations (tile, tile_id);
                         loop_size = tile_loop_size (tile, tile_id);
