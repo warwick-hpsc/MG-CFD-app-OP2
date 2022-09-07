@@ -1,6 +1,7 @@
 // This code is to run thermo-mechanical test cases with non-linearities
 #include "Structural.h"
 #include "TransientThermal.h"
+#include <math.h>
 #include <boost/program_options.hpp>
 #include <dolfinx.h>
 #include <dolfinx/fem/petsc.h>
@@ -185,7 +186,6 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
   sprintf(filename, "%d", instance_number);
   strcat(default_name, filename);
   FILE *fp = fopen(default_name, "w");
-  int strut_flag = 0; //0 for thermal sim, 1 for thermomech sim;
 
   //set up the command line arguments for FENICSX
   FILE *input = fopen("Fenics_input", "r");
@@ -228,7 +228,12 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
   for (int i = 0; i < argc_fenics; i++)
   {
     std::string arg_str(argv_fenics[i]);
-    if (arg_str.find("mesh_file") == std::string::npos)
+    if (arg_str.find("Thermal_iterations") == std::string::npos and
+        arg_str.find("Structural_iterations") == std::string::npos and
+        arg_str.find("Thermal_outer_its") == std::string::npos and
+        arg_str.find("Structural_outer_its") == std::string::npos and
+        arg_str.find("Thermomech_simulation") == std::string::npos and
+        arg_str.find("num_vertices") == std::string::npos)
       argv_petsc.push_back(argv_fenics[i]);
   }
   int argc_ = argv_petsc.size();
@@ -240,7 +245,18 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
 
   po::options_description desc("Allowed options");
   desc.add_options()("help,h", "print usage message")(
-      "mesh_file", po::value<std::string>(), "mesh filename");
+                     "Thermal_iterations", po::value<std::string>(),
+                     "The number of inner thermal Krylov iterations")(
+                     "Structural_iterations", po::value<std::string>(),
+                     "The number of inner structural Krylov iterations")(
+                     "Thermal_outer_its", po::value<std::string>(),
+                     "The number of outer thermal Newton iterations")(
+                     "Structural_outer_its", po::value<std::string>(),
+                     "The number of outer structural Newton iterations")(
+                     "num_vertices", po::value<std::string>(),
+                     "The target number of vertices in the mesh")(
+                     "Thermomech_simulation", po::value<std::string>(),
+                     "Set to 1 for a Thermomech simulation and 0 for a Thermal");
 
   po::variables_map vm;
   po::store(po::command_line_parser(argc_fenics, argv_fenics)
@@ -259,30 +275,19 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
   //loguru::g_stderr_verbosity = loguru::Verbosity_INFO;
   {
 
-    const std::string mesh_file_name = vm["mesh_file"].as<std::string>();
-    const std::string mesh_file = mesh_file_name;
+    const std::string st_thermal_its = vm["Thermal_iterations"].as<std::string>();
+    const std::string st_structural_its = vm["Structural_iterations"].as<std::string>();
+    const std::string st_thermal_outer_its = vm["Thermal_outer_its"].as<std::string>();
+    const std::string st_structural_outer_its = vm["Structural_outer_its"].as<std::string>();
+    const std::string st_num_vertices = vm["num_vertices"].as<std::string>();
+    const std::string st_thermomech = vm["Thermomech_simulation"].as<std::string>();
 
-    // Read mesh
-    std::shared_ptr<mesh::Mesh> mesh;
-
-    if (internal_rank == 0)
-      fprintf(fp, "Reading Mesh data ...");
-
-    dolfinx::io::XDMFFile file(fenics_comm, mesh_file, "r");
-    fem::CoordinateElement cmap
-        = fem::CoordinateElement(mesh::CellType::tetrahedron, 1);
-
-    // xt::xtensor<double, 2> geometry = file.read_geometry_data("geometry");
-    // xt::xtensor<std::int64_t, 2> topology
-    //     = file.read_topology_data("tetra marker");
-
-    // For 'standard' XDMF files
-    xt::xtensor<double, 2> x = file.read_geometry_data("mesh");
-    xt::xtensor<std::int64_t, 2> topology = file.read_topology_data("mesh");
-
-    auto [data, offset] = graph::create_adjacency_data(topology);
-    graph::AdjacencyList<std::int64_t> cells(std::move(data),
-                                             std::move(offset));
+    const int thermal_its = std::stoi(st_thermal_its);
+    const int structural_its = std::stoi(st_structural_its);
+    const int thermal_outer_its = std::stoi(st_thermal_outer_its);
+    const int structural_outer_its = std::stoi(st_structural_outer_its);
+    const int num_vertices = std::stoi(st_num_vertices);
+    const int strut_flag = std::stoi(st_thermomech);
 
     if (internal_rank == 0)
       fprintf(fp, "Creating Mesh ...");
@@ -300,22 +305,38 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
 #endif
 
     auto cell_part = dolfinx::mesh::create_cell_partitioner(graph_part);
-    // Create distributed mesh
-    mesh = std::make_shared<mesh::Mesh>(mesh::create_mesh(
-        fenics_comm, cells, cmap, x, mesh::GhostMode::none, cell_part));
+
+    float tmp = round(std::cbrt(num_vertices));
+    long unsigned int mesh_vertices = int(tmp) - 1;
+    double left_corner = 10.0;
+
+    std::shared_ptr<mesh::Mesh> mesh = std::make_shared<mesh::Mesh>(mesh::create_box(
+                                        fenics_comm, {{{0.0, 0.0, 0.0},
+                                        {left_corner, left_corner, left_corner}}},
+                                        {mesh_vertices, mesh_vertices, mesh_vertices},
+                                        mesh::CellType::tetrahedron, mesh::GhostMode::none,
+                                        cell_part));
 
     mesh->topology_mutable().create_entities(2);
     mesh->topology_mutable().create_connectivity(2, 3);
 
-    // Read domain meshtags
-    if (internal_rank == 0)
-      fprintf(fp, "Reading domain MeshTags ...\n");
-    auto domain1 = file.read_meshtags(mesh, "mesh");
+    int tdim = mesh->topology().dim();
+    auto domain2_indices2 = locate_entities(*mesh, tdim,
+                           [](auto&& x) { return xt::isfinite(xt::row(x, 0)); });
+    int num_domain_indices = domain2_indices2.size();
+    std::vector<int> domain2_indices(num_domain_indices);
+    std::iota(std::begin(domain2_indices), std::end(domain2_indices), 0);
+    std::vector<int> domain2_values(domain2_indices.size(), 2);
+    auto domain2 = mesh::MeshTags<int>(mesh, tdim, domain2_indices, domain2_values);
 
-    // Read facet meshtags
-    if (internal_rank == 0)
-      fprintf(fp, "Reading facet MeshTags ...\n");
-    auto facet1 = file.read_meshtags(mesh, "facets");
+    int fdim = mesh->topology().dim()-1;
+    auto facet2_indices2 = locate_entities(*mesh, fdim,
+                           [](auto&& x) { return xt::isfinite(xt::row(x, 0)); });
+    int num_facet_indices = facet2_indices2.size();
+    std::vector<int> facet2_indices(num_facet_indices);
+    std::iota(std::begin(facet2_indices), std::end(facet2_indices), 0);
+    std::vector<int> facet2_values(facet2_indices.size(), 512);
+    auto facet2 = mesh::MeshTags<int>(mesh, fdim, facet2_indices, facet2_values);
 
     //============================= Transient Thermal
     //==============================//
@@ -335,7 +356,6 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
 
     auto t = std::make_shared<fem::Constant<PetscScalar>>(0.0);
     auto dt = std::make_shared<fem::Constant<PetscScalar>>(100);
-    //const int t_idx_max_th = 1; // final time point
 
     // Define Variational Problem
     if (internal_rank == 0)
@@ -345,8 +365,8 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
         fem::create_form<PetscScalar>(
             *form_TransientThermal_J, {V_th, V_th},
             {{"T", u_th}, {"T0", u0_th}}, {{"time", t}, {"dt", dt}},
-            {{fem::IntegralType::cell, &domain1},
-             {fem::IntegralType::exterior_facet, &facet1}}));
+            {{fem::IntegralType::cell, &domain2},
+             {fem::IntegralType::exterior_facet, &facet2}}));
 
     if (internal_rank == 0)
       fprintf(fp, "Building Thermal Linear forms ... \n");
@@ -354,8 +374,8 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
         fem::create_form<PetscScalar>(
             *form_TransientThermal_F, {V_th}, {{"T", u_th}, {"T0", u0_th}},
             {{"time", t}, {"dt", dt}},
-            {{fem::IntegralType::cell, &domain1},
-             {fem::IntegralType::exterior_facet, &facet1}}));
+            {{fem::IntegralType::cell, &domain2},
+             {fem::IntegralType::exterior_facet, &facet2}}));
 
     if (internal_rank == 0)
       fprintf(fp, "Create matrix ... \n");
@@ -378,19 +398,25 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
     NLProblem problem_th(L_th, a_th, {});
 
     nls::petsc::NewtonSolver nlth_solver(mesh->comm());
-    nlth_solver.atol = 1e-4;
+    nlth_solver.atol = -1.0;
+    nlth_solver.rtol = -1.0;
+    nlth_solver.error_on_nonconvergence = false;
+    nlth_solver.max_it = thermal_outer_its;
+    std::string th_its = std::to_string(thermal_its);
 
     // To change newtonsolver krylov solver settings
     const la::petsc::KrylovSolver& kspsolver = nlth_solver.get_krylov_solver();
     std::string prefix_t = kspsolver.get_options_prefix();
     la::petsc::options::set(prefix_t + "ksp_type", "cg");
-    la::petsc::options::set(prefix_t + "ksp_rtol", 1.0e-8);
+    la::petsc::options::set(prefix_t + "ksp_max_it", th_its);
+    la::petsc::options::set(prefix_t + "ksp_convergence_test", "skip");
     la::petsc::options::set(prefix_t + "pc_type", "hypre");
     la::petsc::options::set(prefix_t + "pc_hypre_type", "boomeramg");
-    la::petsc::options::set(prefix_t + "hypre_boomeramg_strong_threshold", 0.7);
-    la::petsc::options::set(prefix_t + "hypre_boomeramg_agg_nl", 4);
-    la::petsc::options::set(prefix_t + "hypre_boomeramg_agg_num_paths", 2);
+    la::petsc::options::set(prefix_t + "pc_hypre_boomeramg_strong_threshold", 0.7);
+    la::petsc::options::set(prefix_t + "pc_hypre_boomeramg_agg_nl", 4);
+    la::petsc::options::set(prefix_t + "pc_hypre_boomeramg_agg_num_paths", 2);
     la::petsc::options::set(prefix_t + "ksp_monitor", "");
+    la::petsc::options::set(prefix_t + "ksp_view", "");
     kspsolver.set_from_options();
 
     dolfinx::io::XDMFFile xdmf_file_th(fenics_comm, "Temperatures.xdmf",
@@ -417,13 +443,12 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
       fprintf(fp, "Building Structural Bilinear forms ... \n");
 
     // auto a_st =
-    // std::make_shared<fem::create_form<PetscScalar>(create_form_Structural_J,{V_st,V_st},
     auto a_st = std::make_shared<fem::Form<PetscScalar>>(
         fem::create_form<PetscScalar>(
             *form_Structural_J, {V_st, V_st}, {{"T", u_th}, {"u", u_st}},
             {{"time", t}},
-            {{fem::IntegralType::cell, &domain1},
-             {fem::IntegralType::exterior_facet, &facet1}}));
+            {{fem::IntegralType::cell, &domain2},
+             {fem::IntegralType::exterior_facet, &facet2}}));
 
     if (internal_rank == 0)
       fprintf(fp, "Building Structural Linear forms ... \n");
@@ -432,60 +457,23 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
         fem::create_form<PetscScalar>(
             *form_Structural_F, {V_st}, {{"T", u_th}, {"u", u_st}},
             {{"time", t}},
-            {{fem::IntegralType::cell, &domain1},
-             {fem::IntegralType::exterior_facet, &facet1}}));
+            {{fem::IntegralType::cell, &domain2},
+             {fem::IntegralType::exterior_facet, &facet2}}));
 
-    // Set up boundary condition values
-    auto V0 = std::make_shared<fem::FunctionSpace>(
-        V_st->sub({0})->collapse().first);
-    auto zero_0 = std::make_shared<fem::Function<PetscScalar>>(V0);
-    std::fill(zero_0->x()->mutable_array().begin(),
-              zero_0->x()->mutable_array().end(), 0);
-    auto V1 = std::make_shared<fem::FunctionSpace>(
-        V_st->sub({1})->collapse().first);
-    auto zero_1 = std::make_shared<fem::Function<PetscScalar>>(V1);
-    std::fill(zero_1->x()->mutable_array().begin(),
-              zero_1->x()->mutable_array().end(), 0);
-    auto V2 = std::make_shared<fem::FunctionSpace>(
-        V_st->sub({2})->collapse().first);
-    auto zero_2 = std::make_shared<fem::Function<PetscScalar>>(V2);
-    std::fill(zero_2->x()->mutable_array().begin(),
-              zero_2->x()->mutable_array().end(), 0);
-
-    // Set up boundary condition tags
-    const auto facet_array = facet1.values();
-    const auto facet_indices = facet1.indices();
-    std::vector<std::int32_t> tag0{459, 460};
-    std::vector<std::int32_t> tag1{803, 804,  805,  813,  814,
-                                   815, 1153, 1154, 1157, 1158};
+    //Set up boundary conditions
     std::vector<std::shared_ptr<const fem::DirichletBC<PetscScalar>>> bcs_st;
-
-    for (auto i : tag0)
-    {
-      auto facets_dim0 = facet1.find(i);
-      auto dofs0 = dolfinx::fem::locate_dofs_topological(
-          {*V_st->sub({0}), *zero_0->function_space()},
-          mesh->topology().dim() - 1, facets_dim0);
-      auto x_bc = std::make_shared<const fem::DirichletBC<PetscScalar>>(
-          zero_0, std::move(dofs0), V_st);
-      bcs_st.push_back(x_bc);
-    }
-    for (auto i : tag1)
-    {
-      auto facets_dim1 = facet1.find(i);
-      auto dofs1 = dolfinx::fem::locate_dofs_topological(
-          {*V_st->sub({1}), *zero_1->function_space()},
-          mesh->topology().dim() - 1, facets_dim1);
-      auto y_bc = std::make_shared<const fem::DirichletBC<PetscScalar>>(
-          zero_1, std::move(dofs1), V_st);
-      bcs_st.push_back(y_bc);
-      auto dofs2 = dolfinx::fem::locate_dofs_topological(
-          {*V_st->sub({2}), *zero_2->function_space()},
-          mesh->topology().dim() - 1, facets_dim1);
-      auto z_bc = std::make_shared<const fem::DirichletBC<PetscScalar>>(
-          zero_2, std::move(dofs2), V_st);
-      bcs_st.push_back(z_bc);
-    }
+    auto VD = std::make_shared<fem::Function<PetscScalar>>(V_st);
+    std::fill(VD->x()->mutable_array().begin(),
+              VD->x()->mutable_array().end(), 0);
+    auto bound_facets = dolfinx::mesh::locate_entities_boundary(
+         *mesh, mesh->topology().dim() - 1,
+         [](auto&& x) -> xt::xtensor<bool, 1>
+         {
+           auto x0 = xt::row(x, 0);
+           return xt::isclose(x0, 0.0) or xt::isclose(x0, 10.0);
+         });
+    auto bc_1 = std::make_shared<const fem::DirichletBC<PetscScalar>>(VD, dolfinx::fem::locate_dofs_topological(*V_st, mesh->topology().dim() - 1, bound_facets));
+    bcs_st.push_back(bc_1);
 
     // Initialize stiffness matrix & vector
     la::petsc::Matrix A_st
@@ -503,19 +491,26 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
     // Configure Solver
     NLProblem problem_st(L_st, a_st, bcs_st);
     nls::petsc::NewtonSolver nlst_solver(mesh->comm());
-    nlst_solver.atol = 1e-4;
+    nlst_solver.atol = -1.0;
+    nlst_solver.rtol = -1.0;
+    nlst_solver.error_on_nonconvergence = false;
+    nlst_solver.max_it = structural_outer_its;
+    std::string st_its = std::to_string(structural_its);
 
     // To change newtonsolver krylov solver settings
     const la::petsc::KrylovSolver& kspsolver2 = nlst_solver.get_krylov_solver();
     std::string prefix = kspsolver2.get_options_prefix();
     la::petsc::options::set(prefix + "ksp_type", "cg");
+    la::petsc::options::set(prefix + "ksp_view", "");
+    la::petsc::options::set(prefix + "ksp_monitor", "");
+    la::petsc::options::set(prefix + "ksp_max_it", st_its);
+    la::petsc::options::set(prefix + "ksp_convergence_test", "skip");
     la::petsc::options::set(prefix + "pc_type", "gamg");
     la::petsc::options::set(prefix + "pc_gamg_coarse_eq_limit", 1000);
-    la::petsc::options::set(prefix + "ksp_rtol", 1e-8);
     la::petsc::options::set(prefix + "mg_levels_ksp_type", "chebyshev");
     la::petsc::options::set(prefix + "mg_levels_pc_type", "jacobi");
-    la::petsc::options::set(prefix + "mg_levels_esteig_ksp_type", "cg");
-    la::petsc::options::set(prefix + "matptap_via", "scalable");
+    la::petsc::options::set(prefix + "pc_gamg_esteig_ksp_type", "cg");
+    la::petsc::options::set("-matptap_via", "scalable");
     kspsolver2.set_from_options();
 
     dolfinx::io::XDMFFile xdmf_file_st(fenics_comm, "Displacements.xdmf",
