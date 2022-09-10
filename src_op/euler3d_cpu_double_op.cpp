@@ -639,7 +639,7 @@ int main(int argc, char** argv)
 
             for (int k = 0; k < comm_size; k++) {
                 if (k == 0){//sl_rank) {
-                    insp_print (insp[i], LOW);
+                    // insp_print (insp[i], LOW);
                     // generate_vtk (insp, HIGH, vertices, mesh->coords, DIM2, rank);
                 }
                 MPI_Barrier(MPI_COMM_WORLD);
@@ -730,7 +730,8 @@ int main(int argc, char** argv)
 
     #ifdef COMM_AVOID
     for (int l = 0; l < levels; l++) {
-        calculate_dat_size(my_rank, p_variables[l][DEFAULT_VARIABLE_INDEX]);
+        calculate_dat_sizes(my_rank);
+        calculate_set_sizes(my_rank);
     }
     #endif
 
