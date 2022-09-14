@@ -74,6 +74,7 @@ typedef struct {
 
     int num_cycles;
     int num_chains;
+    int tile_size;
 
     Partitioners::Partitioners partitioner;
     char* partitioner_string;
@@ -115,6 +116,7 @@ static struct option long_opts[] =
     { "output-file-prefix",   required_argument, NULL, 'o' },
     { "num-cycles",           required_argument, NULL, 'g' },
     { "num-chains",           required_argument, NULL, 'q' },
+    { "tile-size",            required_argument, NULL, 't' },
     { "partitioner",          required_argument, NULL, 'm' },
     { "partitioner-method",   required_argument, NULL, 'r' },
     { "renumber",             no_argument,       NULL, 'n' },
@@ -125,7 +127,7 @@ static struct option long_opts[] =
     { "output-step-factors",  no_argument,       (int*)&conf.output_step_factors, 1 },
     { "output-flow-interval", required_argument, NULL, 'I' },
 };
-#define GETOPTS "hc:li:d:p:o:g:q:m:r:vbI:"
+#define GETOPTS "hc:li:d:p:o:g:q:t:m:r:vbI:"
 
 inline void set_config_defaults() {
     conf.config_filepath = (char*)malloc(sizeof(char));
@@ -150,6 +152,7 @@ inline void set_config_defaults() {
 
     conf.num_cycles = 25;
     conf.num_chains = 1;
+    conf.tile_size = 5000;
 
     conf.partitioner = Partitioners::Parmetis;
     conf.partitioner_method = PartitionerMethods::NotSet;
@@ -204,6 +207,10 @@ inline void set_config_param(const char* const key, const char* const value) {
 
     else if (strcmp(key, "chains")==0) {
         conf.num_chains = atoi(value);
+    }
+
+    else if (strcmp(key, "tile_size")==0) {
+        conf.tile_size = atoi(value);
     }
 
     else if (strcmp(key, "partitioner")==0) {
@@ -418,6 +425,9 @@ inline bool parse_arguments(int argc, char** argv) {
                 break;
             case 'q':
                 conf.num_chains = atoi(optarg);
+                break;
+            case 't':
+                conf.tile_size = atoi(optarg);
                 break;
             case 'm':
                 set_config_param("partitioner", strdup(optarg));

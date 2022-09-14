@@ -385,7 +385,7 @@ int main(int argc, char** argv)
 
 #ifdef COMM_AVOID
     #ifdef SLOPE
-    int avg_tile_size = 5000; //conf.tile_size; 
+    int avg_tile_size = conf.tile_size; // 5000 
     double* coordinates;
     int sl_nloops = 1;  // check this
     int seed_loop = 0;
@@ -634,7 +634,7 @@ int main(int argc, char** argv)
             seed_loop = 0;
             insp_run (insp[i], seed_loop);
             
-            printf("running executor\n");
+            // printf("running executor\n");
             exec[i] = exec_init (insp[i]);
 
             for (int k = 0; k < comm_size; k++) {
