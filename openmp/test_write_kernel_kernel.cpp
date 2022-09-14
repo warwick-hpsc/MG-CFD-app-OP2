@@ -62,7 +62,7 @@ void op_par_loop_test_write_kernel(char const *name, op_set set,
           map0idx = arg0.map_data[n * arg0.map->dim + 0];
           map1idx = arg0.map_data[n * arg0.map->dim + 1];
 
-          printf("map0idx=%d map1idx=%d\n", map0idx, map1idx);
+
           test_write_kernel(
             &((double*)arg0.data)[5 * map0idx],
             &((double*)arg0.data)[5 * map1idx]);

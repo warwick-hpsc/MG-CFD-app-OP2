@@ -360,21 +360,26 @@ parallel: N = $(shell nproc)
 parallel:; @$(MAKE) -j$(N) -l$(N) all
 
 slope_mpi_ca: $(BIN_DIR)/mgcfd_slope_mpi_ca
+slope_mpi_ca_opt: $(BIN_DIR)/mgcfd_slope_mpi_ca_opt
 
 ## User-friendly wrappers around actual targets:
 seq: $(BIN_DIR)/mgcfd_seq
 sycl: $(BIN_DIR)/mgcfd_sycl
 openmp: $(BIN_DIR)/mgcfd_openmp
 mpi: $(BIN_DIR)/mgcfd_mpi
+mpi_opt: $(BIN_DIR)/mgcfd_mpi_opt
 vec: mpi_vec
 mpi_vec: $(BIN_DIR)/mgcfd_mpi_vec
 mpi_openmp: $(BIN_DIR)/mgcfd_mpi_openmp
 cuda: $(BIN_DIR)/mgcfd_cuda
 mpi_cuda: $(BIN_DIR)/mgcfd_mpi_cuda
+mpi_opt_cuda: $(BIN_DIR)/mgcfd_mpi_opt_cuda
 openmp4: $(BIN_DIR)/mgcfd_openmp4
 openacc: $(BIN_DIR)/mgcfd_openacc
 mpi_ca: $(BIN_DIR)/mgcfd_mpi_ca
 mpi_ca_cuda: $(BIN_DIR)/mgcfd_mpi_ca_cuda
+mpi_ca_opt: $(BIN_DIR)/mgcfd_mpi_ca_opt
+mpi_ca_opt_cuda: $(BIN_DIR)/mgcfd_mpi_ca_opt_cuda
 
 
 OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
@@ -388,11 +393,17 @@ OP2_SLOPE_OBJECTS := $(OBJ_DIR)/mgcfd_slope_main.o \
 OP2_SLOPE_MPI_CA_OBJECTS := $(OBJ_DIR)/mgcfd_slope_mpi_ca_main.o \
                          $(OBJ_DIR)/mgcfd_slope_mpi_ca_kernels.o
 
+OP2_SLOPE_MPI_CA_OPT_OBJECTS := $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_main.o \
+                         $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_kernels.o
+
 OP2_SYCL_OBJECTS := $(OBJ_DIR)/mgcfd_sycl_main.o \
                    $(OBJ_DIR)/mgcfd_sycl_kernels.o
 
 OP2_MPI_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_main.o \
                    $(OBJ_DIR)/mgcfd_mpi_kernels.o
+
+OP2_MPI_OPT_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_opt_main.o \
+                   $(OBJ_DIR)/mgcfd_mpi_opt_kernels.o
 
 OP2_MPI_VEC_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_vec_main.o \
                        $(OBJ_DIR)/mgcfd_mpi_vec_kernels.o
@@ -409,6 +420,9 @@ OP2_CUDA_OBJECTS := $(OBJ_DIR)/mgcfd_cuda_main.o \
 OP2_MPI_CUDA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_cuda_main.o \
                         $(OBJ_DIR)/mgcfd_mpi_kernels_cu.o
 
+OP2_MPI_OPT_CUDA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_opt_cuda_main.o \
+                        $(OBJ_DIR)/mgcfd_mpi_opt_kernels_cu.o
+
 OP2_OMP4_OBJECTS := $(OBJ_DIR)/mgcfd_omp4_main.o \
                     $(OBJ_DIR)/mgcfd_omp4_kernel_funcs.o \
                     $(OBJ_DIR)/mgcfd_omp4_kernels.o
@@ -419,8 +433,14 @@ OP2_OPENACC_OBJECTS := $(OBJ_DIR)/mgcfd_openacc_main.o \
 OP2_MPI_CA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_main.o \
                    $(OBJ_DIR)/mgcfd_mpi_ca_kernels.o
 
+OP2_MPI_CA_OPT_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_opt_main.o \
+                   $(OBJ_DIR)/mgcfd_mpi_ca_kernels.o
+
 OP2_MPI_CA_CUDA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_cuda_main.o \
                    $(OBJ_DIR)/mgcfd_mpi_ca_kernels_cu.o
+
+OP2_MPI_CA_OPT_CUDA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_opt_cuda_main.o \
+                   $(OBJ_DIR)/mgcfd_mpi_ca_opt_kernels_cu.o
 
 KERNELS := calc_rms_kernel \
 	calculate_cell_volumes \
@@ -526,6 +546,21 @@ $(BIN_DIR)/mgcfd_mpi: $(OP2_MPI_OBJECTS)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
+
+## MPI SINGLE_DAT
+$(OBJ_DIR)/mgcfd_mpi_opt_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DSINGLE_DAT_VAR \
+	     -DMPI_ON -c -o $@ $^
+$(OBJ_DIR)/mgcfd_mpi_opt_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(SEQ_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DSINGLE_DAT_VAR \
+	     -DMPI_ON -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
+$(BIN_DIR)/mgcfd_mpi_opt: $(OP2_MPI_OPT_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+		-o $@
     
 
 ## MPI_CA
@@ -543,6 +578,21 @@ $(BIN_DIR)/mgcfd_mpi_ca: $(OP2_MPI_CA_OBJECTS)
 		-lm $(OP2_LIB) -lop2_mpi_comm_avoid $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
 
+## MPI_CA SINGLE_DAT
+$(OBJ_DIR)/mgcfd_mpi_ca_opt_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC)  -DCOMM_AVOID -DSINGLE_DAT_VAR \
+	     -DMPI_ON -c -o $@ $^
+$(OBJ_DIR)/mgcfd_mpi_ca_opt_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(SEQ_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC)  -DCOMM_AVOID -DSINGLE_DAT_VAR \
+	     -DMPI_ON -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
+$(BIN_DIR)/mgcfd_mpi_ca_opt: $(OP2_MPI_CA_OPT_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+		-o $@
+
 ## SLOPE + MPI_CA
 $(OBJ_DIR)/mgcfd_slope_mpi_ca_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
@@ -555,6 +605,23 @@ $(OBJ_DIR)/mgcfd_slope_mpi_ca_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(SLO
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
 		-Iopenmp  -DMPI_ON -c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp 2>&1 | tee $@.log
 $(BIN_DIR)/mgcfd_slope_mpi_ca: $(OP2_SLOPE_MPI_CA_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lslope $(METIS_LIB) -lmetis \
+		-o $@
+
+## SLOPE + MPI_CA SINGLE_DAT
+$(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE -DCOMM_AVOID -DOP2 -DSINGLE_DAT_VAR \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
+		-DMPI_ON  -c -o $@ $^ 2>&1 | tee $@.log
+$(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(SLOPE_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE -DCOMM_AVOID -DOP2 -DSINGLE_DAT_VAR \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
+		-Iopenmp  -DMPI_ON -c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp 2>&1 | tee $@.log
+$(BIN_DIR)/mgcfd_slope_mpi_ca_opt: $(OP2_SLOPE_MPI_CA_OPT_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_mpi_comm_avoid -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lslope $(METIS_LIB) -lmetis \
@@ -624,6 +691,21 @@ $(BIN_DIR)/mgcfd_mpi_cuda: $(OP2_MPI_CUDA_OBJECTS)
 	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
         -o $@
 
+## MPI CUDA SINGLE_DAT
+$(OBJ_DIR)/mgcfd_mpi_opt_kernels_cu.o: $(SRC_DIR)/../cuda/_kernels.cu $(CUDA_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	nvcc $(NVCCFLAGS) $(MGCFD_INCS) $(OP2_INC) -I $(MPI_INSTALL_PATH)/include \
+        -c -o $@ $(SRC_DIR)/../cuda/_kernels.cu
+$(OBJ_DIR)/mgcfd_mpi_opt_cuda_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DSINGLE_DAT_VAR \
+        -DCUDA_ON -c -o $@ $^
+$(BIN_DIR)/mgcfd_mpi_opt_cuda: $(OP2_MPI_OPT_CUDA_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+        -o $@
+
 
 ## MPI_CA CUDA
 $(OBJ_DIR)/mgcfd_mpi_ca_kernels_cu.o: $(SRC_DIR)/../cuda/_kernels.cu $(CUDA_KERNELS)
@@ -635,6 +717,21 @@ $(OBJ_DIR)/mgcfd_mpi_ca_cuda_main.o: $(OP2_MAIN_SRC)
 	$(MPICPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DCOMM_AVOID -DCOMM_AVOID_CUDA \
         -DCUDA_ON -c -o $@ $^
 $(BIN_DIR)/mgcfd_mpi_ca_cuda: $(OP2_MPI_CA_CUDA_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_comm_avoid_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+        -o $@
+
+## MPI_CA CUDA SINGLE_DAT
+$(OBJ_DIR)/mgcfd_mpi_ca_opt_kernels_cu.o: $(SRC_DIR)/../cuda/_kernels.cu $(CUDA_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	nvcc $(NVCCFLAGS) $(MGCFD_INCS) $(OP2_INC) -I $(MPI_INSTALL_PATH)/include -DCOMM_AVOID -DCOMM_AVOID_CUDA -DSINGLE_DAT_VAR \
+        -c -o $@ $(SRC_DIR)/../cuda/_kernels.cu
+$(OBJ_DIR)/mgcfd_mpi_ca_opt_cuda_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DCOMM_AVOID -DCOMM_AVOID_CUDA -DSINGLE_DAT_VAR \
+        -DCUDA_ON -c -o $@ $^
+$(BIN_DIR)/mgcfd_mpi_ca_opt_cuda: $(OP2_MPI_CA_OPT_CUDA_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
 	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_comm_avoid_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \

@@ -16,9 +16,10 @@ inline void test_negate_kernel(
     double *variables_a,
     double *variables_b,
     double *flux_a,
-    double *flux_b)
+    double *flux_b,
+    int *diff_val)
 {
-  int diff = 1;
+  int diff = *diff_val;
   // flux_a[VAR_DENSITY] -= (variables_a[VAR_DENSITY] + 1);
   // flux_a[VAR_DENSITY_ENERGY] -= (variables_a[VAR_DENSITY_ENERGY] + 1);
   // flux_a[VAR_MOMENTUM+0] -= (variables_a[VAR_MOMENTUM+0] + 1);

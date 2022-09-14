@@ -121,6 +121,7 @@ void op_par_loop_test_negate_kernel(char const *, op_set,
   op_arg,
   op_arg,
   op_arg,
+  op_arg,
   op_arg );
 
 void op_par_loop_compute_bnd_node_flux_kernel(char const *, op_set,
@@ -211,6 +212,7 @@ void op_par_loop_count_non_zeros(char const *, op_set,
 }
 #endif
 #endif
+
 
 #include "op_hdf5.h"
 #include  "op_lib_cpp.h"
@@ -654,10 +656,16 @@ int main(int argc, char** argv)
 
         for (int i=0; i<levels; i++) {
 
+#ifdef SINGLE_DAT_VAR
+            for(int j = 0; j < 1; j++){
+                int var_index = 0;
+#else
             for(int j = 0; j < nchains; j++){
+                int var_index = j;
+#endif
                 sprintf(op_name, "p_variables_L%d", i);
                 sprintf(&op_name[14], "_C%d", j);
-                p_variables[i][j] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
+                p_variables[i][var_index] = op_decl_dat_temp_char(op_nodes[i], NVAR, "double", sizeof(double), op_name);
             }
             
             sprintf(op_name, "p_old_variables_L%d", i);
@@ -692,9 +700,15 @@ int main(int argc, char** argv)
 
     // Initialise variables:
     for (int i=0; i<levels; i++) {
+#ifdef SINGLE_DAT_VAR
+        for(int j = 0; j < 1; j++){
+                int var_index = 0;
+#else
         for(int j = 0; j < nchains; j++){
+            int var_index = j;
+#endif
             op_par_loop_initialize_variables_kernel("initialize_variables_kernel",op_nodes[i],
-                        op_arg_dat(p_variables[i][j],-1,OP_ID,5,"double",OP_WRITE));
+                        op_arg_dat(p_variables[i][var_index],-1,OP_ID,5,"double",OP_WRITE));
         }
         op_par_loop_zero_5d_array_kernel("zero_5d_array_kernel",op_nodes[i],
                     op_arg_dat(p_fluxes[i],-1,OP_ID,5,"double",OP_WRITE));
@@ -782,6 +796,7 @@ int main(int argc, char** argv)
                     op_arg_dat(p_volumes[level],-1,OP_ID,1,"double",OP_READ),
                     op_arg_gbl(&min_dt,1,"double",OP_READ),
                     op_arg_dat(p_step_factors[level],-1,OP_ID,1,"double",OP_WRITE));
+
 #ifdef COMM_AVOID
         #ifdef SLOPE
         int ncolors = exec_num_colors (exec[level]);
@@ -807,10 +822,17 @@ int main(int argc, char** argv)
            
             int map_index = nhalos;
 
+#ifdef SINGLE_DAT_VAR
+            int nargs_ex0 = 1;
+            op_arg args_ex0[1];
+
+            for(int i = 0; i < 1; i++){
+#else
             int nargs_ex0 = nchains;
             op_arg args_ex0[nchains];
 
             for(int i = 0; i < nchains; i++){
+#endif
                 args_ex0[i] = op_arg_dat_halo(p_variables[level][i],0,p_edge_to_nodes[level],5,"double",OP_READ,nhalos,map_index);
                 set_dat_dirty(&args_ex0[i]);
             }
@@ -822,11 +844,16 @@ int main(int argc, char** argv)
             op_arg args1[nchains][5];
 
             for(int i = 0; i < nchains; i++){
-                args0[i][0] = op_arg_dat_halo(p_variables[level][i],0,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
-                args0[i][1] = op_arg_dat_halo(p_variables[level][i],1,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
+#ifdef SINGLE_DAT_VAR
+            int var_index = 0;
+#else
+            int var_index = i;
+#endif
+                args0[i][0] = op_arg_dat_halo(p_variables[level][var_index],0,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
+                args0[i][1] = op_arg_dat_halo(p_variables[level][var_index],1,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
 
-                args1[i][0] = op_arg_dat_halo(p_variables[level][i],0,p_edge_to_nodes[level],5,"double",OP_READ,nhalos,map_index);
-                args1[i][1] = op_arg_dat_halo(p_variables[level][i],1,p_edge_to_nodes[level],5,"double",OP_READ,nhalos,map_index);
+                args1[i][0] = op_arg_dat_halo(p_variables[level][var_index],0,p_edge_to_nodes[level],5,"double",OP_READ,nhalos,map_index);
+                args1[i][1] = op_arg_dat_halo(p_variables[level][var_index],1,p_edge_to_nodes[level],5,"double",OP_READ,nhalos,map_index);
                 args1[i][2] = op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ);
                 args1[i][3] = op_arg_dat_halo(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
                 args1[i][4] = op_arg_dat_halo(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
@@ -835,6 +862,11 @@ int main(int argc, char** argv)
             op_mpi_halo_exchanges_chained(op_edges[level], nargs_ex0, args_ex0, nhalos, 1);
 
             for(int i = 0; i < nchains; i++){
+#ifdef SINGLE_DAT_VAR
+            int var_index = 0;
+#else
+            int var_index = i;
+#endif
                 for (int color = 0; color < ncolors; color++) {
                     // for all tiles of this color
                     const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
@@ -857,8 +889,8 @@ int main(int argc, char** argv)
 
                         for (int k = 0; k < loop_size; k++) {
                             test_write_kernel(
-                                &(((double*)(p_variables[level][i]->data))[le2n_0[k*2 + 0] * 5]),
-                                &(((double*)(p_variables[level][i]->data))[le2n_0[k*2 + 1] * 5]));
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_0[k*2 + 0] * 5]),
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_0[k*2 + 1] * 5]));
                         }
 
                         // loop test_read_kernel
@@ -870,8 +902,8 @@ int main(int argc, char** argv)
 
                         for (int k = 0; k < loop_size; k++) {
                             test_read_kernel(
-                                &(((double*)(p_variables[level][i]->data))[le2n_1[k*2 + 0] * 5]),
-                                &(((double*)(p_variables[level][i]->data))[le2n_1[k*2 + 1] * 5]),
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_1[k*2 + 0] * 5]),
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_1[k*2 + 1] * 5]),
                                 &(((double*)(p_edge_weights[level]->data))[iterations_1[k] * 3]),
                                 &(((double*)(p_dummy_fluxes[level]->data))[le2n_1[k*2 + 0] * 5]),
                                 &(((double*)(p_dummy_fluxes[level]->data))[le2n_1[k*2 + 1] * 5]));
@@ -883,6 +915,12 @@ int main(int argc, char** argv)
             op_mpi_wait_all_chained(nargs_ex0, args_ex0, 1);
 
             for(int i = 0; i < nchains; i++){
+
+#ifdef SINGLE_DAT_VAR
+            int var_index = 0;
+#else
+            int var_index = i;
+#endif
                 for (int color = 0; color < ncolors; color++) {
                     // for all tiles of this color
                     const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
@@ -905,8 +943,8 @@ int main(int argc, char** argv)
 
                         for (int k = 0; k < loop_size; k++) {
                             test_write_kernel(
-                                &(((double*)(p_variables[level][i]->data))[le2n_0[k*2 + 0] * 5]),
-                                &(((double*)(p_variables[level][i]->data))[le2n_0[k*2 + 1] * 5]));
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_0[k*2 + 0] * 5]),
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_0[k*2 + 1] * 5]));
                         }
 
                         // loop test_read_kernel
@@ -918,8 +956,8 @@ int main(int argc, char** argv)
 
                         for (int k = 0; k < loop_size; k++) {
                             test_read_kernel(
-                                &(((double*)(p_variables[level][i]->data))[le2n_1[k*2 + 0] * 5]),
-                                &(((double*)(p_variables[level][i]->data))[le2n_1[k*2 + 1] * 5]),
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_1[k*2 + 0] * 5]),
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_1[k*2 + 1] * 5]),
                                 &(((double*)(p_edge_weights[level]->data))[iterations_1[k] * 3]),
                                 &(((double*)(p_dummy_fluxes[level]->data))[le2n_1[k*2 + 0] * 5]),
                                 &(((double*)(p_dummy_fluxes[level]->data))[le2n_1[k*2 + 1] * 5]));
@@ -936,24 +974,35 @@ int main(int argc, char** argv)
 #else
 
             for(int i = 0; i < nchains; i++){
+#ifdef SINGLE_DAT_VAR
+                int var_index = 0;
+#else
+                int var_index = i;
+#endif
                 op_par_loop_test_write_kernel("ca_test_write_kernel",op_edges[level],
-                            op_arg_dat(p_variables[level][i],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                            op_arg_dat(p_variables[level][i],1,p_edge_to_nodes[level],5,"double",OP_INC));
+                            op_arg_dat(p_variables[level][var_index],0,p_edge_to_nodes[level],5,"double",OP_INC),
+                            op_arg_dat(p_variables[level][var_index],1,p_edge_to_nodes[level],5,"double",OP_INC));
 
                 op_par_loop_test_read_kernel("ca_test_read_kernel",op_edges[level],
-                            op_arg_dat(p_variables[level][i],0,p_edge_to_nodes[level],5,"double",OP_READ),
-                            op_arg_dat(p_variables[level][i],1,p_edge_to_nodes[level],5,"double",OP_READ),
+                            op_arg_dat(p_variables[level][var_index],0,p_edge_to_nodes[level],5,"double",OP_READ),
+                            op_arg_dat(p_variables[level][var_index],1,p_edge_to_nodes[level],5,"double",OP_READ),
                             op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ),
                             op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
                             op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));          
             }
+#endif
+#ifdef SINGLE_DAT_VAR
+                int diff = nchains;
+#else
+                int diff = 1;
 #endif
             
             op_par_loop_test_negate_kernel("ca_test_negate_kernel",op_edges[level],
                         op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_edge_to_nodes[level],5,"double",OP_INC),
                         op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],1,p_edge_to_nodes[level],5,"double",OP_INC),
                         op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
-                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));
+                        op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC),
+                        op_arg_gbl(&diff,1,"int",OP_READ));
 
             op_par_loop_compute_bnd_node_flux_kernel("compute_bnd_node_flux_kernel",op_bnd_nodes[level],
                         op_arg_dat(p_bnd_node_groups[level],-1,OP_ID,1,"int",OP_READ),

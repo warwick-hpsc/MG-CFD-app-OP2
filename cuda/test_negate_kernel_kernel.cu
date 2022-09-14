@@ -12,8 +12,9 @@ __device__ void test_negate_kernel_gpu(
     double *variables_a,
     double *variables_b,
     double *flux_a,
-    double *flux_b) {
-  int diff = 1;
+    double *flux_b,
+    int *diff_val) {
+  int diff = *diff_val;
 
 
 
@@ -45,6 +46,7 @@ __global__ void op_cuda_test_negate_kernel(
   double *__restrict ind_arg0,
   double *__restrict ind_arg1,
   const int *__restrict opDat0Map,
+  const int *arg4,
   int start,
   int end,
   int   set_size) {
@@ -77,7 +79,8 @@ __global__ void op_cuda_test_negate_kernel(
     test_negate_kernel_gpu(arg0_l,
                        arg1_l,
                        arg2_l,
-                       arg3_l);
+                       arg3_l,
+                       arg4);
     atomicAdd(&ind_arg0[0+map0idx*5],arg0_l[0]);
     atomicAdd(&ind_arg0[1+map0idx*5],arg0_l[1]);
     atomicAdd(&ind_arg0[2+map0idx*5],arg0_l[2]);
@@ -107,15 +110,18 @@ void op_par_loop_test_negate_kernel(char const *name, op_set set,
   op_arg arg0,
   op_arg arg1,
   op_arg arg2,
-  op_arg arg3){
+  op_arg arg3,
+  op_arg arg4){
 
-  int nargs = 4;
-  op_arg args[4];
+  int*arg4h = (int *)arg4.data;
+  int nargs = 5;
+  op_arg args[5];
 
   args[0] = arg0;
   args[1] = arg1;
   args[2] = arg2;
   args[3] = arg3;
+  args[4] = arg4;
 
   // initialise timers
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
@@ -126,13 +132,26 @@ void op_par_loop_test_negate_kernel(char const *name, op_set set,
 
 
   int    ninds   = 2;
-  int    inds[4] = {0,0,1,1};
+  int    inds[5] = {0,0,1,1,-1};
 
   if (OP_diags>2) {
     printf(" kernel routine with indirection: test_negate_kernel\n");
   }
   int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
   if (set_size > 0) {
+
+    //transfer constants to GPU
+    int consts_bytes = 0;
+    consts_bytes += ROUND_UP(1*sizeof(int));
+    reallocConstArrays(consts_bytes);
+    consts_bytes = 0;
+    arg4.data   = OP_consts_h + consts_bytes;
+    arg4.data_d = OP_consts_d + consts_bytes;
+    for ( int d=0; d<1; d++ ){
+      ((int *)arg4.data)[d] = arg4h[d];
+    }
+    consts_bytes += ROUND_UP(1*sizeof(int));
+    mvConstArraysToDevice(consts_bytes);
 
     //set CUDA execution parameters
     #ifdef OP_BLOCK_SIZE_12
@@ -153,6 +172,7 @@ void op_par_loop_test_negate_kernel(char const *name, op_set set,
         (double *)arg0.data_d,
         (double *)arg2.data_d,
         arg0.map_data_d,
+        (int*)arg4.data_d,
         start,end,set->size+set->exec_size);
       }
     }

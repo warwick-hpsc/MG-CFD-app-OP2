@@ -126,10 +126,17 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
     int nhalos = nloops; // * nchains;
     int map_index = nhalos;
 
+#ifdef SINGLE_DAT_VAR
+    int nargs_ex0 = 1;
+    op_arg args_ex0[1];
+
+    for(int i = 0; i < 1; i++){
+#else
     int nargs_ex0 = nchains;
     op_arg args_ex0[nchains];
 
     for(int i = 0; i < nchains; i++){
+#endif
       args_ex0[i] = op_arg_dat_halo(p_variables[i],0,p_edge_to_nodes,5,"double",OP_READ, nhalos, map_index);
       set_dat_dirty(&args_ex0[i]);
     }
@@ -147,11 +154,18 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
     op_arg args1[nchains][5];
 
     for(int i = 0; i < nchains; i++){
-      args0[i][0] = op_arg_dat_halo(p_variables[i],0,p_edge_to_nodes,5,"double",OP_INC, nhalos, map_index);
-      args0[i][1] = op_arg_dat_halo(p_variables[i],1,p_edge_to_nodes,5,"double",OP_INC, nhalos, map_index);
+#ifdef SINGLE_DAT_VAR
+      int var_index = 0;
+      // printf("SINGLE_DAT_VAR\n");
+#else
+      // printf("SINGLE_DAT_VAR noooo\n");
+      int var_index = i;
+#endif
+      args0[i][0] = op_arg_dat_halo(p_variables[var_index],0,p_edge_to_nodes,5,"double",OP_INC, nhalos, map_index);
+      args0[i][1] = op_arg_dat_halo(p_variables[var_index],1,p_edge_to_nodes,5,"double",OP_INC, nhalos, map_index);
 
-      args1[i][0] = op_arg_dat_halo(p_variables[i],0,p_edge_to_nodes,5,"double",OP_READ, nhalos, map_index);
-      args1[i][1] = op_arg_dat_halo(p_variables[i],1,p_edge_to_nodes,5,"double",OP_READ, nhalos, map_index);
+      args1[i][0] = op_arg_dat_halo(p_variables[var_index],0,p_edge_to_nodes,5,"double",OP_READ, nhalos, map_index);
+      args1[i][1] = op_arg_dat_halo(p_variables[var_index],1,p_edge_to_nodes,5,"double",OP_READ, nhalos, map_index);
       args1[i][2] = op_arg_dat(p_edge_weights,-1,OP_ID,3,"double",OP_READ);
       args1[i][3] = op_arg_dat_halo(p_fluxes,0,p_edge_to_nodes,5,"double",OP_INC, nhalos, map_index);
       args1[i][4] = op_arg_dat_halo(p_fluxes,1,p_edge_to_nodes,5,"double",OP_INC, nhalos, map_index);
