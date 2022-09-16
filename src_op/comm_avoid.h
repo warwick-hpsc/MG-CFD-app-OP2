@@ -156,9 +156,7 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
     for(int i = 0; i < nchains; i++){
 #ifdef SINGLE_DAT_VAR
       int var_index = 0;
-      // printf("SINGLE_DAT_VAR\n");
 #else
-      // printf("SINGLE_DAT_VAR noooo\n");
       int var_index = i;
 #endif
       args0[i][0] = op_arg_dat_halo(p_variables[var_index],0,p_edge_to_nodes,5,"double",OP_INC, nhalos, map_index);
@@ -173,8 +171,15 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
 
     // this will do the latency hiding for the first two loops in the chain, since halo extension is done for two levels.
     // other levels will receive 0 as core size.
-    int n_lower0 = get_set_core_size(set, nloops - 1);
-    int n_lower1 = get_set_core_size(set, nloops);
+#ifdef SINGLE_DAT_VAR
+      // when using a single dat latency hiding cannot be done.
+      int n_lower0 = 0;
+      int n_lower1 = 0;
+#else
+      int n_lower0 = get_set_core_size(set, nloops - 1);
+      int n_lower1 = get_set_core_size(set, nloops);
+#endif
+    
 
     for(int i = 0; i < nchains; i++){
       ca_loop_test_write_kernel("ca_test_write_kernel",set,
@@ -192,7 +197,11 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
     
     for(int i = 0; i < nchains; i++){
 
+#ifdef SINGLE_DAT_VAR
+      n_lower0 = 0;
+#else
       n_lower0 = get_set_core_size(set, nloops - 1);
+#endif
       n_upper0 = set->size;
       ca_loop_test_write_kernel("ca_test_write_kernel",set,
                             args0[i][0], args0[i][1], n_lower0, n_upper0);
@@ -204,7 +213,11 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
                             args0[i][0], args0[i][1], n_lower0, n_upper0);
       }
 
+#ifdef SINGLE_DAT_VAR
+      n_lower1 =0;
+#else
       n_lower1 = get_set_core_size(set, nloops);
+#endif
       n_upper1 = set->size;
 
       ca_par_loop_test_read_kernel("ca_test_read_kernel",set,

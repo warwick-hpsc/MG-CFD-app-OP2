@@ -434,7 +434,7 @@ OP2_MPI_CA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_main.o \
                    $(OBJ_DIR)/mgcfd_mpi_ca_kernels.o
 
 OP2_MPI_CA_OPT_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_opt_main.o \
-                   $(OBJ_DIR)/mgcfd_mpi_ca_kernels.o
+                   $(OBJ_DIR)/mgcfd_mpi_ca_opt_kernels.o
 
 OP2_MPI_CA_CUDA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_cuda_main.o \
                    $(OBJ_DIR)/mgcfd_mpi_ca_kernels_cu.o

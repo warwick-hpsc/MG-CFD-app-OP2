@@ -449,7 +449,11 @@ int main(int argc, char** argv)
     #define DEFAULT_VARIABLE_INDEX 0
 
     // Temporary set data (ie, arrays that are populated by kernels)
-    op_dat p_variables[levels][nchains], 
+#ifdef SINGLE_DAT_VAR
+    op_dat p_variables[levels][1],
+#else
+    op_dat p_variables[levels][nchains],
+#endif 
            p_old_variables[levels], 
            p_residuals[levels],
            p_residuals_prolonged[levels],
