@@ -387,7 +387,8 @@ int main(int argc, char** argv)
 
 #ifdef COMM_AVOID
     #ifdef SLOPE
-    int avg_tile_size = conf.tile_size; // 5000 
+    int avg_tile_size = conf.tile_size; // 5000
+    op_printf("avg_tile_size=%d\n", avg_tile_size); 
     double* coordinates;
     int sl_nloops = 1;  // check this
     int seed_loop = 0;
@@ -748,8 +749,9 @@ int main(int argc, char** argv)
 
     #ifdef COMM_AVOID
     for (int l = 0; l < levels; l++) {
-        calculate_dat_sizes(my_rank);
-        calculate_set_sizes(my_rank);
+        // use only when need to calculate dat sizes
+        // calculate_dat_sizes(my_rank);
+        // calculate_set_sizes(my_rank);
     }
     #endif
 
@@ -836,7 +838,7 @@ int main(int argc, char** argv)
             op_arg args_ex0[nchains];
 
             for(int i = 0; i < nchains; i++){
-#endif
+#endif  // SINGLE_DAT_VAR
                 args_ex0[i] = op_arg_dat_halo(p_variables[level][i],0,p_edge_to_nodes[level],5,"double",OP_READ,nhalos,map_index);
                 set_dat_dirty(&args_ex0[i]);
             }
@@ -852,7 +854,7 @@ int main(int argc, char** argv)
             int var_index = 0;
 #else
             int var_index = i;
-#endif
+#endif  // SINGLE_DAT_VAR
                 args0[i][0] = op_arg_dat_halo(p_variables[level][var_index],0,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
                 args0[i][1] = op_arg_dat_halo(p_variables[level][var_index],1,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
 
@@ -864,13 +866,16 @@ int main(int argc, char** argv)
             }
 
             op_mpi_halo_exchanges_chained(op_edges[level], nargs_ex0, args_ex0, nhalos, 1);
-
+#ifdef SINGLE_DAT_VAR   // no latency hiding for single var dat
+            op_mpi_wait_all_chained(nargs_ex0, args_ex0, 1);
+#endif
+            
             for(int i = 0; i < nchains; i++){
 #ifdef SINGLE_DAT_VAR
             int var_index = 0;
 #else
             int var_index = i;
-#endif
+#endif  // SINGLE_DAT_VAR
                 for (int color = 0; color < ncolors; color++) {
                     // for all tiles of this color
                     const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
@@ -914,17 +919,60 @@ int main(int argc, char** argv)
                         }
                     }
                 }
-            }
-                
-            op_mpi_wait_all_chained(nargs_ex0, args_ex0, 1);
-
-            for(int i = 0; i < nchains; i++){
 
 #ifdef SINGLE_DAT_VAR
-            int var_index = 0;
-#else
-            int var_index = i;
-#endif
+                for (int color = 0; color < ncolors; color++) {
+                    // for all tiles of this color
+                    int var_index = 0;
+                    const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
+
+                    #pragma omp parallel for
+                    for (int j = 0; j < n_tiles_per_color; j++) {
+
+                        tile_t* tile = exec_tile_at (exec[level], color, j, EXEC_HALO);
+                        if(tile == NULL)
+                                continue;
+                        // printf("EXEC tile=%d color=%d ntiles=%d\n", j, color, n_tiles_per_color);
+                        int loop_size;
+                        int tile_id = 0;
+
+                        // loop test_write_kernel
+                        // tile_id = 2 * i + 0;
+                        tile_id = 0;
+                        iterations_list& le2n_0 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
+                        loop_size = tile_loop_size (tile, tile_id);
+
+                        for (int k = 0; k < loop_size; k++) {
+                            test_write_kernel(
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_0[k*2 + 0] * 5]),
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_0[k*2 + 1] * 5]));
+                        }
+
+                        // loop test_read_kernel
+                        // tile_id =  2 * i + 1;
+                        tile_id = 1;
+                        iterations_list& le2n_1 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
+                        iterations_list& iterations_1 = tile_get_iterations (tile, tile_id);
+                        loop_size = tile_loop_size (tile, tile_id);
+
+                        for (int k = 0; k < loop_size; k++) {
+                            test_read_kernel(
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_1[k*2 + 0] * 5]),
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_1[k*2 + 1] * 5]),
+                                &(((double*)(p_edge_weights[level]->data))[iterations_1[k] * 3]),
+                                &(((double*)(p_dummy_fluxes[level]->data))[le2n_1[k*2 + 0] * 5]),
+                                &(((double*)(p_dummy_fluxes[level]->data))[le2n_1[k*2 + 1] * 5]));
+                        }
+                    }
+                }
+#endif  // SINGLE_DAT_VAR
+            }
+
+#ifndef SINGLE_DAT_VAR
+            op_mpi_wait_all_chained(nargs_ex0, args_ex0, 1);    // no latency hiding for single var dat
+
+            for(int i = 0; i < nchains; i++){
+                int var_index = i;
                 for (int color = 0; color < ncolors; color++) {
                     // for all tiles of this color
                     const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
@@ -969,20 +1017,21 @@ int main(int argc, char** argv)
                     }
                 }
             }
+#endif  // SINGLE_DAT_VAR
 
             op_mpi_set_dirtybit(nargs1, args1[DEFAULT_VARIABLE_INDEX]);
-#else
+#else   // SLOPE
             test_comm_avoid("ca_test_comm_avoid", p_variables[level], p_edge_weights[level], p_dummy_fluxes[level], p_edge_to_nodes[level], op_edges[level],
                     nloops, nchains, DEFAULT_VARIABLE_INDEX);
-#endif
-#else
+#endif  // SLOPE
+#else   // COMM_AVOID
 
             for(int i = 0; i < nchains; i++){
 #ifdef SINGLE_DAT_VAR
                 int var_index = 0;
 #else
                 int var_index = i;
-#endif
+#endif  // SINGLE_DAT_VAR
                 op_par_loop_test_write_kernel("ca_test_write_kernel",op_edges[level],
                             op_arg_dat(p_variables[level][var_index],0,p_edge_to_nodes[level],5,"double",OP_INC),
                             op_arg_dat(p_variables[level][var_index],1,p_edge_to_nodes[level],5,"double",OP_INC));
@@ -994,12 +1043,12 @@ int main(int argc, char** argv)
                             op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
                             op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));          
             }
-#endif
+#endif  // COMM_AVOID
 #ifdef SINGLE_DAT_VAR
                 int diff = nchains;
 #else
                 int diff = 1;
-#endif
+#endif  // SINGLE_DAT_VAR
             
             op_par_loop_test_negate_kernel("ca_test_negate_kernel",op_edges[level],
                         op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_edge_to_nodes[level],5,"double",OP_INC),
