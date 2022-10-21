@@ -68,8 +68,10 @@ int main(int argc, char** argv){
 				units[temp_count].coupling_type = 'S';
 			}else if(strcmp(c_type, "CHT") == 0){
 				units[temp_count].coupling_type = 'C';
+			}else if(strcmp(c_type, "OVERSET") == 0){
+				units[temp_count].coupling_type = 'O';
 			}else{
-				fprintf(stderr, "Error: couplers must be of type CHT or SLIDING, aborting... \n");
+				fprintf(stderr, "Error: couplers must be of type CHT, OVERSET, or SLIDING, aborting... \n");
 				exit(1);
 			}
 			temp_count++;
@@ -92,6 +94,10 @@ int main(int argc, char** argv){
 			fenics_count++;
 			mpi_ranks += temp_unit;
 		}else if(strcmp(keyword, simpic) == 0){
+			#ifndef defsimpic
+				fprintf(stderr, "Error: CPX has not been compiled with SIMPIC support.\n");
+				exit(1);
+			#endif
 			units[temp_count].type = 'P';
 			units[temp_count].processes = temp_unit;
 			temp_count++;
@@ -289,7 +295,7 @@ int main(int argc, char** argv){
 		}else{
 			#ifdef defsimpic
 				//printf("launch simpic here");
-				main_simpic(argc, argv, comms_shell);
+				main_simpic(argc, argv, comms_shell, instance_number, units, relative_positions);
 				//main_cup(argc, argv, comms_shell, instance_number, units, relative_positions);
             #endif
 			MPI_Finalize();
@@ -334,15 +340,28 @@ int main(int argc, char** argv){
 			//set the scaling for the search and interpolation routines
 			double left_search_scaling = 0;
 			double right_search_scaling = 0;
-            //double interp_scaling;
-			int search_repeats = 10;
+			double search_repeats;
+            double interp_scaling;
+			if(ultrafastsearch){
+				search_repeats = 0.25;
+				interp_scaling = 90;
+			}else{
+				search_repeats = 10;
+				interp_scaling = 3500;
+			}
+			
             int coupler_vars = 0;
             if(units[unit_count].coupling_type == 'S'){
                 left_search_scaling = search_repeats * adjusted_sizes_left;
                 right_search_scaling = search_repeats * adjusted_sizes_right;
                 //interp_scaling = 3500/((adjusted_sizes_left + adjusted_sizes_right)/2);
                 coupler_vars = 5;
-            }else if(units[unit_count].coupling_type == 'C'){
+            }else if(units[unit_count].coupling_type == 'O'){
+				left_search_scaling = search_repeats * adjusted_sizes_left;
+                right_search_scaling = search_repeats * adjusted_sizes_right;
+                //interp_scaling = 3500/((adjusted_sizes_left + adjusted_sizes_right)/2);
+                coupler_vars = 1;
+			}else if(units[unit_count].coupling_type == 'C'){
                 left_search_scaling = 3;
                 right_search_scaling = 3;
                 coupler_vars = 1;
@@ -373,9 +392,16 @@ int main(int argc, char** argv){
 			std::map< int, std::vector<double> > left_map_of_state_vars;
 			std::map< int, std::vector<double> > right_map_of_state_vars;
 
+			std::vector<double> node_state_vars;
+			std::vector<double> node_state_vars_left;
+			std::vector<double> node_state_vars_right;
+			std::vector<double> node_state_vars_temp;
+
 			//set up some random data for cht interpolation
 			int ar_size_max = ((left_nodes_size + right_nodes_size)/2)*1.5;
-			printf("size is %d\n", ar_size_max);
+			if(rank == 0 && debug == true){
+				printf("size is %d\n", ar_size_max);
+			}
 			srand((unsigned)time(NULL));
 			double data_ran[ar_size_max][4];
 			for(int i = 0; i < ar_size_max; i++){
@@ -422,7 +448,7 @@ int main(int argc, char** argv){
 								while(sub_count < total_ranks){
 									left_vector_of_state_vars.clear();
 									while(vector_counter < (vector_counter_max/total_ranks)){
-										std::vector<double> node_state_vars;
+										node_state_vars.clear();
 										for(int i = 0; i<coupler_vars; i++){
 											if(MUM == 0){
 												node_state_vars.push_back(*(left_p_variables + (static_cast<long long>(vector_counter) * coupler_vars) + i));//essentially move along left_p_variables in chunks of NVAR
@@ -442,7 +468,7 @@ int main(int argc, char** argv){
 								left_map_of_state_vars.clear();
 								vector_counter = 0;
 								while(vector_counter < (vector_counter_max)){
-									std::vector<double> node_state_vars;
+									node_state_vars.clear();
 									for(int i = 0; i<coupler_vars; i++){
 										if(MUM == 0){
 											node_state_vars.push_back(*(left_p_variables + (static_cast<long long>(vector_counter) * coupler_vars) + i));//essentially move along left_p_variables in chunks of NVAR
@@ -470,7 +496,7 @@ int main(int argc, char** argv){
 								while(sub_count < total_ranks){
 									right_vector_of_state_vars.clear();
 									while(vector_counter < (vector_counter_max/total_ranks)){
-										std::vector<double> node_state_vars;
+										node_state_vars.clear();
 										for(int i = 0; i<coupler_vars; i++){
 											if(MUM == 0){
 												node_state_vars.push_back(*(right_p_variables + (static_cast<long long>(vector_counter) * coupler_vars) + i));//essentially move along right_p_variables in chunks of NVAR
@@ -490,7 +516,7 @@ int main(int argc, char** argv){
 								right_map_of_state_vars.clear();
 								vector_counter = 0;
 								while(vector_counter < (vector_counter_max)){
-									std::vector<double> node_state_vars;
+									node_state_vars.clear();
 									for(int i = 0; i<coupler_vars; i++){
 										if(MUM == 0){
 											node_state_vars.push_back(*(right_p_variables + (static_cast<long long>(vector_counter) * coupler_vars) + i));//essentially move along right_p_variables in chunks of NVAR
@@ -507,6 +533,8 @@ int main(int argc, char** argv){
 					//this routine is used to convert the tree in the based search to a vector so the interpolation routine can run as before
 					if(fastsearch){
 						vector_counter_max = std::min(left_nodes_size_chunks, right_nodes_size_chunks);
+						left_vector_of_state_vars.clear();
+						right_vector_of_state_vars.clear();
 						for(int i=0; i<(vector_counter_max/total_ranks); i++){
 							left_vector_of_state_vars.insert(left_vector_of_state_vars.end(), left_map_of_state_vars.at(i));
 							right_vector_of_state_vars.insert(right_vector_of_state_vars.end(), right_map_of_state_vars.at(i));
@@ -520,14 +548,14 @@ int main(int argc, char** argv){
 				//rendezvous routines end
 				
 				//interpolate routine start
-				if(units[unit_count].coupling_type == 'S'){
-					std::vector<double> node_state_vars_left;
-					std::vector<double> node_state_vars_right;
-					std::vector<double> node_state_vars_temp;
+				if(units[unit_count].coupling_type == 'S' || units[unit_count].coupling_type == 'O'){
+					node_state_vars_left.clear();
+					node_state_vars_right.clear();
+					node_state_vars_temp.clear();
 					vector_counter = 0;
 					sub_count = 0;
 					vector_counter_max = std::min(left_nodes_size_chunks, right_nodes_size_chunks);//this is size of mesh recieved from scatter
-					while(sub_count < (total_ranks*(3500/((adjusted_sizes_left + adjusted_sizes_right)/2)))){//TODO: changes the adjusted_sizes to whichever is lower
+					while(sub_count < (total_ranks*(interp_scaling/((adjusted_sizes_left + adjusted_sizes_right)/2)))){//TODO: changes the adjusted_sizes to whichever is lower
 						while(vector_counter < vector_counter_max/total_ranks){
 							node_state_vars_left = left_vector_of_state_vars.at(vector_counter);
 							node_state_vars_right = right_vector_of_state_vars.at(vector_counter);

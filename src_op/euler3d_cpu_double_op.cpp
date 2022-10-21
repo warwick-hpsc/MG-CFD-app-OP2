@@ -229,11 +229,50 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         return 1;
     }
 
-    const char* input_file_name = conf.input_file;
+    char* input_file_name = conf.input_file;
     const char* input_directory = conf.input_file_directory;
     if (strcmp(input_directory, "")!=0) {
         input_file_name = strdup((std::string(input_directory) + "/" + input_file_name).c_str());
     }
+
+    /* If the user wants to load different MG-CFD input files for different instances */
+    if(strcmp(input_file_name, "file")==0){
+        
+        /* The input flag must be set to 'file' and input file names */
+        printf("Reading input from file\n");
+        FILE *mg_files = fopen("mg_files.input", "r");
+        size_t line_buf_size = 0;
+        ssize_t line_size;
+        std::vector<std::string> file_names;
+        std::string temp_string;
+        char *line_buf = NULL;
+
+        if(mg_files == NULL){
+            fprintf(stderr, "Can't open input file mg_files.input\n");
+            return 1;
+        }
+        
+        line_size = getline(&line_buf, &line_buf_size, mg_files);
+
+        while (line_size >= 0){
+            /* Increment our line count */
+            file_names.push_back(line_buf);
+
+            /* Get the next line */
+            line_size = getline(&line_buf, &line_buf_size, mg_files);
+        }
+        temp_string = file_names[instance_number - 1];
+
+        free(line_buf);
+        line_buf = NULL;
+        
+        
+        fclose(mg_files);
+        temp_string.erase(std::remove(temp_string.begin(), temp_string.end(), '\n'), temp_string.cend());
+        /* Required filename is found at vector index of the instance number */
+        strcpy(input_file_name, temp_string.c_str());
+    }
+
 
     int problem_size = 0;
     int levels = 0;
@@ -273,9 +312,9 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     #else
         op_mpi_init_custom(argc, argv, 0, custom);
     #endif
-    char filename[2];
+    char filename[3];
     char buffer[100]; 
-	char default_name[24] = "MG-CFD_output_instance_";
+	char default_name[25] = "MG-CFD_output_instance_";
     sprintf(filename,"%d",instance_number);
     strcat(default_name, filename);
 
@@ -637,12 +676,37 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
     boundary_nodes_size = round(nodes_size * 0.0042);//set the boundary size
 
-    op_printf("Size of interface 1: %f \n", boundary_nodes_size);
     
+    
+
+                    
+
     int ranks_per_coupler;
     if (internal_rank == MPI_ROOT) {
         for(int z = 0; z < total_coupler_unit_count; z++){
             ranks_per_coupler = units[unit_count].coupler_ranks[z].size();
+            coupler_rank = units[unit_count].coupler_ranks[z][0];
+            int coupler_position = relative_positions[coupler_rank].placelocator;
+            found = false;
+            int unit_count_2 = 0;
+            int coupler_unit_count = 1;
+            while(!found){//this is used to find out the unit index of the coupler unit we want
+                if(units[unit_count_2].type == 'C' && coupler_unit_count == coupler_position){
+                found=true;
+                }else{
+                    if(units[unit_count_2].type == 'C'){
+                        coupler_unit_count++;
+                    }
+                    unit_count_2++;
+                }
+            }
+
+            if(units[unit_count_2].coupling_type == 'S' || units[unit_count_2].coupling_type == 'C'){
+                boundary_nodes_size = round(nodes_size * 0.0042);
+            }else if(units[unit_count_2].coupling_type == 'O'){
+                //OVERSET boundary is much larger to emulate the larger interface needed due to stability issues with CFD-Combustion interaction
+                boundary_nodes_size = round(nodes_size * 0.05);
+            }
             for(int z2 = 0; z2 < ranks_per_coupler; z2++){
                 MPI_Send(&boundary_nodes_size, 1, MPI_DOUBLE, units[unit_count].coupler_ranks[z][z2], 0, MPI_COMM_WORLD);//this sends the node sizes to each of the coupler ranks of each of the coupler units
             }
@@ -716,8 +780,14 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 					int coupler_vars = 0;
 					if(units[unit_count_2].coupling_type == 'S'){
 						coupler_vars = 5;
-					}else if(units[unit_count_2].coupling_type == 'C'){
+                        boundary_nodes_size = round(nodes_size * 0.0042);
+					}else if(units[unit_count_2].coupling_type == 'C' || units[unit_count_2].coupling_type == 'O'){
 						coupler_vars = 1;
+                        if(units[unit_count_2].coupling_type == 'C'){
+                            boundary_nodes_size = round(nodes_size * 0.0042);
+                        }else{
+                            boundary_nodes_size = round(nodes_size * 0.05);
+                        }
 					}
                     if(hide_search == true){
                         if((i % (search_freq*mg_conversion_factor)) == 0){
@@ -750,9 +820,9 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             }
 
             op_printf("MG-CFD cycle %d comms ending\n", ((int) (i+1) / mg_conversion_factor));
-            //free(temp_dat_l0->data);
-            //free(temp_dat_l0->set);
-            //free(temp_dat_l0);
+            free(temp_dat_l0->data);
+            free(temp_dat_l0->set);
+            free(temp_dat_l0);
         }
         
 
