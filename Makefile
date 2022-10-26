@@ -8,8 +8,8 @@
 
 
 ifdef OP2_INSTALL_PATH
-  OP2_INC = -I$(OP2_INSTALL_PATH)/include
-  OP2_LIB = -L$(OP2_INSTALL_PATH)/lib
+  OP2_INC = -I$(OP2_INSTALL_PATH)/c/include
+  OP2_LIB = -L$(OP2_INSTALL_PATH)/c/lib
 endif
 
 ifdef CUDA_INSTALL_PATH
@@ -37,9 +37,9 @@ endif
 ifdef KAHIP_INSTALL_PATH
   KAHIP_INC = -I$(KAHIP_INSTALL_PATH)/include
   KAHIP_LIB = -L$(KAHIP_INSTALL_PATH)/lib
+  KAHIP_INC += -DHAVE_KAHIP
+  KAHIP_LIB += -lparhip_interface
 endif
-KAHIP_INC += -DHAVE_KAHIP
-KAHIP_LIB += -lparhip_interface
 
 ifdef PTSCOTCH_INSTALL_PATH
   PTSCOTCH_INC 	= -I$(PTSCOTCH_INSTALL_PATH)/include
@@ -222,7 +222,7 @@ ifeq ($(OP2_COMPILER),sycl)
   CC		= g++
   CCFLAGS       = -O3 
   CPPFLAGS      = $(CCFLAGS)
-  SYCL_FLAGS    = -std=c++11 -fsycl
+  SYCL_FLAGS    = -std=c++17 -fsycl
   NVCCFLAGS     = -ccbin=$(NVCC_HOST_COMPILER)
   MPICPP        = $(CC)
   MPIFLAGS      = $(CPPFLAGS)
@@ -260,9 +260,10 @@ ifeq ($(OP2_COMPILER),intel-sycl)
   OMPFLAGS      = -I$(OMPTARGET_LIBS)/../include -fopenmp
   SYCL_LIB   = -L$(SYCL_INSTALL_PATH)/lib -lOpenCL
   NVCCFLAGS = -ccbin=$(NVCC_HOST_COMPILER)
-  SYCL_FLAGS = -std=c++11 -fsycl -I$(SYCL_INSTALL_PATH)/include -I$(SYCL_INSTALL_PATH)/include #intel sycl
+  SYCL_FLAGS = -std=c++17 -fsycl #-I$(SYCL_INSTALL_PATH)/include -I$(SYCL_INSTALL_PATH)/include #intel sycl
   #SYCL_FLAGS = -std=c++11 -fsycl #intel sycl
-  SYCL_LINK_SEQ = -foffload-static-lib=$(OP2_INSTALL_PATH)/c/lib/libop2_sycl.a
+  SYCL_LINK_SEQ = $(OP2_INSTALL_PATH)/c/lib/libop2_sycl.a
+  SYCL_LINK_MPI = $(OP2_INSTALL_PATH)/c/lib/libop2_mpi_sycl.a
 else
   $(error unrecognised value for COMPILER: $(COMPILER))
 endif
@@ -371,6 +372,7 @@ parallel:; @$(MAKE) -j$(N) -l$(N) all
 ## User-friendly wrappers around actual targets:
 seq: $(BIN_DIR)/mgcfd_seq
 sycl: $(BIN_DIR)/mgcfd_sycl
+mpi_sycl: $(BIN_DIR)/mgcfd_mpi_sycl
 openmp: $(BIN_DIR)/mgcfd_openmp
 mpi: $(BIN_DIR)/mgcfd_mpi
 vec: mpi_vec
@@ -483,9 +485,13 @@ $(OBJ_DIR)/mgcfd_sycl_kernels.o: $(SRC_DIR)/../sycl/_kernels.cpp $(SYCL_KERNELS)
 $(BIN_DIR)/mgcfd_sycl: $(OP2_SYCL_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(SYCLCXX) $(CXXFLAGS) $(SYCL_FLAGS) $(SYCL_LIBS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_sycl $(SYCL_LINK_SEQ) -lop2_hdf5 $(HDF5_LIB) \
+		-lm $(OP2_LIB) $(SYCL_LINK_SEQ) -lop2_hdf5 $(HDF5_LIB) \
 		-o $@
-
+$(BIN_DIR)/mgcfd_mpi_sycl: $(OP2_SYCL_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CXXFLAGS) $(SYCL_FLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+		-lm $(OP2_LIB) $(SYCL_LINK_MPI) $(PARMETIS_LIB) $(KAHIP_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+		-o $@
 
 ## OPENMP
 $(OBJ_DIR)/mgcfd_openmp_main.o: $(OP2_MAIN_SRC)
