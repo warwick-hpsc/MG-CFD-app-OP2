@@ -700,7 +700,7 @@ $(BIN_DIR)/mgcfd_mpi_openmp: $(OP2_MPI_OMP_OBJECTS)
 		-o $@
 
 
-## MPI + OPENMP
+## MPI + OPENMP SINGLE_DAT
 $(OBJ_DIR)/mgcfd_mpi_openmp_opt_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) -D_OMP $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DSINGLE_DAT_VAR \
