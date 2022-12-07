@@ -750,8 +750,8 @@ int main(int argc, char** argv)
     #ifdef COMM_AVOID
     for (int l = 0; l < levels; l++) {
         // use only when need to calculate dat sizes
-        // calculate_dat_sizes(my_rank);
-        // calculate_set_sizes(my_rank);
+        calculate_dat_sizes(my_rank);
+        calculate_set_sizes(my_rank);
     }
     #endif
 
