@@ -62,29 +62,65 @@ SRC_DIR = src
 #
 # Locate MPI compilers:
 #
+# ifdef MPI_INSTALL_PATH
+#   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/bin/mpicxx)")
+#     MPICPP := $(MPI_INSTALL_PATH)/bin/mpicxx
+#   else
+#   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/intel64/bin/mpicxx)")
+#     MPICPP := $(MPI_INSTALL_PATH)/intel64/bin/mpicxx
+#   else
+#     MPICPP := mpicxx
+#   endif
+#   endif
+
+#   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/bin/mpicc)")
+#     MPICC := $(MPI_INSTALL_PATH)/bin/mpicc
+#   else
+#   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/intel64/bin/mpicc)")
+#     MPICC := $(MPI_INSTALL_PATH)/intel64/bin/mpicc
+#   else
+#     MPICC := mpicc
+#   endif
+#   endif
+# else
+#   MPICPP := mpicxx
+#   MPICC  := mpicc
+# endif
+
 ifdef MPI_INSTALL_PATH
+  ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/bin/mpic++)")
+    MPICPP_PATH = $(MPI_INSTALL_PATH)/bin/mpic++
+  else
+  ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/intel64/bin/mpic++)")
+    MPICPP_PATH = $(MPI_INSTALL_PATH)/intel64/bin/mpic++
+  else
+    MPICPP_PATH = mpic++
+  endif
+  endif
+
   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/bin/mpicxx)")
-    MPICPP := $(MPI_INSTALL_PATH)/bin/mpicxx
+    MPICXX_PATH = $(MPI_INSTALL_PATH)/bin/mpicxx
   else
   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/intel64/bin/mpicxx)")
-    MPICPP := $(MPI_INSTALL_PATH)/intel64/bin/mpicxx
+    MPICXX_PATH = $(MPI_INSTALL_PATH)/intel64/bin/mpicxx
   else
-    MPICPP := mpicxx
+    MPICXX_PATH = mpicxx
   endif
   endif
 
   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/bin/mpicc)")
-    MPICC := $(MPI_INSTALL_PATH)/bin/mpicc
+    MPICC_PATH = $(MPI_INSTALL_PATH)/bin/mpicc
   else
   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/intel64/bin/mpicc)")
-    MPICC := $(MPI_INSTALL_PATH)/intel64/bin/mpicc
+    MPICC_PATH = $(MPI_INSTALL_PATH)/intel64/bin/mpicc
   else
-    MPICC := mpicc
+    MPICC_PATH = mpicc
   endif
   endif
 else
-  MPICPP := mpicxx
-  MPICC  := mpicc
+  MPICPP_PATH = mpic++
+  MPICXX_PATH = mpicxx
+  MPICC_PATH  = mpicc
 endif
 
 ifdef OP2_COMPILER
@@ -149,21 +185,21 @@ ifeq ($(COMPILER),gnu)
   OMPFLAGS 	= -fopenmp
   MPIFLAGS 	= $(CPPFLAGS)
 else
-ifeq ($(COMPILER),clang)
-  CFLAGS	= -fPIC -DUNIX -DVECTORIZE
-  OPT_REPORT_OPTIONS := 
-  OPT_REPORT_OPTIONS += -Rpass-missed=loop-vec ## Report vectorisation failures
-  OPT_REPORT_OPTIONS += -Rpass="loop-(unroll|vec)" ## Report loop transformations
-  # OPT_REPORT_OPTIONS += -Rpass-analysis=loop-vectorize ## Report WHY vectorize failed
-  OPT_REPORT_OPTIONS += -fsave-optimization-record -gline-tables-only -gcolumn-info
-  CFLAGS += $(OPT_REPORT_OPTIONS)
-  CFLAGS += -fno-math-errno ## Disable C math function error checking, as prevents vectorisation
-  OPTIMISE += -fno-unroll-loops ## Loop unrolling interferes with vectorisation
-  OPTIMISE += -mcpu=native
-  CPPFLAGS 	= $(CFLAGS)
-  OMPFLAGS 	= -fopenmp
-  MPIFLAGS 	= $(CPPFLAGS)
-else
+# ifeq ($(COMPILER),clang)
+#   CFLAGS	= -fPIC -DUNIX -DVECTORIZE
+#   OPT_REPORT_OPTIONS := 
+#   OPT_REPORT_OPTIONS += -Rpass-missed=loop-vec ## Report vectorisation failures
+#   OPT_REPORT_OPTIONS += -Rpass="loop-(unroll|vec)" ## Report loop transformations
+#   # OPT_REPORT_OPTIONS += -Rpass-analysis=loop-vectorize ## Report WHY vectorize failed
+#   OPT_REPORT_OPTIONS += -fsave-optimization-record -gline-tables-only -gcolumn-info
+#   CFLAGS += $(OPT_REPORT_OPTIONS)
+#   CFLAGS += -fno-math-errno ## Disable C math function error checking, as prevents vectorisation
+#   OPTIMISE += -fno-unroll-loops ## Loop unrolling interferes with vectorisation
+#   OPTIMISE += -mcpu=native
+#   CPPFLAGS 	= $(CFLAGS)
+#   OMPFLAGS 	= -fopenmp
+#   MPIFLAGS 	= $(CPPFLAGS)
+# else
 ifeq ($(COMPILER),intel)
   CFLAGS = -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -DVECTORIZE -qopt-report=5
   CFLAGS += -restrict
@@ -206,9 +242,9 @@ ifeq ($(COMPILER),cray)
 else
 ifeq ($(OP2_COMPILER),clang)
   CPP           = clang++
-  CCFLAGS       = -O3 -ffast-math
+  CCFLAGS       = -O3 -ffast-math -fPIE
   CPPFLAGS      = $(CCFLAGS)
-  OMPFLAGS      = -I$(OMPTARGET_LIBS)/../include -fopenmp=libomp -Rpass-analysis
+  OMPFLAGS      = -I$(OMPTARGET_LIBS)/../include -fopenmp -Rpass-analysis
   OMPOFFLOAD    = $(OMPFLAGS) -fopenmp-targets=nvptx64-nvidia-cuda -ffp-contract=fast -Xcuda-ptxas -v 
   MPICC         = $(MPI_INSTALL_PATH)/bin/mpicc
   MPICPP        = $(MPI_INSTALL_PATH)/bin/mpicxx
@@ -272,7 +308,7 @@ endif
 endif
 endif
 endif
-endif
+# endif
 
 ifdef CPP_WRAPPER
   CPP := $(CPP_WRAPPER)
@@ -371,6 +407,7 @@ mpi_opt: $(BIN_DIR)/mgcfd_mpi_opt
 vec: mpi_vec
 mpi_vec: $(BIN_DIR)/mgcfd_mpi_vec
 mpi_openmp: $(BIN_DIR)/mgcfd_mpi_openmp
+mpi_openmp_opt: $(BIN_DIR)/mgcfd_mpi_openmp_opt
 cuda: $(BIN_DIR)/mgcfd_cuda
 mpi_cuda: $(BIN_DIR)/mgcfd_mpi_cuda
 mpi_opt_cuda: $(BIN_DIR)/mgcfd_mpi_opt_cuda
@@ -413,6 +450,9 @@ OP2_OMP_OBJECTS := $(OBJ_DIR)/mgcfd_openmp_main.o \
 
 OP2_MPI_OMP_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_openmp_main.o \
                        $(OBJ_DIR)/mgcfd_mpi_openmp_kernels.o
+
+OP2_MPI_OMP_OPT_OBJECTS := 	$(OBJ_DIR)/mgcfd_mpi_openmp_opt_main.o \
+                       		$(OBJ_DIR)/mgcfd_mpi_openmp_opt_kernels.o
 
 OP2_CUDA_OBJECTS := $(OBJ_DIR)/mgcfd_cuda_main.o \
                     $(OBJ_DIR)/mgcfd_kernels_cu.o
@@ -659,6 +699,21 @@ $(BIN_DIR)/mgcfd_mpi_openmp: $(OP2_MPI_OMP_OBJECTS)
 		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
 
+
+## MPI + OPENMP
+$(OBJ_DIR)/mgcfd_mpi_openmp_opt_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) -D_OMP $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DSINGLE_DAT_VAR \
+	    -DMPI_ON -c -o $@ $^
+$(OBJ_DIR)/mgcfd_mpi_openmp_opt_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(OMP_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) -D_OMP $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DSINGLE_DAT_VAR \
+	    -DMPI_ON -c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
+$(BIN_DIR)/mgcfd_mpi_openmp_opt: $(OP2_MPI_OMP_OPT_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+		-lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+		-o $@
 
 ## CUDA
 $(OBJ_DIR)/mgcfd_cuda_main.o: $(OP2_MAIN_SRC)
