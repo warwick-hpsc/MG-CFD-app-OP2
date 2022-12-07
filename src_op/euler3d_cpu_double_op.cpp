@@ -388,7 +388,8 @@ int main(int argc, char** argv)
 #ifdef COMM_AVOID
     #ifdef SLOPE
     int avg_tile_size = conf.tile_size; // 5000
-    op_printf("avg_tile_size=%d\n", avg_tile_size); 
+    op_printf("avg_tile_size=%d\n", avg_tile_size);
+    op_printf("thread_count=%d\n", omp_get_num_threads());  
     double* coordinates;
     int sl_nloops = 1;  // check this
     int seed_loop = 0;
