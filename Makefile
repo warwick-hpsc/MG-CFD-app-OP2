@@ -62,66 +62,31 @@ SRC_DIR = src
 #
 # Locate MPI compilers:
 #
-# ifdef MPI_INSTALL_PATH
-#   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/bin/mpicxx)")
-#     MPICPP := $(MPI_INSTALL_PATH)/bin/mpicxx
-#   else
-#   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/intel64/bin/mpicxx)")
-#     MPICPP := $(MPI_INSTALL_PATH)/intel64/bin/mpicxx
-#   else
-#     MPICPP := mpicxx
-#   endif
-#   endif
-
-#   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/bin/mpicc)")
-#     MPICC := $(MPI_INSTALL_PATH)/bin/mpicc
-#   else
-#   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/intel64/bin/mpicc)")
-#     MPICC := $(MPI_INSTALL_PATH)/intel64/bin/mpicc
-#   else
-#     MPICC := mpicc
-#   endif
-#   endif
-# else
-#   MPICPP := mpicxx
-#   MPICC  := mpicc
-# endif
-
 ifdef MPI_INSTALL_PATH
-  ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/bin/mpic++)")
-    MPICPP_PATH = $(MPI_INSTALL_PATH)/bin/mpic++
-  else
-  ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/intel64/bin/mpic++)")
-    MPICPP_PATH = $(MPI_INSTALL_PATH)/intel64/bin/mpic++
-  else
-    MPICPP_PATH = mpic++
-  endif
-  endif
-
   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/bin/mpicxx)")
-    MPICXX_PATH = $(MPI_INSTALL_PATH)/bin/mpicxx
+    MPICPP := $(MPI_INSTALL_PATH)/bin/mpicxx
   else
   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/intel64/bin/mpicxx)")
-    MPICXX_PATH = $(MPI_INSTALL_PATH)/intel64/bin/mpicxx
+    MPICPP := $(MPI_INSTALL_PATH)/intel64/bin/mpicxx
   else
-    MPICXX_PATH = mpicxx
+    MPICPP := mpicxx
   endif
   endif
 
   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/bin/mpicc)")
-    MPICC_PATH = $(MPI_INSTALL_PATH)/bin/mpicc
+    MPICC := $(MPI_INSTALL_PATH)/bin/mpicc
   else
   ifneq ("","$(wildcard $(MPI_INSTALL_PATH)/intel64/bin/mpicc)")
-    MPICC_PATH = $(MPI_INSTALL_PATH)/intel64/bin/mpicc
+    MPICC := $(MPI_INSTALL_PATH)/intel64/bin/mpicc
   else
-    MPICC_PATH = mpicc
+    MPICC := mpicc
   endif
   endif
 else
-  MPICPP_PATH = mpic++
-  MPICXX_PATH = mpicxx
-  MPICC_PATH  = mpicc
+  MPICPP := mpicxx
+  MPICC  := mpicc
 endif
+
 
 ifdef OP2_COMPILER
   ifeq ($(COMPILER),)
@@ -185,21 +150,21 @@ ifeq ($(COMPILER),gnu)
   OMPFLAGS 	= -fopenmp
   MPIFLAGS 	= $(CPPFLAGS)
 else
-# ifeq ($(COMPILER),clang)
-#   CFLAGS	= -fPIC -DUNIX -DVECTORIZE
-#   OPT_REPORT_OPTIONS := 
-#   OPT_REPORT_OPTIONS += -Rpass-missed=loop-vec ## Report vectorisation failures
-#   OPT_REPORT_OPTIONS += -Rpass="loop-(unroll|vec)" ## Report loop transformations
-#   # OPT_REPORT_OPTIONS += -Rpass-analysis=loop-vectorize ## Report WHY vectorize failed
-#   OPT_REPORT_OPTIONS += -fsave-optimization-record -gline-tables-only -gcolumn-info
-#   CFLAGS += $(OPT_REPORT_OPTIONS)
-#   CFLAGS += -fno-math-errno ## Disable C math function error checking, as prevents vectorisation
-#   OPTIMISE += -fno-unroll-loops ## Loop unrolling interferes with vectorisation
-#   OPTIMISE += -mcpu=native
-#   CPPFLAGS 	= $(CFLAGS)
-#   OMPFLAGS 	= -fopenmp
-#   MPIFLAGS 	= $(CPPFLAGS)
-# else
+ifeq ($(COMPILER),clang)
+  CFLAGS	= -fPIC -DUNIX -DVECTORIZE
+  OPT_REPORT_OPTIONS := 
+  OPT_REPORT_OPTIONS += -Rpass-missed=loop-vec ## Report vectorisation failures
+  OPT_REPORT_OPTIONS += -Rpass="loop-(unroll|vec)" ## Report loop transformations
+  # OPT_REPORT_OPTIONS += -Rpass-analysis=loop-vectorize ## Report WHY vectorize failed
+  OPT_REPORT_OPTIONS += -fsave-optimization-record -gline-tables-only -gcolumn-info
+  CFLAGS += $(OPT_REPORT_OPTIONS)
+  CFLAGS += -fno-math-errno ## Disable C math function error checking, as prevents vectorisation
+  OPTIMISE += -fno-unroll-loops ## Loop unrolling interferes with vectorisation
+  OPTIMISE += -mcpu=native
+  CPPFLAGS 	= $(CFLAGS)
+  OMPFLAGS 	= -fopenmp
+  MPIFLAGS 	= $(CPPFLAGS)
+else
 ifeq ($(COMPILER),intel)
   CFLAGS = -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -DVECTORIZE -qopt-report=5
   CFLAGS += -restrict
@@ -308,7 +273,7 @@ endif
 endif
 endif
 endif
-# endif
+endif
 
 ifdef CPP_WRAPPER
   CPP := $(CPP_WRAPPER)
@@ -402,6 +367,8 @@ slope_mpi_ca_opt: $(BIN_DIR)/mgcfd_slope_mpi_ca_opt
 seq: $(BIN_DIR)/mgcfd_seq
 sycl: $(BIN_DIR)/mgcfd_sycl
 openmp: $(BIN_DIR)/mgcfd_openmp
+slope: $(BIN_DIR)/mgcfd_slope
+slope_opt: $(BIN_DIR)/mgcfd_slope_opt
 mpi: $(BIN_DIR)/mgcfd_mpi
 mpi_opt: $(BIN_DIR)/mgcfd_mpi_opt
 vec: mpi_vec
@@ -426,6 +393,9 @@ OP2_SEQ_OBJECTS := $(OBJ_DIR)/mgcfd_seq_main.o \
 
 OP2_SLOPE_OBJECTS := $(OBJ_DIR)/mgcfd_slope_main.o \
                     $(OBJ_DIR)/mgcfd_slope_kernels.o
+
+OP2_SLOPE_OPT_OBJECTS := $(OBJ_DIR)/mgcfd_slope_opt_main.o \
+                    $(OBJ_DIR)/mgcfd_slope_opt_kernels.o
 
 OP2_SLOPE_MPI_CA_OBJECTS := $(OBJ_DIR)/mgcfd_slope_mpi_ca_main.o \
                          $(OBJ_DIR)/mgcfd_slope_mpi_ca_kernels.o
@@ -571,6 +541,39 @@ $(BIN_DIR)/mgcfd_openmp: $(OP2_OMP_OBJECTS)
 		-lm $(OP2_LIB) -lop2_openmp -lop2_hdf5 $(HDF5_LIB) \
 		-o $@
 
+## SLOPE SINGLE_DAT
+$(OBJ_DIR)/mgcfd_slope_opt_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(CPP) $(CPPFLAGS) $(OMPFLAGS) -D_OMP $(OPTIMISE) $(MGCFD_INCS) $(SLOPE_INC) -DSLOPE -DCOMM_AVOID -DSINGLE_DAT_VAR \
+		$(OP2_INC) $(HDF5_INC) \
+		-c -o $@ $^
+$(OBJ_DIR)/mgcfd_slope_opt_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(OMP_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(CPP) $(CPPFLAGS) $(OMPFLAGS) -D_OMP $(OPTIMISE) $(MGCFD_INCS) $(SLOPE_INC) -DSLOPE -DCOMM_AVOID -DSINGLE_DAT_VAR \
+		$(OP2_INC) $(HDF5_INC) \
+		-c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
+$(BIN_DIR)/mgcfd_slope_opt: $(OP2_SLOPE_OPT_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(CPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) -DSLOPE -DCOMM_AVOID -DSINGLE_DAT_VAR \
+		-lm $(OP2_LIB) -lop2_openmp -lop2_hdf5 $(HDF5_LIB) $(SLOPE_LIB) -lslope \
+		-o $@
+
+## SLOPE
+$(OBJ_DIR)/mgcfd_slope_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(CPP) $(CPPFLAGS) $(OMPFLAGS) -D_OMP $(OPTIMISE) $(MGCFD_INCS) $(SLOPE_INC) -DSLOPE -DCOMM_AVOID \
+		$(OP2_INC) $(HDF5_INC) \
+		-c -o $@ $^
+$(OBJ_DIR)/mgcfd_slope_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(OMP_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(CPP) $(CPPFLAGS) $(OMPFLAGS) -D_OMP $(OPTIMISE) $(MGCFD_INCS) $(SLOPE_INC) -DSLOPE -DCOMM_AVOID \
+		$(OP2_INC) $(HDF5_INC) \
+		-c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp
+$(BIN_DIR)/mgcfd_slope: $(OP2_SLOPE_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(CPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) -DSLOPE -DCOMM_AVOID \
+		-lm $(OP2_LIB) -lop2_openmp -lop2_hdf5 $(HDF5_LIB) $(SLOPE_LIB) -lslope \
+		-o $@
 
 ## MPI
 $(OBJ_DIR)/mgcfd_mpi_main.o: $(OP2_MAIN_SRC)

@@ -218,12 +218,14 @@ void op_par_loop_count_non_zeros(char const *, op_set,
 #include  "op_lib_cpp.h"
 #include "op_mpi_core.h"
 
+#ifdef MPI_ON
 #ifdef COMM_AVOID
 #include "op_mpi_comm_avoid.h"
 #ifdef COMM_AVOID_CUDA
 #include "comm_avoid_cu.h"
 #else
 #include "comm_avoid.h"
+#endif
 #endif
 #endif
 
@@ -558,9 +560,11 @@ int main(int argc, char** argv)
             check_validation_files(i, &fluxes_correct[i], op_nodes[i], "fluxes");
             check_validation_files(i, &dummy_fluxes_correct[i], op_nodes[i], "dummy_fluxes");
 #ifdef COMM_AVOID
+#ifdef MPI_ON
             for(int l = 1; l <= nhalos; l++){
                 op_mpi_add_nhalos_map(p_edge_to_nodes[i], l);
             }
+#endif
 #endif
         }
 
@@ -599,7 +603,46 @@ int main(int argc, char** argv)
         #ifdef SLOPE
 
         for(int i = 0; i < levels; i++){
-          #ifdef MPI_ON
+          #ifndef MPI_ON
+
+            sprintf(sl_name, "sl_nodes_L%d", i);
+            sl_nodes[i] = set(sl_name, op_nodes[i]->size);
+            sprintf(sl_name, "sl_edges_L%d", i);
+            sl_edges[i] = set(sl_name, op_edges[i]->size);
+
+            sprintf(sl_name, "sl_edge_to_nodes_L%d", i);
+            sl_maps_edge_to_nodes[i] = sl_name;
+            sl_edge_to_nodes[i] = map(sl_name, sl_edges[i], sl_nodes[i], p_edge_to_nodes[i]->map, op_edges[i]->size * 2);
+
+            desc_list write_desc ({desc(sl_edge_to_nodes[i], INC)});
+            test_write_desc[i] = write_desc;
+
+            desc_list read_desc ({desc(sl_edge_to_nodes[i], READ),
+                                    desc(DIRECT, READ),
+                                    desc(sl_edge_to_nodes[i], INC)});
+            test_read_desc[i] = read_desc;
+
+            map_list m ({sl_edge_to_nodes[i]});
+            mesh_maps[i] = m;
+            insp[i] = insp_init(avg_tile_size, OMP, COL_DEFAULT, &mesh_maps[i]);
+            insp[i]->meshMaps = &mesh_maps[i];
+
+            for(int n = 0; n < 1; /*nchains;*/ n++){
+                sprintf(sl_name, "test_write_L%d", i);
+                insp_add_parloop(insp[i], sl_name, sl_edges[i], &test_write_desc[i]);
+
+                sprintf(sl_name, "test_read_L%d", i);
+                insp_add_parloop(insp[i], sl_name, sl_edges[i], &test_read_desc[i]);
+            }
+            seed_loop = 0;
+            insp_run (insp[i], seed_loop);
+            if(omp_get_thread_num() == 0){
+                insp_print (insp[i], VERY_LOW);
+            }
+            printf("running executor\n");
+            exec[i] = exec_init(insp[i]);
+
+          #else
             sprintf(sl_name, "sl_nodes_L%d", i);
             sl_nodes[i] = slop_set(sl_name, op_nodes[i]->size, op_nodes[i]->core_sizes, 
                 op_nodes[i]->exec_sizes, op_nodes[i]->nonexec_sizes, nhalos, nhalos);
@@ -749,11 +792,13 @@ int main(int argc, char** argv)
     #endif
 
     #ifdef COMM_AVOID
+    #ifdef MPI_ON
     for (int l = 0; l < levels; l++) {
         // use only when need to calculate dat sizes
         calculate_dat_sizes(my_rank);
         calculate_set_sizes(my_rank);
     }
+    #endif
     #endif
 
     char* h5_out_name = alloc<char>(100);
@@ -826,7 +871,61 @@ int main(int argc, char** argv)
 #ifdef COMM_AVOID
 
 #ifdef SLOPE
-           
+
+#ifndef MPI_ON
+
+            for(int i = 0; i < nchains; i++){
+#ifdef SINGLE_DAT_VAR
+                int var_index = 0;
+#else
+                int var_index = i;
+#endif  // SINGLE_DAT_VAR
+                for (int color = 0; color < ncolors; color++) {
+                    // for all tiles of this color
+                    const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
+
+                    #pragma omp parallel for
+                    for (int j = 0; j < n_tiles_per_color; j++) {
+
+                        tile_t* tile = exec_tile_at (exec[level], color, j);
+                        if(tile == NULL)
+                                continue;
+                        int loop_size;
+                        int tile_id = 0;
+
+                        // loop test_write_kernel
+                        // tile_id = 2 * i + 0;
+                        tile_id = 0;
+                        iterations_list& le2n_0 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
+                        loop_size = tile_loop_size (tile, tile_id);
+
+                        for (int k = 0; k < loop_size; k++) {
+                            test_write_kernel(
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_0[k*2 + 0] * 5]),
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_0[k*2 + 1] * 5]));
+                        }
+
+                        // loop test_read_kernel
+                        // tile_id =  2 * i + 1;
+                        tile_id = 1;
+                        iterations_list& le2n_1 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
+                        iterations_list& iterations_1 = tile_get_iterations (tile, tile_id);
+                        loop_size = tile_loop_size (tile, tile_id);
+
+                        for (int k = 0; k < loop_size; k++) {
+                            test_read_kernel(
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_1[k*2 + 0] * 5]),
+                                &(((double*)(p_variables[level][var_index]->data))[le2n_1[k*2 + 1] * 5]),
+                                &(((double*)(p_edge_weights[level]->data))[iterations_1[k] * 3]),
+                                &(((double*)(p_dummy_fluxes[level]->data))[le2n_1[k*2 + 0] * 5]),
+                                &(((double*)(p_dummy_fluxes[level]->data))[le2n_1[k*2 + 1] * 5]));
+                        }
+                    }
+                }
+            }
+
+#else
+
             int map_index = nhalos;
 
 #ifdef SINGLE_DAT_VAR
@@ -1021,6 +1120,7 @@ int main(int argc, char** argv)
 #endif  // SINGLE_DAT_VAR
 
             op_mpi_set_dirtybit(nargs1, args1[DEFAULT_VARIABLE_INDEX]);
+#endif  // MPI_ON
 #else   // SLOPE
             test_comm_avoid("ca_test_comm_avoid", p_variables[level], p_edge_weights[level], p_dummy_fluxes[level], p_edge_to_nodes[level], op_edges[level],
                     nloops, nchains, DEFAULT_VARIABLE_INDEX);
@@ -1331,7 +1431,10 @@ int main(int argc, char** argv)
 
     op_printf("-----------------------------------------------------\n");
     op_printf("Winding down OP2\n");
+
+    #ifdef MPI_ON
     op_mpi_halo_exchange_summary();
+    #endif
     op_exit();
 
     return 0;
