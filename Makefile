@@ -650,7 +650,7 @@ $(OBJ_DIR)/mgcfd_slope_mpi_ca_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(SLO
 $(BIN_DIR)/mgcfd_slope_mpi_ca: $(OP2_SLOPE_MPI_CA_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_mpi_comm_avoid -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lslope $(METIS_LIB) -lmetis \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \
 		-o $@
 
 ## SLOPE + MPI_CA SINGLE_DAT
@@ -667,7 +667,7 @@ $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $
 $(BIN_DIR)/mgcfd_slope_mpi_ca_opt: $(OP2_SLOPE_MPI_CA_OPT_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_mpi_comm_avoid -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lslope $(METIS_LIB) -lmetis \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \
 		-o $@
 
 
