@@ -639,7 +639,7 @@ int main(int argc, char** argv)
             if(omp_get_thread_num() == 0){
                 insp_print (insp[i], VERY_LOW);
             }
-            printf("running executor\n");
+            // printf("running executor\n");
             exec[i] = exec_init(insp[i]);
 
           #else
@@ -694,6 +694,10 @@ int main(int argc, char** argv)
                     // generate_vtk (insp, HIGH, vertices, mesh->coords, DIM2, rank);
                 }
                 MPI_Barrier(MPI_COMM_WORLD);
+            }
+
+            if (sl_rank == 0 && omp_get_thread_num() == 0){
+                insp_print (insp[i], LOW);
             }
             // This is to reorder map values to support OP2's dat structure.
             // core | set size | import exec 0| import exec 0 | import exec 1| import nonexec 1| ...
