@@ -768,11 +768,11 @@ $(BIN_DIR)/mgcfd_mpi_opt_cuda: $(OP2_MPI_OPT_CUDA_OBJECTS)
 ## MPI_CA CUDA
 $(OBJ_DIR)/mgcfd_mpi_ca_kernels_cu.o: $(SRC_DIR)/../cuda/_kernels.cu $(CUDA_KERNELS)
 	mkdir -p $(OBJ_DIR)
-	nvcc $(NVCCFLAGS) $(MGCFD_INCS) $(OP2_INC) -I $(MPI_INSTALL_PATH)/include -DCOMM_AVOID -DCOMM_AVOID_CUDA \
+	nvcc $(NVCCFLAGS) $(MGCFD_INCS) $(OP2_INC) -I $(MPI_INSTALL_PATH)/include -DCOMM_AVOID -DCOMM_AVOID_CUDA -DMPI_ON \
         -c -o $@ $(SRC_DIR)/../cuda/_kernels.cu
 $(OBJ_DIR)/mgcfd_mpi_ca_cuda_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DCOMM_AVOID -DCOMM_AVOID_CUDA \
+	$(MPICPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DCOMM_AVOID -DCOMM_AVOID_CUDA -DMPI_ON \
         -DCUDA_ON -c -o $@ $^
 $(BIN_DIR)/mgcfd_mpi_ca_cuda: $(OP2_MPI_CA_CUDA_OBJECTS)
 	mkdir -p $(BIN_DIR)
@@ -783,11 +783,11 @@ $(BIN_DIR)/mgcfd_mpi_ca_cuda: $(OP2_MPI_CA_CUDA_OBJECTS)
 ## MPI_CA CUDA SINGLE_DAT
 $(OBJ_DIR)/mgcfd_mpi_ca_opt_kernels_cu.o: $(SRC_DIR)/../cuda/_kernels.cu $(CUDA_KERNELS)
 	mkdir -p $(OBJ_DIR)
-	nvcc $(NVCCFLAGS) $(MGCFD_INCS) $(OP2_INC) -I $(MPI_INSTALL_PATH)/include -DCOMM_AVOID -DCOMM_AVOID_CUDA -DSINGLE_DAT_VAR \
+	nvcc $(NVCCFLAGS) $(MGCFD_INCS) $(OP2_INC) -I $(MPI_INSTALL_PATH)/include -DCOMM_AVOID -DCOMM_AVOID_CUDA -DSINGLE_DAT_VAR -DMPI_ON \
         -c -o $@ $(SRC_DIR)/../cuda/_kernels.cu
 $(OBJ_DIR)/mgcfd_mpi_ca_opt_cuda_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DCOMM_AVOID -DCOMM_AVOID_CUDA -DSINGLE_DAT_VAR \
+	$(MPICPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DCOMM_AVOID -DCOMM_AVOID_CUDA -DSINGLE_DAT_VAR -DMPI_ON \
         -DCUDA_ON -c -o $@ $^
 $(BIN_DIR)/mgcfd_mpi_ca_opt_cuda: $(OP2_MPI_CA_OPT_CUDA_OBJECTS)
 	mkdir -p $(BIN_DIR)

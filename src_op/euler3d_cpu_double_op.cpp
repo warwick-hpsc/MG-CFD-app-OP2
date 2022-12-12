@@ -794,7 +794,9 @@ int main(int argc, char** argv)
 
     int my_rank=0;
     #ifdef MPI_ON
+    #ifndef COMM_AVOID_CUDA
     op_rank(&my_rank);
+    #endif
     #endif
 
     #ifdef COMM_AVOID
