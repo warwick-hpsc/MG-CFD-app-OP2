@@ -218,16 +218,18 @@ void op_par_loop_count_non_zeros(char const *, op_set,
 #include  "op_lib_cpp.h"
 #include "op_mpi_core.h"
 
-#ifdef MPI_ON
+
 #ifdef COMM_AVOID
+#ifdef MPI_ON
 #include "op_mpi_comm_avoid.h"
+#endif
 #ifdef COMM_AVOID_CUDA
 #include "comm_avoid_cu.h"
 #else
 #include "comm_avoid.h"
 #endif
 #endif
-#endif
+
 
 // MG-CFD base:
 #include "const.h"

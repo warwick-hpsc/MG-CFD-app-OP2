@@ -13,7 +13,7 @@ __device__ void test_negate_kernel_gpu(
     double *variables_b,
     double *flux_a,
     double *flux_b,
-    int *diff_val) {
+    const int *diff_val) {
   int diff = *diff_val;
 
 
