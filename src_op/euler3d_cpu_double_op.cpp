@@ -8,7 +8,6 @@
 // Warwick extensions:
 // - multigrid, per-edge computation, n-neighbours
 // - residual calculation, solution validation
-
 #ifdef COMM_AVOID
     #ifdef SLOPE
         #include "executor.h"
@@ -882,11 +881,11 @@ int main(int argc, char** argv)
 
 #ifndef MPI_ON
 
-            for(int i = 0; i < nchains; i++){
+            for(int nc = 0; nc < nchains; nc++){
 #ifdef SINGLE_DAT_VAR
                 int var_index = 0;
 #else
-                int var_index = i;
+                int var_index = nc;
 #endif  // SINGLE_DAT_VAR
                 for (int color = 0; color < ncolors; color++) {
                     // for all tiles of this color
@@ -940,15 +939,15 @@ int main(int argc, char** argv)
             int nargs_ex0 = 1;
             op_arg args_ex0[1];
 
-            for(int i = 0; i < 1; i++){
+            for(int nc = 0; nc < 1; nc++){
 #else
             int nargs_ex0 = nchains;
             op_arg args_ex0[nchains];
 
-            for(int i = 0; i < nchains; i++){
+            for(int nc = 0; nc < nchains; nc++){
 #endif  // SINGLE_DAT_VAR
-                args_ex0[i] = op_arg_dat_halo(p_variables[level][i],0,p_edge_to_nodes[level],5,"double",OP_READ,nhalos,map_index);
-                set_dat_dirty(&args_ex0[i]);
+                args_ex0[nc] = op_arg_dat_halo(p_variables[level][nc],0,p_edge_to_nodes[level],5,"double",OP_READ,nhalos,map_index);
+                set_dat_dirty(&args_ex0[nc]);
             }
 
             int nargs0 = 2;
@@ -957,20 +956,20 @@ int main(int argc, char** argv)
             int nargs1 = 5;
             op_arg args1[nchains][5];
 
-            for(int i = 0; i < nchains; i++){
+            for(int nc = 0; nc < nchains; nc++){
 #ifdef SINGLE_DAT_VAR
             int var_index = 0;
 #else
             int var_index = i;
 #endif  // SINGLE_DAT_VAR
-                args0[i][0] = op_arg_dat_halo(p_variables[level][var_index],0,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
-                args0[i][1] = op_arg_dat_halo(p_variables[level][var_index],1,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
+                args0[nc][0] = op_arg_dat_halo(p_variables[level][var_index],0,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
+                args0[nc][1] = op_arg_dat_halo(p_variables[level][var_index],1,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
 
-                args1[i][0] = op_arg_dat_halo(p_variables[level][var_index],0,p_edge_to_nodes[level],5,"double",OP_READ,nhalos,map_index);
-                args1[i][1] = op_arg_dat_halo(p_variables[level][var_index],1,p_edge_to_nodes[level],5,"double",OP_READ,nhalos,map_index);
-                args1[i][2] = op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ);
-                args1[i][3] = op_arg_dat_halo(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
-                args1[i][4] = op_arg_dat_halo(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
+                args1[nc][0] = op_arg_dat_halo(p_variables[level][var_index],0,p_edge_to_nodes[level],5,"double",OP_READ,nhalos,map_index);
+                args1[nc][1] = op_arg_dat_halo(p_variables[level][var_index],1,p_edge_to_nodes[level],5,"double",OP_READ,nhalos,map_index);
+                args1[nc][2] = op_arg_dat(p_edge_weights[level],-1,OP_ID,3,"double",OP_READ);
+                args1[nc][3] = op_arg_dat_halo(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
+                args1[nc][4] = op_arg_dat_halo(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
             }
 
             op_mpi_halo_exchanges_chained(op_edges[level], nargs_ex0, args_ex0, nhalos, 1);
@@ -978,11 +977,11 @@ int main(int argc, char** argv)
             op_mpi_wait_all_chained(nargs_ex0, args_ex0, 1);
 #endif
             
-            for(int i = 0; i < nchains; i++){
+            for(int nc = 0; nc < nchains; nc++){
 #ifdef SINGLE_DAT_VAR
             int var_index = 0;
 #else
-            int var_index = i;
+            int var_index = nc;
 #endif  // SINGLE_DAT_VAR
                 for (int color = 0; color < ncolors; color++) {
                     // for all tiles of this color
@@ -999,10 +998,16 @@ int main(int argc, char** argv)
                         int tile_id = 0;
 
                         // loop test_write_kernel
-                        // tile_id = 2 * i + 0;
+                        // tile_id = 2 * nc + 0;
                         tile_id = 0;
                         iterations_list& le2n_0 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         loop_size = tile_loop_size (tile, tile_id);
+
+                        // if(my_rank == 0 && omp_get_thread_num() == 0 && color == 0 && i == 0 && j == 0 && rkCycle == 0 && nc == 0){
+                        //     printf("loop_size0=%d\n", loop_size);
+                        //     PRINT_INTARR(le2n_0, 0, loop_size);
+                        // }
+                            
 
                         for (int k = 0; k < loop_size; k++) {
                             test_write_kernel(
@@ -1011,11 +1016,17 @@ int main(int argc, char** argv)
                         }
 
                         // loop test_read_kernel
-                        // tile_id =  2 * i + 1;
+                        // tile_id =  2 * nc + 1;
                         tile_id = 1;
                         iterations_list& le2n_1 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         iterations_list& iterations_1 = tile_get_iterations (tile, tile_id);
                         loop_size = tile_loop_size (tile, tile_id);
+
+                        // if(my_rank == 0 &&omp_get_thread_num() == 0 && color == 0 && i == 0 && j == 0 && rkCycle == 0 && nc == 0){
+                        //     printf("loop_size1=%d\n", loop_size);
+                        //     PRINT_INTARR(le2n_1, 0, loop_size);
+                        // }
+                            
 
                         for (int k = 0; k < loop_size; k++) {
                             test_read_kernel(
@@ -1045,7 +1056,7 @@ int main(int argc, char** argv)
                         int tile_id = 0;
 
                         // loop test_write_kernel
-                        // tile_id = 2 * i + 0;
+                        // tile_id = 2 * nc + 0;
                         tile_id = 0;
                         iterations_list& le2n_0 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         loop_size = tile_loop_size (tile, tile_id);
@@ -1057,7 +1068,7 @@ int main(int argc, char** argv)
                         }
 
                         // loop test_read_kernel
-                        // tile_id =  2 * i + 1;
+                        // tile_id =  2 * nc + 1;
                         tile_id = 1;
                         iterations_list& le2n_1 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         iterations_list& iterations_1 = tile_get_iterations (tile, tile_id);
@@ -1079,8 +1090,8 @@ int main(int argc, char** argv)
 #ifndef SINGLE_DAT_VAR
             op_mpi_wait_all_chained(nargs_ex0, args_ex0, 1);    // no latency hiding for single var dat
 
-            for(int i = 0; i < nchains; i++){
-                int var_index = i;
+            for(int nc = 0; nc < nchains; nc++){
+                int var_index = nc;
                 for (int color = 0; color < ncolors; color++) {
                     // for all tiles of this color
                     const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
@@ -1096,7 +1107,7 @@ int main(int argc, char** argv)
                         int tile_id = 0;
 
                         // loop test_write_kernel
-                        // tile_id = 2 * i + 0;
+                        // tile_id = 2 * nc + 0;
                         tile_id = 0;
                         iterations_list& le2n_0 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         loop_size = tile_loop_size (tile, tile_id);
@@ -1108,7 +1119,7 @@ int main(int argc, char** argv)
                         }
 
                         // loop test_read_kernel
-                        // tile_id =  2 * i + 1;
+                        // tile_id =  2 * nc + 1;
                         tile_id = 1;
                         iterations_list& le2n_1 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         iterations_list& iterations_1 = tile_get_iterations (tile, tile_id);
@@ -1135,11 +1146,11 @@ int main(int argc, char** argv)
 #endif  // SLOPE
 #else   // COMM_AVOID
 
-            for(int i = 0; i < nchains; i++){
+            for(int nc = 0; nc < nchains; nc++){
 #ifdef SINGLE_DAT_VAR
                 int var_index = 0;
 #else
-                int var_index = i;
+                int var_index = nc;
 #endif  // SINGLE_DAT_VAR
                 op_par_loop_test_write_kernel("ca_test_write_kernel",op_edges[level],
                             op_arg_dat(p_variables[level][var_index],0,p_edge_to_nodes[level],5,"double",OP_INC),
@@ -1443,6 +1454,7 @@ int main(int argc, char** argv)
     #ifdef MPI_ON
     op_mpi_halo_exchange_summary();
     #endif
+    op_print_dat_to_txtfile(p_dummy_fluxes[0], "dummy_fluxes.dat"); // ASCI
     op_exit();
 
     return 0;
