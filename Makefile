@@ -8,8 +8,8 @@
 
 
 ifdef OP2_INSTALL_PATH
-  OP2_INC = -I$(OP2_INSTALL_PATH)/c/include
-  OP2_LIB = -L$(OP2_INSTALL_PATH)/c/lib
+  OP2_INC = -I$(OP2_INSTALL_PATH)/c/include -I$(OP2_INSTALL_PATH)/include
+  OP2_LIB = -L$(OP2_INSTALL_PATH)/c/lib -L$(OP2_INSTALL_PATH)/lib
 endif
 
 ifdef CUDA_INSTALL_PATH
