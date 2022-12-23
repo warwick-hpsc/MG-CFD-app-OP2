@@ -463,7 +463,7 @@ int main(int argc, char** argv)
             if (level==0)
             op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
         #endif
-
+	if (i==1 && level == 0) op_timers(&cpu_t1, &wall_t1);
         op_par_loop(copy_double_kernel, "copy_double_kernel", op_nodes[level],
                     op_arg_dat(p_variables[level],     -1, OP_ID, NVAR, "double", OP_READ),
                     op_arg_dat(p_old_variables[level], -1, OP_ID, NVAR, "double", OP_WRITE));
