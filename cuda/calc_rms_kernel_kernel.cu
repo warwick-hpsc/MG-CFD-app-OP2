@@ -65,8 +65,8 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  calc_rms_kernel");
   }
 
-  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set_size > 0) {
+  op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (set->size > 0) {
 
     //set CUDA execution parameters
     #ifdef OP_BLOCK_SIZE_14

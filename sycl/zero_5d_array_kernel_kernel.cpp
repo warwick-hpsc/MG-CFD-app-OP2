@@ -31,9 +31,10 @@ void op_par_loop_zero_5d_array_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  zero_5d_array_kernel\n");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int exec_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (exec_size > 0) {
 
+    const int direct_zero_5d_array_kernel_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg0);
     //set SYCL execution parameters
     #ifdef OP_BLOCK_SIZE_1
       int nthread = OP_BLOCK_SIZE_1;
@@ -43,17 +44,17 @@ void op_par_loop_zero_5d_array_kernel(char const *name, op_set set,
 
     int nblocks = 200;
 
-    cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
+    double *arg0_d = (double*)arg0.data_d;
     int set_size = set->size+set->exec_size;
     try {
+    op2_queue->wait();
     op2_queue->submit([&](cl::sycl::handler& cgh) {
-      auto arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
 
       //user fun as lambda
       auto zero_5d_array_kernel_gpu = [=]( 
             double* array) {
             for(int j = 0; j < NVAR; j++) {
-                array[j] = 0.0;
+                array[(j)*direct_zero_5d_array_kernel_stride_OP2CONSTANT] = 0.0;
             }
         
         };
@@ -62,10 +63,10 @@ void op_par_loop_zero_5d_array_kernel(char const *name, op_set set,
 
         //process set elements
         int n = item.get_id(0);
-        if (n < set_size) {
+        if (n < exec_size) {
 
           //user-supplied kernel call
-          zero_5d_array_kernel_gpu(&arg0[n*5]);
+          zero_5d_array_kernel_gpu(&arg0_d[n]);
         }
 
       };

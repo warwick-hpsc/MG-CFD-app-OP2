@@ -83,8 +83,8 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  time_step_kernel");
   }
 
-  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set_size > 0) {
+  op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (set->size > 0) {
 
     //transfer constants to GPU
     int consts_bytes = 0;

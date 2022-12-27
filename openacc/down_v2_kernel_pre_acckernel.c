@@ -6,12 +6,14 @@
 #include <math.h>
 #include "const.h"
 
+int direct_down_v2_kernel_pre_stride_OP2CONSTANT;
+int direct_down_v2_kernel_pre_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void down_v2_kernel_pre_openacc( 
     double* weight_sum,
     double* residual_sum) {
-    *weight_sum = 0.0;
+    weight_sum[(0)*direct_down_v2_kernel_pre_stride_OP2CONSTANT]= 0.0;
     residual_sum[VAR_DENSITY] = 0.0;
     residual_sum[VAR_MOMENTUM+0] = 0.0;
     residual_sum[VAR_MOMENTUM+2] = 0.0;
@@ -42,11 +44,15 @@ void op_par_loop_down_v2_kernel_pre(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  down_v2_kernel_pre");
   }
 
-  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  op_mpi_halo_exchanges_cuda(set, nargs, args);
 
 
-  if (set_size >0) {
+  if (set->size >0) {
 
+    if ((OP_kernels[19].count==1) || (direct_down_v2_kernel_pre_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_down_v2_kernel_pre_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_down_v2_kernel_pre_stride_OP2CONSTANT = direct_down_v2_kernel_pre_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
 
@@ -55,7 +61,7 @@ void op_par_loop_down_v2_kernel_pre(char const *name, op_set set,
     #pragma acc parallel loop independent deviceptr(data0,data1)
     for ( int n=0; n<set->size; n++ ){
       down_v2_kernel_pre_openacc(
-        &data0[5*n],
+        &data0[n],
         &data1[1*n]);
     }
   }

@@ -5,13 +5,15 @@
 //user function
 #include "const.h"
 
+int direct_copy_double_kernel_stride_OP2CONSTANT;
+int direct_copy_double_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void copy_double_kernel_openacc( 
 	const double* variables,
 	double* old_variables) {
 	for (int i=0; i<NVAR; i++) {
-		old_variables[i] = variables[i];
+		old_variables[(i)*direct_copy_double_kernel_stride_OP2CONSTANT] = variables[(i)*direct_copy_double_kernel_stride_OP2CONSTANT];
 	}
 }
 
@@ -38,11 +40,15 @@ void op_par_loop_copy_double_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  copy_double_kernel");
   }
 
-  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  op_mpi_halo_exchanges_cuda(set, nargs, args);
 
 
-  if (set_size >0) {
+  if (set->size >0) {
 
+    if ((OP_kernels[5].count==1) || (direct_copy_double_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_copy_double_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_copy_double_kernel_stride_OP2CONSTANT = direct_copy_double_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
 
@@ -51,8 +57,8 @@ void op_par_loop_copy_double_kernel(char const *name, op_set set,
     #pragma acc parallel loop independent deviceptr(data0,data1)
     for ( int n=0; n<set->size; n++ ){
       copy_double_kernel_openacc(
-        &data0[5*n],
-        &data1[5*n]);
+        &data0[n],
+        &data1[n]);
     }
   }
 

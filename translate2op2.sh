@@ -25,7 +25,8 @@ function _main {
 	## To add thread timers, set OP_TIME_THREADS environment variable:
 	# OP_TIME_THREADS=1 python "${OP2_INSTALL_PATH}"/../translator/c/python/op2.py $files
 
-	python3 "${OP2_INSTALL_PATH}"/../translator/c/op2.py $files
+	python3 "${OP2_INSTALL_PATH}"/../translator/c/python/op2.py $files
+	#python3 "${OP2_INSTALL_PATH}"/../translator/c/op2.py $files
 } 
 
 _main

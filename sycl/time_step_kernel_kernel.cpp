@@ -148,23 +148,24 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  time_step_kernel\n");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int exec_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (exec_size > 0) {
 
     //transfer constants to GPU
     int consts_bytes = 0;
     consts_bytes += ROUND_UP(1*sizeof(int));
-    allocConstArrays(consts_bytes, "int");
+    reallocConstArrays(consts_bytes);
     consts_bytes = 0;
     arg0.data   = OP_consts_h + consts_bytes;
-    int arg0_offset = consts_bytes/sizeof(int);
+    arg0.data_d = OP_consts_d + consts_bytes;
+    int* arg0_d = (int*)arg0.data_d;
     for ( int d=0; d<1; d++ ){
       ((int *)arg0.data)[d] = arg0h[d];
     }
     consts_bytes += ROUND_UP(1*sizeof(int));
-    mvConstArraysToDevice(consts_bytes, "int");
-    cl::sycl::buffer<int,1> *consts = static_cast<cl::sycl::buffer<int,1> *>((void*)OP_consts_d);
+    mvConstArraysToDevice(consts_bytes);
 
+    const int direct_time_step_kernel_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg2);
     //set SYCL execution parameters
     #ifdef OP_BLOCK_SIZE_11
       int nthread = OP_BLOCK_SIZE_11;
@@ -174,18 +175,14 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
 
     int nblocks = 200;
 
-    cl::sycl::buffer<double,1> *arg1_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg1.data_d);
-    cl::sycl::buffer<double,1> *arg2_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg2.data_d);
-    cl::sycl::buffer<double,1> *arg3_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg3.data_d);
-    cl::sycl::buffer<double,1> *arg4_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg4.data_d);
+    double *arg1_d = (double*)arg1.data_d;
+    double *arg2_d = (double*)arg2.data_d;
+    double *arg3_d = (double*)arg3.data_d;
+    double *arg4_d = (double*)arg4.data_d;
     int set_size = set->size+set->exec_size;
     try {
+    op2_queue->wait();
     op2_queue->submit([&](cl::sycl::handler& cgh) {
-      auto arg1 = (*arg1_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-      auto arg2 = (*arg2_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-      auto arg3 = (*arg3_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-      auto arg4 = (*arg4_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-      auto consts_d = (*consts).template get_access<cl::sycl::access::mode::read_write>(cgh);
 
       //user fun as lambda
       auto time_step_kernel_gpu = [=]( 
@@ -196,17 +193,17 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
             double* variable) {
             double factor = (*step_factor)/double(RK+1-(*rkCycle));
         
-            variable[VAR_DENSITY]        = old_variable[VAR_DENSITY]        + factor*flux[VAR_DENSITY];
-            variable[VAR_MOMENTUM+0]     = old_variable[VAR_MOMENTUM+0]     + factor*flux[VAR_MOMENTUM+0];
-            variable[VAR_MOMENTUM+1]     = old_variable[VAR_MOMENTUM+1]     + factor*flux[VAR_MOMENTUM+1];
-            variable[VAR_MOMENTUM+2]     = old_variable[VAR_MOMENTUM+2]     + factor*flux[VAR_MOMENTUM+2];
-            variable[VAR_DENSITY_ENERGY] = old_variable[VAR_DENSITY_ENERGY] + factor*flux[VAR_DENSITY_ENERGY];
+            variable[(VAR_DENSITY)*direct_time_step_kernel_stride_OP2CONSTANT]        = old_variable[(VAR_DENSITY)*direct_time_step_kernel_stride_OP2CONSTANT]        + factor*flux[(VAR_DENSITY)*direct_time_step_kernel_stride_OP2CONSTANT];
+            variable[(VAR_MOMENTUM+0)*direct_time_step_kernel_stride_OP2CONSTANT]     = old_variable[(VAR_MOMENTUM+0)*direct_time_step_kernel_stride_OP2CONSTANT]     + factor*flux[(VAR_MOMENTUM+0)*direct_time_step_kernel_stride_OP2CONSTANT];
+            variable[(VAR_MOMENTUM+1)*direct_time_step_kernel_stride_OP2CONSTANT]     = old_variable[(VAR_MOMENTUM+1)*direct_time_step_kernel_stride_OP2CONSTANT]     + factor*flux[(VAR_MOMENTUM+1)*direct_time_step_kernel_stride_OP2CONSTANT];
+            variable[(VAR_MOMENTUM+2)*direct_time_step_kernel_stride_OP2CONSTANT]     = old_variable[(VAR_MOMENTUM+2)*direct_time_step_kernel_stride_OP2CONSTANT]     + factor*flux[(VAR_MOMENTUM+2)*direct_time_step_kernel_stride_OP2CONSTANT];
+            variable[(VAR_DENSITY_ENERGY)*direct_time_step_kernel_stride_OP2CONSTANT] = old_variable[(VAR_DENSITY_ENERGY)*direct_time_step_kernel_stride_OP2CONSTANT] + factor*flux[(VAR_DENSITY_ENERGY)*direct_time_step_kernel_stride_OP2CONSTANT];
         
-            flux[VAR_DENSITY]        = 0.0;
-            flux[VAR_MOMENTUM+0]     = 0.0;
-            flux[VAR_MOMENTUM+1]     = 0.0;
-            flux[VAR_MOMENTUM+2]     = 0.0;
-            flux[VAR_DENSITY_ENERGY] = 0.0;
+            flux[(VAR_DENSITY)*direct_time_step_kernel_stride_OP2CONSTANT]        = 0.0;
+            flux[(VAR_MOMENTUM+0)*direct_time_step_kernel_stride_OP2CONSTANT]     = 0.0;
+            flux[(VAR_MOMENTUM+1)*direct_time_step_kernel_stride_OP2CONSTANT]     = 0.0;
+            flux[(VAR_MOMENTUM+2)*direct_time_step_kernel_stride_OP2CONSTANT]     = 0.0;
+            flux[(VAR_DENSITY_ENERGY)*direct_time_step_kernel_stride_OP2CONSTANT] = 0.0;
         
         };
         
@@ -214,14 +211,14 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
 
         //process set elements
         int n = item.get_id(0);
-        if (n < set_size) {
+        if (n < exec_size) {
 
           //user-supplied kernel call
-          time_step_kernel_gpu(&consts_d[arg0_offset],
-                               &arg1[n*1],
-                               &arg2[n*5],
-                               &arg3[n*5],
-                               &arg4[n*5]);
+          time_step_kernel_gpu(arg0_d,
+                               &arg1_d[n*1],
+                               &arg2_d[n],
+                               &arg3_d[n],
+                               &arg4_d[n]);
         }
 
       };
@@ -230,7 +227,6 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
     }catch(cl::sycl::exception const &e) {
     std::cout << e.what() << std::endl;exit(-1);
     }
-    freeConstArrays("double");
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   op2_queue->wait();

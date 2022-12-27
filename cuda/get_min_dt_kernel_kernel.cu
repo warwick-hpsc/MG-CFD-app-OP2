@@ -68,8 +68,8 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  get_min_dt_kernel");
   }
 
-  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set_size > 0) {
+  op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (set->size > 0) {
 
     //set CUDA execution parameters
     #ifdef OP_BLOCK_SIZE_7

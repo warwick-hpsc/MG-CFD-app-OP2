@@ -32,9 +32,10 @@ void op_par_loop_identify_differences(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  identify_differences\n");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int exec_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (exec_size > 0) {
 
+    const int direct_identify_differences_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg0);
     //set SYCL execution parameters
     #ifdef OP_BLOCK_SIZE_23
       int nthread = OP_BLOCK_SIZE_23;
@@ -44,15 +45,13 @@ void op_par_loop_identify_differences(char const *name, op_set set,
 
     int nblocks = 200;
 
-    cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
-    cl::sycl::buffer<double,1> *arg1_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg1.data_d);
-    cl::sycl::buffer<double,1> *arg2_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg2.data_d);
+    double *arg0_d = (double*)arg0.data_d;
+    double *arg1_d = (double*)arg1.data_d;
+    double *arg2_d = (double*)arg2.data_d;
     int set_size = set->size+set->exec_size;
     try {
+    op2_queue->wait();
     op2_queue->submit([&](cl::sycl::handler& cgh) {
-      auto arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-      auto arg1 = (*arg1_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-      auto arg2 = (*arg2_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
 
       //user fun as lambda
       auto identify_differences_gpu = [=]( 
@@ -75,7 +74,7 @@ void op_par_loop_identify_differences(char const *name, op_set set,
             const double acceptable_relative_difference = 10.0e-8;
         
             for (int v=0; v<NVAR; v++) {
-                double acceptable_difference = master_value[v] * acceptable_relative_difference;
+                double acceptable_difference = master_value[(v)*direct_identify_differences_stride_OP2CONSTANT] * acceptable_relative_difference;
                 if (acceptable_difference < 0.0) {
                     acceptable_difference *= -1.0;
                 }
@@ -84,15 +83,15 @@ void op_par_loop_identify_differences(char const *name, op_set set,
                     acceptable_difference = 3.0e-19;
                 }
         
-                double diff = test_value[v] - master_value[v];
+                double diff = test_value[(v)*direct_identify_differences_stride_OP2CONSTANT] - master_value[(v)*direct_identify_differences_stride_OP2CONSTANT];
                 if (diff < 0.0) {
                     diff *= -1.0;
                 }
         
                 if (diff > acceptable_difference) {
-                    difference[v] = diff;
+                    difference[(v)*direct_identify_differences_stride_OP2CONSTANT] = diff;
                 } else {
-                    difference[v] = 0.0;
+                    difference[(v)*direct_identify_differences_stride_OP2CONSTANT] = 0.0;
                 }
             }
         
@@ -102,12 +101,12 @@ void op_par_loop_identify_differences(char const *name, op_set set,
 
         //process set elements
         int n = item.get_id(0);
-        if (n < set_size) {
+        if (n < exec_size) {
 
           //user-supplied kernel call
-          identify_differences_gpu(&arg0[n*5],
-                                   &arg1[n*5],
-                                   &arg2[n*5]);
+          identify_differences_gpu(&arg0_d[n],
+                                   &arg1_d[n],
+                                   &arg2_d[n]);
         }
 
       };

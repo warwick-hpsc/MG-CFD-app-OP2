@@ -31,9 +31,10 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  count_bad_vals\n");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int exec_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (exec_size > 0) {
 
+    const int direct_count_bad_vals_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg0);
     //set SYCL execution parameters
     #ifdef OP_BLOCK_SIZE_15
       int nthread = OP_BLOCK_SIZE_15;
@@ -53,25 +54,24 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
     int reduct_size  = 0;
     reduct_bytes += ROUND_UP(maxblocks*1*sizeof(int));
     reduct_size   = MAX(reduct_size,sizeof(int));
-    allocReductArrays(reduct_bytes, "int");
+    reallocReductArrays(reduct_bytes);
     reduct_bytes = 0;
     arg1.data   = OP_reduct_h + reduct_bytes;
-    int arg1_offset = reduct_bytes/sizeof(int);
+    arg1.data_d = OP_reduct_d + reduct_bytes;
+    int *arg1_d = (int*)arg1.data_d;
     for ( int b=0; b<maxblocks; b++ ){
       for ( int d=0; d<1; d++ ){
         ((int *)arg1.data)[d+b*1] = ZERO_int;
       }
     }
     reduct_bytes += ROUND_UP(maxblocks*1*sizeof(int));
-    mvReductArraysToDevice(reduct_bytes, "int");
-    cl::sycl::buffer<int,1> *reduct = static_cast<cl::sycl::buffer<int,1> *>((void*)OP_reduct_d);
+    mvReductArraysToDevice(reduct_bytes);
 
-    cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
+    double *arg0_d = (double*)arg0.data_d;
     int set_size = set->size+set->exec_size;
     try {
+    op2_queue->wait();
     op2_queue->submit([&](cl::sycl::handler& cgh) {
-      auto arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-      auto reduct1 = (*reduct).template get_access<cl::sycl::access::mode::read_write>(cgh);
       cl::sycl::accessor<int, 1, cl::sycl::access::mode::read_write,
          cl::sycl::access::target::local> red_int(nthread, cgh);
 
@@ -83,7 +83,7 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
         
             #else
                 for (int v=0; v<NVAR; v++) {
-                    if (cl::sycl::isnan(value[v]) || cl::sycl::isinf(value[v])) {
+                    if (cl::sycl::isnan(value[(v)*direct_count_bad_vals_stride_OP2CONSTANT]) || cl::sycl::isinf(value[(v)*direct_count_bad_vals_stride_OP2CONSTANT])) {
                         *count += 1;
                     }
                 }
@@ -98,17 +98,17 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
         }
 
         //process set elements
-        for ( int n=item.get_global_linear_id(); n<set_size; n+=item.get_global_range()[0] ){
+        for ( int n=item.get_global_linear_id(); n<exec_size; n+=item.get_global_range()[0] ){
 
           //user-supplied kernel call
-          count_bad_vals_gpu(&arg0[n*5],
+          count_bad_vals_gpu(&arg0_d[n],
                              arg1_l);
         }
 
         //global reductions
 
         for ( int d=0; d<1; d++ ){
-          op_reduction<OP_INC,1>(reduct1,arg1_offset+d+item.get_group_linear_id()*1,arg1_l[d],red_int,item);
+          op_reduction<OP_INC,1>(arg1_d,d+item.get_group_linear_id()*1,arg1_l[d],red_int,item);
         }
 
       };
@@ -118,7 +118,7 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
     std::cout << e.what() << std::endl;exit(-1);
     }
     //transfer global reduction data back to CPU
-    mvReductArraysToHost(reduct_bytes, "int");
+    mvReductArraysToHost(reduct_bytes);
     for ( int b=0; b<maxblocks; b++ ){
       for ( int d=0; d<1; d++ ){
         arg1h[d] = arg1h[d] + ((int *)arg1.data)[d+b*1];
@@ -126,7 +126,6 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
     }
     arg1.data = (char *)arg1h;
     op_mpi_reduce(&arg1,arg1h);
-    freeReductArrays("int");
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   op2_queue->wait();

@@ -8,6 +8,8 @@
 #include "const.h"
 #include "inlined_funcs.h"
 
+int direct_compute_step_factor_kernel_stride_OP2CONSTANT;
+int direct_compute_step_factor_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void compute_step_factor_kernel_openacc( 
@@ -59,12 +61,16 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  compute_step_factor_kernel");
   }
 
-  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  op_mpi_halo_exchanges_cuda(set, nargs, args);
 
   double arg2_l = arg2h[0];
 
-  if (set_size >0) {
+  if (set->size >0) {
 
+    if ((OP_kernels[8].count==1) || (direct_compute_step_factor_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_compute_step_factor_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_compute_step_factor_kernel_stride_OP2CONSTANT = direct_compute_step_factor_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
 
@@ -74,7 +80,7 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
     #pragma acc parallel loop independent deviceptr(data0,data1,data3)
     for ( int n=0; n<set->size; n++ ){
       compute_step_factor_kernel_openacc(
-        &data0[5*n],
+        &data0[n],
         &data1[1*n],
         &arg2_l,
         &data3[1*n]);

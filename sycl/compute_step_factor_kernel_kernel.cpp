@@ -146,23 +146,24 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  compute_step_factor_kernel\n");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int exec_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (exec_size > 0) {
 
     //transfer constants to GPU
     int consts_bytes = 0;
     consts_bytes += ROUND_UP(1*sizeof(double));
-    allocConstArrays(consts_bytes, "double");
+    reallocConstArrays(consts_bytes);
     consts_bytes = 0;
     arg2.data   = OP_consts_h + consts_bytes;
-    int arg2_offset = consts_bytes/sizeof(double);
+    arg2.data_d = OP_consts_d + consts_bytes;
+    double* arg2_d = (double*)arg2.data_d;
     for ( int d=0; d<1; d++ ){
       ((double *)arg2.data)[d] = arg2h[d];
     }
     consts_bytes += ROUND_UP(1*sizeof(double));
-    mvConstArraysToDevice(consts_bytes, "double");
-    cl::sycl::buffer<double,1> *consts = static_cast<cl::sycl::buffer<double,1> *>((void*)OP_consts_d);
+    mvConstArraysToDevice(consts_bytes);
 
+    const int direct_compute_step_factor_kernel_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg0);
     //set SYCL execution parameters
     #ifdef OP_BLOCK_SIZE_8
       int nthread = OP_BLOCK_SIZE_8;
@@ -172,16 +173,13 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
 
     int nblocks = 200;
 
-    cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
-    cl::sycl::buffer<double,1> *arg1_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg1.data_d);
-    cl::sycl::buffer<double,1> *arg3_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg3.data_d);
+    double *arg0_d = (double*)arg0.data_d;
+    double *arg1_d = (double*)arg1.data_d;
+    double *arg3_d = (double*)arg3.data_d;
     int set_size = set->size+set->exec_size;
     try {
+    op2_queue->wait();
     op2_queue->submit([&](cl::sycl::handler& cgh) {
-      auto arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-      auto arg1 = (*arg1_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-      auto arg3 = (*arg3_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-      auto consts_d = (*consts).template get_access<cl::sycl::access::mode::read_write>(cgh);
 
       //user fun as lambda
       auto compute_step_factor_kernel_gpu = [=]( 
@@ -189,14 +187,14 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
             const double* volume,
             const double* min_dt,
             double* step_factor) {
-            double density = variable[VAR_DENSITY];
+            double density = variable[(VAR_DENSITY)*direct_compute_step_factor_kernel_stride_OP2CONSTANT];
         
             double3 momentum;
-            momentum.x = variable[VAR_MOMENTUM+0];
-            momentum.y = variable[VAR_MOMENTUM+1];
-            momentum.z = variable[VAR_MOMENTUM+2];
+            momentum.x = variable[(VAR_MOMENTUM+0)*direct_compute_step_factor_kernel_stride_OP2CONSTANT];
+            momentum.y = variable[(VAR_MOMENTUM+1)*direct_compute_step_factor_kernel_stride_OP2CONSTANT];
+            momentum.z = variable[(VAR_MOMENTUM+2)*direct_compute_step_factor_kernel_stride_OP2CONSTANT];
         
-            double density_energy = variable[VAR_DENSITY_ENERGY];
+            double density_energy = variable[(VAR_DENSITY_ENERGY)*direct_compute_step_factor_kernel_stride_OP2CONSTANT];
             double3 velocity; compute_velocity(density, momentum, velocity);
             double speed_sqd      = compute_speed_sqd(velocity);
             double pressure       = compute_pressure(density, density_energy, speed_sqd);
@@ -210,13 +208,13 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
 
         //process set elements
         int n = item.get_id(0);
-        if (n < set_size) {
+        if (n < exec_size) {
 
           //user-supplied kernel call
-          compute_step_factor_kernel_gpu(&arg0[n*5],
-                                         &arg1[n*1],
-                                         &consts_d[arg2_offset],
-                                         &arg3[n*1]);
+          compute_step_factor_kernel_gpu(&arg0_d[n],
+                                         &arg1_d[n*1],
+                                         arg2_d,
+                                         &arg3_d[n*1]);
         }
 
       };
@@ -225,7 +223,6 @@ void op_par_loop_compute_step_factor_kernel(char const *name, op_set set,
     }catch(cl::sycl::exception const &e) {
     std::cout << e.what() << std::endl;exit(-1);
     }
-    freeConstArrays("double");
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   op2_queue->wait();

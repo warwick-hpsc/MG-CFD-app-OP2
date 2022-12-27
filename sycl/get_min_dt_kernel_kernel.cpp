@@ -142,8 +142,8 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  get_min_dt_kernel\n");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int exec_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (exec_size > 0) {
 
     //set SYCL execution parameters
     #ifdef OP_BLOCK_SIZE_7
@@ -164,25 +164,24 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
     int reduct_size  = 0;
     reduct_bytes += ROUND_UP(maxblocks*1*sizeof(double));
     reduct_size   = MAX(reduct_size,sizeof(double));
-    allocReductArrays(reduct_bytes, "double");
+    reallocReductArrays(reduct_bytes);
     reduct_bytes = 0;
     arg1.data   = OP_reduct_h + reduct_bytes;
-    int arg1_offset = reduct_bytes/sizeof(double);
+    arg1.data_d = OP_reduct_d + reduct_bytes;
+    double *arg1_d = (double*)arg1.data_d;
     for ( int b=0; b<maxblocks; b++ ){
       for ( int d=0; d<1; d++ ){
         ((double *)arg1.data)[d+b*1] = arg1h[d];
       }
     }
     reduct_bytes += ROUND_UP(maxblocks*1*sizeof(double));
-    mvReductArraysToDevice(reduct_bytes, "double");
-    cl::sycl::buffer<double,1> *reduct = static_cast<cl::sycl::buffer<double,1> *>((void*)OP_reduct_d);
+    mvReductArraysToDevice(reduct_bytes);
 
-    cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
+    double *arg0_d = (double*)arg0.data_d;
     int set_size = set->size+set->exec_size;
     try {
+    op2_queue->wait();
     op2_queue->submit([&](cl::sycl::handler& cgh) {
-      auto arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-      auto reduct1 = (*reduct).template get_access<cl::sycl::access::mode::read_write>(cgh);
       cl::sycl::accessor<double, 1, cl::sycl::access::mode::read_write,
          cl::sycl::access::target::local> red_double(nthread, cgh);
 
@@ -199,21 +198,21 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
       auto kern = [=](cl::sycl::nd_item<1> item) [[intel::reqd_sub_group_size(SIMD_VEC)]] {
         double arg1_l[1];
         for ( int d=0; d<1; d++ ){
-          arg1_l[d]=reduct1[arg1_offset+d+item.get_group_linear_id()*1];
+          arg1_l[d]=arg1_d[d+item.get_group_linear_id()*1];
         }
 
         //process set elements
-        for ( int n=item.get_global_linear_id(); n<set_size; n+=item.get_global_range()[0] ){
+        for ( int n=item.get_global_linear_id(); n<exec_size; n+=item.get_global_range()[0] ){
 
           //user-supplied kernel call
-          get_min_dt_kernel_gpu(&arg0[n*1],
+          get_min_dt_kernel_gpu(&arg0_d[n*1],
                                 arg1_l);
         }
 
         //global reductions
 
         for ( int d=0; d<1; d++ ){
-          op_reduction<OP_MIN,1>(reduct1,arg1_offset+d+item.get_group_linear_id()*1,arg1_l[d],red_double,item);
+          op_reduction<OP_MIN,1>(arg1_d,d+item.get_group_linear_id()*1,arg1_l[d],red_double,item);
         }
 
       };
@@ -223,7 +222,7 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
     std::cout << e.what() << std::endl;exit(-1);
     }
     //transfer global reduction data back to CPU
-    mvReductArraysToHost(reduct_bytes, "double");
+    mvReductArraysToHost(reduct_bytes);
     for ( int b=0; b<maxblocks; b++ ){
       for ( int d=0; d<1; d++ ){
         arg1h[d] = MIN(arg1h[d],((double *)arg1.data)[d+b*1]);
@@ -231,7 +230,6 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
     }
     arg1.data = (char *)arg1h;
     op_mpi_reduce(&arg1,arg1h);
-    freeReductArrays("double");
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   op2_queue->wait();

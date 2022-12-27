@@ -5,6 +5,8 @@
 //user function
 #include "utils.h"
 
+int direct_identify_differences_stride_OP2CONSTANT;
+int direct_identify_differences_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void identify_differences_openacc( 
@@ -27,7 +29,7 @@ inline void identify_differences_openacc(
     const double acceptable_relative_difference = 10.0e-8;
 
     for (int v=0; v<NVAR; v++) {
-        double acceptable_difference = master_value[v] * acceptable_relative_difference;
+        double acceptable_difference = master_value[(v)*direct_identify_differences_stride_OP2CONSTANT] * acceptable_relative_difference;
         if (acceptable_difference < 0.0) {
             acceptable_difference *= -1.0;
         }
@@ -36,15 +38,15 @@ inline void identify_differences_openacc(
             acceptable_difference = 3.0e-19;
         }
 
-        double diff = test_value[v] - master_value[v];
+        double diff = test_value[(v)*direct_identify_differences_stride_OP2CONSTANT] - master_value[(v)*direct_identify_differences_stride_OP2CONSTANT];
         if (diff < 0.0) {
             diff *= -1.0;
         }
 
         if (diff > acceptable_difference) {
-            difference[v] = diff;
+            difference[(v)*direct_identify_differences_stride_OP2CONSTANT] = diff;
         } else {
-            difference[v] = 0.0;
+            difference[(v)*direct_identify_differences_stride_OP2CONSTANT] = 0.0;
         }
     }
 }
@@ -74,11 +76,15 @@ void op_par_loop_identify_differences(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  identify_differences");
   }
 
-  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  op_mpi_halo_exchanges_cuda(set, nargs, args);
 
 
-  if (set_size >0) {
+  if (set->size >0) {
 
+    if ((OP_kernels[23].count==1) || (direct_identify_differences_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_identify_differences_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_identify_differences_stride_OP2CONSTANT = direct_identify_differences_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
 
@@ -88,9 +94,9 @@ void op_par_loop_identify_differences(char const *name, op_set set,
     #pragma acc parallel loop independent deviceptr(data0,data1,data2)
     for ( int n=0; n<set->size; n++ ){
       identify_differences_openacc(
-        &data0[5*n],
-        &data1[5*n],
-        &data2[5*n]);
+        &data0[n],
+        &data1[n],
+        &data2[n]);
     }
   }
 

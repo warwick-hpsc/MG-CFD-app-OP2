@@ -5,16 +5,18 @@
 //user function
 #include "utils.h"
 
+int direct_count_bad_vals_stride_OP2CONSTANT;
+int direct_count_bad_vals_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void count_bad_vals_openacc( 
     const double* value,
     int* count) {
-    #ifdef OPENACC
+    #if defined(OPENACC) || defined(__HIPSYCL__) || defined(TRISYCL_CL_LANGUAGE_VERSION)
 
     #else
         for (int v=0; v<NVAR; v++) {
-            if (isnan(value[v]) || isinf(value[v])) {
+            if (isnan(value[(v)*direct_count_bad_vals_stride_OP2CONSTANT]) || isinf(value[(v)*direct_count_bad_vals_stride_OP2CONSTANT])) {
                 *count += 1;
             }
         }
@@ -45,12 +47,16 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  count_bad_vals");
   }
 
-  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  op_mpi_halo_exchanges_cuda(set, nargs, args);
 
   int arg1_l = arg1h[0];
 
-  if (set_size >0) {
+  if (set->size >0) {
 
+    if ((OP_kernels[15].count==1) || (direct_count_bad_vals_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_count_bad_vals_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_count_bad_vals_stride_OP2CONSTANT = direct_count_bad_vals_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
 
@@ -58,7 +64,7 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
     #pragma acc parallel loop independent deviceptr(data0) reduction(+:arg1_l)
     for ( int n=0; n<set->size; n++ ){
       count_bad_vals_openacc(
-        &data0[5*n],
+        &data0[n],
         &arg1_l);
     }
   }

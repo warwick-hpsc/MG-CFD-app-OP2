@@ -31,9 +31,10 @@ void op_par_loop_dampen_ewt(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  dampen_ewt\n");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int exec_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (exec_size > 0) {
 
+    const int direct_dampen_ewt_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg0);
     //set SYCL execution parameters
     #ifdef OP_BLOCK_SIZE_4
       int nthread = OP_BLOCK_SIZE_4;
@@ -43,18 +44,18 @@ void op_par_loop_dampen_ewt(char const *name, op_set set,
 
     int nblocks = 200;
 
-    cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
+    double *arg0_d = (double*)arg0.data_d;
     int set_size = set->size+set->exec_size;
     try {
+    op2_queue->wait();
     op2_queue->submit([&](cl::sycl::handler& cgh) {
-      auto arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
 
       //user fun as lambda
       auto dampen_ewt_gpu = [=]( 
             double* ewt) {
-            ewt[0] *= 1e-7;
-            ewt[1] *= 1e-7;
-            ewt[2] *= 1e-7;
+            ewt[(0)*direct_dampen_ewt_stride_OP2CONSTANT] *= 1e-7;
+            ewt[(1)*direct_dampen_ewt_stride_OP2CONSTANT] *= 1e-7;
+            ewt[(2)*direct_dampen_ewt_stride_OP2CONSTANT] *= 1e-7;
         
         };
         
@@ -62,10 +63,10 @@ void op_par_loop_dampen_ewt(char const *name, op_set set,
 
         //process set elements
         int n = item.get_id(0);
-        if (n < set_size) {
+        if (n < exec_size) {
 
           //user-supplied kernel call
-          dampen_ewt_gpu(&arg0[n*3]);
+          dampen_ewt_gpu(&arg0_d[n]);
         }
 
       };

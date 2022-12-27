@@ -8,7 +8,7 @@
 __device__ void count_bad_vals_gpu( 
     const double* value,
     int* count) {
-    #ifdef OPENACC
+    #if defined(OPENACC) || defined(__HIPSYCL__) || defined(TRISYCL_CL_LANGUAGE_VERSION)
 
     #else
         for (int v=0; v<NVAR; v++) {
@@ -71,8 +71,8 @@ void op_par_loop_count_bad_vals(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  count_bad_vals");
   }
 
-  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set_size > 0) {
+  op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (set->size > 0) {
 
     //set CUDA execution parameters
     #ifdef OP_BLOCK_SIZE_15

@@ -6,6 +6,8 @@
 #include <math.h>
 #include "const.h"
 
+int opDat0_up_pre_kernel_stride_OP2CONSTANT;
+int opDat0_up_pre_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void up_pre_kernel_openacc( 
@@ -56,8 +58,12 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
 
   int ncolors = 0;
 
-  if (set_size >0) {
+  if (set->size >0) {
 
+    if ((OP_kernels[16].count==1) || (opDat0_up_pre_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      opDat0_up_pre_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      opDat0_up_pre_kernel_stride_OP2CONSTANT = opDat0_up_pre_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
     int *map0 = arg0.map_data_d;
@@ -85,7 +91,7 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
 
 
         up_pre_kernel_openacc(
-          &data0[5 * map0idx],
+          &data0[map0idx],
           &data1[1 * map0idx]);
       }
 

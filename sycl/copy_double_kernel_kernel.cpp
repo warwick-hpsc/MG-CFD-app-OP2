@@ -30,9 +30,10 @@ void op_par_loop_copy_double_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  copy_double_kernel\n");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int exec_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (exec_size > 0) {
 
+    const int direct_copy_double_kernel_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg0);
     //set SYCL execution parameters
     #ifdef OP_BLOCK_SIZE_5
       int nthread = OP_BLOCK_SIZE_5;
@@ -42,20 +43,19 @@ void op_par_loop_copy_double_kernel(char const *name, op_set set,
 
     int nblocks = 200;
 
-    cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
-    cl::sycl::buffer<double,1> *arg1_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg1.data_d);
+    double *arg0_d = (double*)arg0.data_d;
+    double *arg1_d = (double*)arg1.data_d;
     int set_size = set->size+set->exec_size;
     try {
+    op2_queue->wait();
     op2_queue->submit([&](cl::sycl::handler& cgh) {
-      auto arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-      auto arg1 = (*arg1_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
 
       //user fun as lambda
       auto copy_double_kernel_gpu = [=]( 
         	const double* variables,
         	double* old_variables) {
         	for (int i=0; i<NVAR; i++) {
-        		old_variables[i] = variables[i];
+        		old_variables[(i)*direct_copy_double_kernel_stride_OP2CONSTANT] = variables[(i)*direct_copy_double_kernel_stride_OP2CONSTANT];
         	}
         
         };
@@ -64,11 +64,11 @@ void op_par_loop_copy_double_kernel(char const *name, op_set set,
 
         //process set elements
         int n = item.get_id(0);
-        if (n < set_size) {
+        if (n < exec_size) {
 
           //user-supplied kernel call
-          copy_double_kernel_gpu(&arg0[n*5],
-                                 &arg1[n*5]);
+          copy_double_kernel_gpu(&arg0_d[n],
+                                 &arg1_d[n]);
         }
 
       };

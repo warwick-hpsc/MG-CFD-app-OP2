@@ -43,20 +43,20 @@ void op_par_loop_up_kernel(char const *name, op_set set,
     int part_size = OP_part_size;
   #endif
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int exec_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (exec_size > 0) {
 
     op_plan *Plan = op_plan_get_stage(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_ALL);
 
-    cl::sycl::buffer<double,1> *arg1_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg1.data_d);
-    cl::sycl::buffer<int,1> *arg2_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)arg2.data_d);
-    cl::sycl::buffer<int,1> *map1_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)arg1.map_data_d);
-    cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
-    cl::sycl::buffer<int,1> *blkmap_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->blkmap);
-    cl::sycl::buffer<int,1> *offset_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->offset);
-    cl::sycl::buffer<int,1> *nelems_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nelems);
-    cl::sycl::buffer<int,1> *ncolors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nthrcol);
-    cl::sycl::buffer<int,1> *colors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->thrcol);
+    const int opDat1_up_kernel_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg1);
+    const int direct_up_kernel_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg0);
+    double *ind_arg0 = (double*)arg1.data_d;
+    int *ind_arg1 = (int*)arg2.data_d;
+    int *opDat1Map = arg1.map_data_d;
+    double *arg0_d = (double*)arg0.data_d;
+    int *blkmap = (int *)Plan->blkmap;
+    int *offset = (int *)Plan->offset;
+    int *nelems = (int *)Plan->nelems;
     int set_size = set->size+set->exec_size;
     //execute plan
 
@@ -65,23 +65,14 @@ void op_par_loop_up_kernel(char const *name, op_set set,
       if (col==Plan->ncolors_core) {
         op_mpi_wait_all_cuda(nargs, args);
       }
-      int nthread = SIMD_VEC;
+      int nthread = 1;
 
       int nblocks = op2_queue->get_device().get_info<cl::sycl::info::device::max_compute_units>();
       int nblocks2 = Plan->ncolblk[col];
       if (Plan->ncolblk[col] > 0) {
         try {
+        op2_queue->wait();
         op2_queue->submit([&](cl::sycl::handler& cgh) {
-          auto ind_arg0 = (*arg1_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-          auto ind_arg1 = (*arg2_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-          auto opDat1Map =  (*map1_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto blkmap    = (*blkmap_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto offset    = (*offset_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto nelems    = (*nelems_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto ncolors   = (*ncolors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto colors    = (*colors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-
-          auto arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
 
 
           //user fun as lambda
@@ -89,18 +80,16 @@ void op_par_loop_up_kernel(char const *name, op_set set,
                 const double* variable,
                 double* variable_above,
                 int* up_scratch) {
-                variable_above[VAR_DENSITY]        += variable[VAR_DENSITY];
-                variable_above[VAR_MOMENTUM+0]     += variable[VAR_MOMENTUM+0];
-                variable_above[VAR_MOMENTUM+1]     += variable[VAR_MOMENTUM+1];
-                variable_above[VAR_MOMENTUM+2]     += variable[VAR_MOMENTUM+2];
-                variable_above[VAR_DENSITY_ENERGY] += variable[VAR_DENSITY_ENERGY];
+                variable_above[(VAR_DENSITY)*opDat1_up_kernel_stride_OP2CONSTANT]        += variable[(VAR_DENSITY)*direct_up_kernel_stride_OP2CONSTANT];
+                variable_above[(VAR_MOMENTUM+0)*opDat1_up_kernel_stride_OP2CONSTANT]     += variable[(VAR_MOMENTUM+0)*direct_up_kernel_stride_OP2CONSTANT];
+                variable_above[(VAR_MOMENTUM+1)*opDat1_up_kernel_stride_OP2CONSTANT]     += variable[(VAR_MOMENTUM+1)*direct_up_kernel_stride_OP2CONSTANT];
+                variable_above[(VAR_MOMENTUM+2)*opDat1_up_kernel_stride_OP2CONSTANT]     += variable[(VAR_MOMENTUM+2)*direct_up_kernel_stride_OP2CONSTANT];
+                variable_above[(VAR_DENSITY_ENERGY)*opDat1_up_kernel_stride_OP2CONSTANT] += variable[(VAR_DENSITY_ENERGY)*direct_up_kernel_stride_OP2CONSTANT];
                 *up_scratch += 1;
             
             };
             
           auto kern = [=](cl::sycl::nd_item<1> item) [[intel::reqd_sub_group_size(SIMD_VEC)]] {
-            double arg1_l[5];
-            int arg2_l[1];
 
 
             //get sizes and shift pointers and direct-mapped data
@@ -111,52 +100,17 @@ void op_par_loop_up_kernel(char const *name, op_set set,
 
               int nelem    = nelems[blockId];
               int offset_b = offset[blockId];
-              sycl::ONEAPI::sub_group sg = item.get_sub_group();
-
-              int nelems2  = item.get_local_range()[0]*(1+(nelem-1)/item.get_local_range()[0]);
-              int ncolor   = ncolors[blockId];
 
 
-              for ( int n=item.get_local_id(0); n<nelems2; n+=item.get_local_range()[0] ){
-                int col2 = -1;
+              for ( int n=0; n<nelem; n++ ){
                 int map1idx;
-                if (n<nelem) {
-                  //initialise local variables
-                  for ( int d=0; d<5; d++ ){
-                    arg1_l[d] = ZERO_double;
-                  }
-                  for ( int d=0; d<1; d++ ){
-                    arg2_l[d] = ZERO_int;
-                  }
-                  map1idx = opDat1Map[n + offset_b + set_size * 0];
+                map1idx = opDat1Map[n + offset_b + set_size * 0];
 
 
-                  //user-supplied kernel call
-                  up_kernel_gpu(&arg0[(n+offset_b)*5],
-                                arg1_l,
-                                arg2_l);
-                  col2 = colors[n+offset_b];
-                }
-
-                //store local variables
-
-                for ( int col=0; col<ncolor; col++ ){
-                  if (col2==col) {
-                    arg1_l[0] += ind_arg0[0+map1idx*5];
-                    arg1_l[1] += ind_arg0[1+map1idx*5];
-                    arg1_l[2] += ind_arg0[2+map1idx*5];
-                    arg1_l[3] += ind_arg0[3+map1idx*5];
-                    arg1_l[4] += ind_arg0[4+map1idx*5];
-                    ind_arg0[0+map1idx*5] = arg1_l[0];
-                    ind_arg0[1+map1idx*5] = arg1_l[1];
-                    ind_arg0[2+map1idx*5] = arg1_l[2];
-                    ind_arg0[3+map1idx*5] = arg1_l[3];
-                    ind_arg0[4+map1idx*5] = arg1_l[4];
-                    arg2_l[0] += ind_arg1[0+map1idx*1];
-                    ind_arg1[0+map1idx*1] = arg2_l[0];
-                  }
-                  sg.barrier();
-                }
+                //user-supplied kernel call
+                up_kernel_gpu(&arg0_d[n+offset_b],
+                              &ind_arg0[map1idx],
+                              &ind_arg1[map1idx*1]);
               }
 
             }

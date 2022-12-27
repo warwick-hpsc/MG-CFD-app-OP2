@@ -28,7 +28,7 @@ void op_par_loop_get_min_dt_kernel(char const *name, op_set set,
 
   int set_size = op_mpi_halo_exchanges(set, nargs, args);
 
-  if (set_size >0) {
+  if (set->size >0) {
 
     for ( int n=0; n<set_size; n++ ){
       get_min_dt_kernel(

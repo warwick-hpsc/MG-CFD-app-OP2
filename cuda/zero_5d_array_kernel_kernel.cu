@@ -52,8 +52,8 @@ void op_par_loop_zero_5d_array_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  zero_5d_array_kernel");
   }
 
-  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set_size > 0) {
+  op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (set->size > 0) {
 
     //set CUDA execution parameters
     #ifdef OP_BLOCK_SIZE_1

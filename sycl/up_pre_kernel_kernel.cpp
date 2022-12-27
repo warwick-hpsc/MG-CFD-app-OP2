@@ -41,19 +41,18 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
     int part_size = OP_part_size;
   #endif
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int exec_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (exec_size > 0) {
 
     op_plan *Plan = op_plan_get_stage(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_ALL);
 
-    cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
-    cl::sycl::buffer<int,1> *arg1_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)arg1.data_d);
-    cl::sycl::buffer<int,1> *map0_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)arg0.map_data_d);
-    cl::sycl::buffer<int,1> *blkmap_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->blkmap);
-    cl::sycl::buffer<int,1> *offset_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->offset);
-    cl::sycl::buffer<int,1> *nelems_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nelems);
-    cl::sycl::buffer<int,1> *ncolors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nthrcol);
-    cl::sycl::buffer<int,1> *colors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->thrcol);
+    const int opDat0_up_pre_kernel_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg0);
+    double *ind_arg0 = (double*)arg0.data_d;
+    int *ind_arg1 = (int*)arg1.data_d;
+    int *opDat0Map = arg0.map_data_d;
+    int *blkmap = (int *)Plan->blkmap;
+    int *offset = (int *)Plan->offset;
+    int *nelems = (int *)Plan->nelems;
     int set_size = set->size+set->exec_size;
     //execute plan
 
@@ -62,33 +61,25 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
       if (col==Plan->ncolors_core) {
         op_mpi_wait_all_cuda(nargs, args);
       }
-      int nthread = SIMD_VEC;
+      int nthread = 1;
 
       int nblocks = op2_queue->get_device().get_info<cl::sycl::info::device::max_compute_units>();
       int nblocks2 = Plan->ncolblk[col];
       if (Plan->ncolblk[col] > 0) {
         try {
+        op2_queue->wait();
         op2_queue->submit([&](cl::sycl::handler& cgh) {
-          auto ind_arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-          auto ind_arg1 = (*arg1_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-          auto opDat0Map =  (*map0_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto blkmap    = (*blkmap_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto offset    = (*offset_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto nelems    = (*nelems_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto ncolors   = (*ncolors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto colors    = (*colors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-
 
 
           //user fun as lambda
           auto up_pre_kernel_gpu = [=]( 
                 double* variable,
                 int* up_scratch) {
-                variable[VAR_DENSITY] = 0.0;
-                variable[VAR_MOMENTUM+0] = 0.0;
-                variable[VAR_MOMENTUM+1] = 0.0;
-                variable[VAR_MOMENTUM+2] = 0.0;
-                variable[VAR_DENSITY_ENERGY] = 0.0;
+                variable[(VAR_DENSITY)*opDat0_up_pre_kernel_stride_OP2CONSTANT] = 0.0;
+                variable[(VAR_MOMENTUM+0)*opDat0_up_pre_kernel_stride_OP2CONSTANT] = 0.0;
+                variable[(VAR_MOMENTUM+1)*opDat0_up_pre_kernel_stride_OP2CONSTANT] = 0.0;
+                variable[(VAR_MOMENTUM+2)*opDat0_up_pre_kernel_stride_OP2CONSTANT] = 0.0;
+                variable[(VAR_DENSITY_ENERGY)*opDat0_up_pre_kernel_stride_OP2CONSTANT] = 0.0;
                 *up_scratch = 0;
             
             };
@@ -104,16 +95,15 @@ void op_par_loop_up_pre_kernel(char const *name, op_set set,
 
               int nelem    = nelems[blockId];
               int offset_b = offset[blockId];
-              sycl::ONEAPI::sub_group sg = item.get_sub_group();
 
 
-              for ( int n=item.get_local_id(0); n<nelem; n+=item.get_local_range()[0] ){
+              for ( int n=0; n<nelem; n++ ){
                 int map0idx;
                 map0idx = opDat0Map[n + offset_b + set_size * 0];
 
 
                 //user-supplied kernel call
-                up_pre_kernel_gpu(&ind_arg0[map0idx*5],
+                up_pre_kernel_gpu(&ind_arg0[map0idx],
                                   &ind_arg1[map0idx*1]);
               }
 

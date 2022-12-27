@@ -35,9 +35,10 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  down_v2_kernel_post\n");
   }
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int exec_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (exec_size > 0) {
 
+    const int direct_down_v2_kernel_post_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg0);
     //set SYCL execution parameters
     #ifdef OP_BLOCK_SIZE_21
       int nthread = OP_BLOCK_SIZE_21;
@@ -47,17 +48,14 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
 
     int nblocks = 200;
 
-    cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
-    cl::sycl::buffer<double,1> *arg1_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg1.data_d);
-    cl::sycl::buffer<double,1> *arg2_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg2.data_d);
-    cl::sycl::buffer<double,1> *arg3_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg3.data_d);
+    double *arg0_d = (double*)arg0.data_d;
+    double *arg1_d = (double*)arg1.data_d;
+    double *arg2_d = (double*)arg2.data_d;
+    double *arg3_d = (double*)arg3.data_d;
     int set_size = set->size+set->exec_size;
     try {
+    op2_queue->wait();
     op2_queue->submit([&](cl::sycl::handler& cgh) {
-      auto arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-      auto arg1 = (*arg1_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-      auto arg2 = (*arg2_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-      auto arg3 = (*arg3_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
 
       //user fun as lambda
       auto down_v2_kernel_post_gpu = [=]( 
@@ -68,7 +66,7 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
         
         
             for (int i=0; i<NVAR; i++) {
-                variables2[i] += residuals2[i] - (residuals1_prolonged[i] / (*residuals1_prolonged_wsum));
+                variables2[(i)*direct_down_v2_kernel_post_stride_OP2CONSTANT] += residuals2[(i)*direct_down_v2_kernel_post_stride_OP2CONSTANT] - (residuals1_prolonged[(i)*direct_down_v2_kernel_post_stride_OP2CONSTANT] / (*residuals1_prolonged_wsum));
             }
         
         };
@@ -77,13 +75,13 @@ void op_par_loop_down_v2_kernel_post(char const *name, op_set set,
 
         //process set elements
         int n = item.get_id(0);
-        if (n < set_size) {
+        if (n < exec_size) {
 
           //user-supplied kernel call
-          down_v2_kernel_post_gpu(&arg0[n*5],
-                                  &arg1[n*1],
-                                  &arg2[n*5],
-                                  &arg3[n*5]);
+          down_v2_kernel_post_gpu(&arg0_d[n],
+                                  &arg1_d[n*1],
+                                  &arg2_d[n],
+                                  &arg3_d[n]);
         }
 
       };

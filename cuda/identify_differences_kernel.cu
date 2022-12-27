@@ -92,8 +92,8 @@ void op_par_loop_identify_differences(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  identify_differences");
   }
 
-  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set_size > 0) {
+  op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (set->size > 0) {
 
     //set CUDA execution parameters
     #ifdef OP_BLOCK_SIZE_23

@@ -49,20 +49,20 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
     int part_size = OP_part_size;
   #endif
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int exec_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (exec_size > 0) {
 
     op_plan *Plan = op_plan_get_stage(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_ALL);
 
-    cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
-    cl::sycl::buffer<double,1> *arg3_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg3.data_d);
-    cl::sycl::buffer<int,1> *map0_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)arg0.map_data_d);
-    cl::sycl::buffer<double,1> *arg2_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg2.data_d);
-    cl::sycl::buffer<int,1> *blkmap_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->blkmap);
-    cl::sycl::buffer<int,1> *offset_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->offset);
-    cl::sycl::buffer<int,1> *nelems_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nelems);
-    cl::sycl::buffer<int,1> *ncolors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nthrcol);
-    cl::sycl::buffer<int,1> *colors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->thrcol);
+    const int opDat0_calculate_cell_volumes_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg0);
+    const int direct_calculate_cell_volumes_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg2);
+    double *ind_arg0 = (double*)arg0.data_d;
+    double *ind_arg1 = (double*)arg3.data_d;
+    int *opDat0Map = arg0.map_data_d;
+    double *arg2_d = (double*)arg2.data_d;
+    int *blkmap = (int *)Plan->blkmap;
+    int *offset = (int *)Plan->offset;
+    int *nelems = (int *)Plan->nelems;
     int set_size = set->size+set->exec_size;
     //execute plan
 
@@ -71,23 +71,14 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
       if (col==Plan->ncolors_core) {
         op_mpi_wait_all_cuda(nargs, args);
       }
-      int nthread = SIMD_VEC;
+      int nthread = 1;
 
       int nblocks = op2_queue->get_device().get_info<cl::sycl::info::device::max_compute_units>();
       int nblocks2 = Plan->ncolblk[col];
       if (Plan->ncolblk[col] > 0) {
         try {
+        op2_queue->wait();
         op2_queue->submit([&](cl::sycl::handler& cgh) {
-          auto ind_arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-          auto ind_arg1 = (*arg3_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-          auto opDat0Map =  (*map0_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto blkmap    = (*blkmap_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto offset    = (*offset_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto nelems    = (*nelems_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto ncolors   = (*ncolors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto colors    = (*colors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-
-          auto arg2 = (*arg2_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
 
 
           //user fun as lambda
@@ -100,14 +91,14 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
                 double d[NDIM];
                 double dist = 0.0;
                 for (int i=0; i<NDIM; i++) {
-                    d[i] = coords2[i] - coords1[i];
+                    d[i] = coords2[(i)*opDat0_calculate_cell_volumes_stride_OP2CONSTANT] - coords1[(i)*opDat0_calculate_cell_volumes_stride_OP2CONSTANT];
                     dist += d[i]*d[i];
                 }
                 dist = cl::sycl::sqrt(dist);
             
                 double area = 0.0;
                 for (int i=0; i<NDIM; i++) {
-                    area += ewt[i]*ewt[i];
+                    area += ewt[(i)*direct_calculate_cell_volumes_stride_OP2CONSTANT]*ewt[(i)*direct_calculate_cell_volumes_stride_OP2CONSTANT];
                 }
                 area = cl::sycl::sqrt(area);
             
@@ -116,20 +107,18 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
                 *vol2 += tetra_volume;
             
                 for (int i=0; i<NDIM; i++) {
-                    ewt[i] = (d[i] / dist) * area;
+                    ewt[(i)*direct_calculate_cell_volumes_stride_OP2CONSTANT] = (d[i] / dist) * area;
                 }
             
             
             
                 for (int i=0; i<NDIM; i++) {
-                    ewt[i] /= dist;
+                    ewt[(i)*direct_calculate_cell_volumes_stride_OP2CONSTANT] /= dist;
                 }
             
             };
             
           auto kern = [=](cl::sycl::nd_item<1> item) [[intel::reqd_sub_group_size(SIMD_VEC)]] {
-            double arg3_l[1];
-            double arg4_l[1];
 
 
             //get sizes and shift pointers and direct-mapped data
@@ -140,48 +129,21 @@ void op_par_loop_calculate_cell_volumes(char const *name, op_set set,
 
               int nelem    = nelems[blockId];
               int offset_b = offset[blockId];
-              sycl::ONEAPI::sub_group sg = item.get_sub_group();
-
-              int nelems2  = item.get_local_range()[0]*(1+(nelem-1)/item.get_local_range()[0]);
-              int ncolor   = ncolors[blockId];
 
 
-              for ( int n=item.get_local_id(0); n<nelems2; n+=item.get_local_range()[0] ){
-                int col2 = -1;
+              for ( int n=0; n<nelem; n++ ){
                 int map0idx;
                 int map1idx;
-                if (n<nelem) {
-                  //initialise local variables
-                  for ( int d=0; d<1; d++ ){
-                    arg3_l[d] = ZERO_double;
-                  }
-                  for ( int d=0; d<1; d++ ){
-                    arg4_l[d] = ZERO_double;
-                  }
-                  map0idx = opDat0Map[n + offset_b + set_size * 0];
-                  map1idx = opDat0Map[n + offset_b + set_size * 1];
+                map0idx = opDat0Map[n + offset_b + set_size * 0];
+                map1idx = opDat0Map[n + offset_b + set_size * 1];
 
 
-                  //user-supplied kernel call
-                  calculate_cell_volumes_gpu(&ind_arg0[map0idx*3],
-                                             &ind_arg0[map1idx*3],
-                                             &arg2[(n+offset_b)*3],
-                                             arg3_l,
-                                             arg4_l);
-                  col2 = colors[n+offset_b];
-                }
-
-                //store local variables
-
-                for ( int col=0; col<ncolor; col++ ){
-                  if (col2==col) {
-                    arg3_l[0] += ind_arg1[0+map0idx*1];
-                    ind_arg1[0+map0idx*1] = arg3_l[0];
-                    arg4_l[0] += ind_arg1[0+map1idx*1];
-                    ind_arg1[0+map1idx*1] = arg4_l[0];
-                  }
-                  sg.barrier();
-                }
+                //user-supplied kernel call
+                calculate_cell_volumes_gpu(&ind_arg0[map0idx],
+                                           &ind_arg0[map1idx],
+                                           &arg2_d[n+offset_b],
+                                           &ind_arg1[map0idx*1],
+                                           &ind_arg1[map1idx*1]);
               }
 
             }

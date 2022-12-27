@@ -36,10 +36,10 @@ void op_par_loop_zero_1d_array_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  zero_1d_array_kernel");
   }
 
-  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  op_mpi_halo_exchanges_cuda(set, nargs, args);
 
 
-  if (set_size >0) {
+  if (set->size >0) {
 
 
     //Set up typed device pointers for OpenACC

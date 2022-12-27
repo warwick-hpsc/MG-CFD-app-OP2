@@ -6,6 +6,8 @@
 #include <math.h>
 #include "const.h"
 
+int direct_up_post_kernel_stride_OP2CONSTANT;
+int direct_up_post_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void up_post_kernel_openacc( 
@@ -42,11 +44,15 @@ void op_par_loop_up_post_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  up_post_kernel");
   }
 
-  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  op_mpi_halo_exchanges_cuda(set, nargs, args);
 
 
-  if (set_size >0) {
+  if (set->size >0) {
 
+    if ((OP_kernels[18].count==1) || (direct_up_post_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_up_post_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_up_post_kernel_stride_OP2CONSTANT = direct_up_post_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
 
@@ -55,7 +61,7 @@ void op_par_loop_up_post_kernel(char const *name, op_set set,
     #pragma acc parallel loop independent deviceptr(data0,data1)
     for ( int n=0; n<set->size; n++ ){
       up_post_kernel_openacc(
-        &data0[5*n],
+        &data0[n],
         &data1[1*n]);
     }
   }

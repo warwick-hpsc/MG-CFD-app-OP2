@@ -8,10 +8,10 @@
 #include "global.h"
 #include "config.h"
 
-#ifdef PAPI
-#include <papi.h>
-#endif
-
+int opDat0_compute_flux_edge_kernel_stride_OP2CONSTANT;
+int opDat0_compute_flux_edge_kernel_stride_OP2HOST=-1;
+int direct_compute_flux_edge_kernel_stride_OP2CONSTANT;
+int direct_compute_flux_edge_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void compute_flux_edge_kernel_openacc( 
@@ -20,9 +20,9 @@ inline void compute_flux_edge_kernel_openacc(
     const double *edge_weight,
     double *fluxes_a,
     double *fluxes_b) {
-  double ewt = std::sqrt(edge_weight[0]*edge_weight[0] +
-                         edge_weight[1]*edge_weight[1] +
-                         edge_weight[2]*edge_weight[2]);
+  double ewt = std::sqrt(edge_weight[(0)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT]*edge_weight[(0)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT] +
+                         edge_weight[(1)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT]*edge_weight[(1)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT] +
+                         edge_weight[(2)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT]*edge_weight[(2)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT]);
 
   double p_b = variables_b[VAR_DENSITY];
 
@@ -117,7 +117,7 @@ inline void compute_flux_edge_kernel_openacc(
              *(speed_b + std::sqrt(speed_sqd_a)
              + speed_of_sound_b + speed_of_sound_a);
 
-  double factor_x = -0.5*edge_weight[0], factor_y = -0.5*edge_weight[1], factor_z = -0.5*edge_weight[2];
+  double factor_x = -0.5*edge_weight[(0)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT], factor_y = -0.5*edge_weight[(1)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT], factor_z = -0.5*edge_weight[(2)*direct_compute_flux_edge_kernel_stride_OP2CONSTANT];
 
   fluxes_a[VAR_DENSITY] +=
       factor_a*(p_a - p_b)
@@ -187,31 +187,6 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   op_arg arg2,
   op_arg arg3,
   op_arg arg4){
-  
-  op_par_loop_compute_flux_edge_kernel_instrumented(name, set, 
-    arg0, arg1, arg2, arg3, arg4
-    #ifdef VERIFY_OP2_TIMING
-      , NULL, NULL
-    #endif
-    , NULL
-    #ifdef PAPI
-    , NULL
-    #endif
-    );
-};
-
-void op_par_loop_compute_flux_edge_kernel_instrumented(
-  char const *name, op_set set,
-  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef VERIFY_OP2_TIMING
-    , double* compute_time_ptr, double* sync_time_ptr
-  #endif
-  , long* iter_counts_ptr
-  #ifdef PAPI
-  , long_long** restrict event_counts
-  #endif
-  )
-{
 
   int nargs = 5;
   op_arg args[5];
@@ -248,8 +223,16 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
   int ncolors = 0;
 
-  if (set_size >0) {
+  if (set->size >0) {
 
+    if ((OP_kernels[9].count==1) || (opDat0_compute_flux_edge_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      opDat0_compute_flux_edge_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      opDat0_compute_flux_edge_kernel_stride_OP2CONSTANT = opDat0_compute_flux_edge_kernel_stride_OP2HOST;
+    }
+    if ((OP_kernels[9].count==1) || (direct_compute_flux_edge_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg2))) {
+      direct_compute_flux_edge_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg2);
+      direct_compute_flux_edge_kernel_stride_OP2CONSTANT = direct_compute_flux_edge_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
     int *map0 = arg0.map_data_d;
@@ -279,11 +262,11 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
 
         compute_flux_edge_kernel_openacc(
-          &data0[5 * map0idx],
-          &data0[5 * map1idx],
-          &data2[3 * n],
-          &data3[5 * map0idx],
-          &data3[5 * map1idx]);
+          &data0[map0idx],
+          &data0[map1idx],
+          &data2[n],
+          &data3[map0idx],
+          &data3[map1idx]);
       }
 
     }

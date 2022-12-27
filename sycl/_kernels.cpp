@@ -15,6 +15,7 @@
 #include "op_sycl_rt_support.h"
 #include "op_sycl_reduction.h"
 
+
 cl::sycl::buffer<double,1> *smoothing_coefficient_p=NULL;
 cl::sycl::buffer<double,1> *ff_variable_p=NULL;
 cl::sycl::buffer<double,1> *ff_flux_contribution_momentum_x_p=NULL;

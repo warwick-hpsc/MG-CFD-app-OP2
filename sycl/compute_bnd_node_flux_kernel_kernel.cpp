@@ -155,21 +155,21 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
     int part_size = OP_part_size;
   #endif
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int exec_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (exec_size > 0) {
 
     op_plan *Plan = op_plan_get_stage(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_ALL);
 
-    cl::sycl::buffer<double,1> *arg2_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg2.data_d);
-    cl::sycl::buffer<double,1> *arg3_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg3.data_d);
-    cl::sycl::buffer<int,1> *map2_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)arg2.map_data_d);
-    cl::sycl::buffer<int,1> *arg0_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)arg0.data_d);
-    cl::sycl::buffer<double,1> *arg1_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg1.data_d);
-    cl::sycl::buffer<int,1> *blkmap_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->blkmap);
-    cl::sycl::buffer<int,1> *offset_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->offset);
-    cl::sycl::buffer<int,1> *nelems_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nelems);
-    cl::sycl::buffer<int,1> *ncolors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nthrcol);
-    cl::sycl::buffer<int,1> *colors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->thrcol);
+    const int opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg2);
+    const int direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg1);
+    double *ind_arg0 = (double*)arg2.data_d;
+    double *ind_arg1 = (double*)arg3.data_d;
+    int *opDat2Map = arg2.map_data_d;
+    int *arg0_d = (int*)arg0.data_d;
+    double *arg1_d = (double*)arg1.data_d;
+    int *blkmap = (int *)Plan->blkmap;
+    int *offset = (int *)Plan->offset;
+    int *nelems = (int *)Plan->nelems;
     int set_size = set->size+set->exec_size;
     //execute plan
 
@@ -178,24 +178,14 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
       if (col==Plan->ncolors_core) {
         op_mpi_wait_all_cuda(nargs, args);
       }
-      int nthread = SIMD_VEC;
+      int nthread = 1;
 
       int nblocks = op2_queue->get_device().get_info<cl::sycl::info::device::max_compute_units>();
       int nblocks2 = Plan->ncolblk[col];
       if (Plan->ncolblk[col] > 0) {
         try {
+        op2_queue->wait();
         op2_queue->submit([&](cl::sycl::handler& cgh) {
-          auto ind_arg0 = (*arg2_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-          auto ind_arg1 = (*arg3_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-          auto opDat2Map =  (*map2_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto blkmap    = (*blkmap_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto offset    = (*offset_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto nelems    = (*nelems_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto ncolors   = (*ncolors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto colors    = (*colors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-
-          auto arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-          auto arg1 = (*arg1_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
 
           auto ff_variable_sycl = (*ff_variable_p).template get_access<cl::sycl::access::mode::read>(cgh);
           auto ff_flux_contribution_momentum_x_sycl = (*ff_flux_contribution_momentum_x_p).template get_access<cl::sycl::access::mode::read>(cgh);
@@ -227,7 +217,7 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
                   
                   
                   
-                      double p_b = variables_b[VAR_DENSITY];
+                      double p_b = variables_b[(VAR_DENSITY)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT];
                   
                       #ifdef IDIVIDE
                       double ip_b = 1.0 / p_b;
@@ -240,10 +230,10 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
                              flux_contribution_i_momentum_z_b[NDIM],
                              flux_contribution_i_density_energy_b[NDIM];
                   
-                      momentum_b.x = variables_b[VAR_MOMENTUM+0];
-                      momentum_b.y = variables_b[VAR_MOMENTUM+1];
-                      momentum_b.z = variables_b[VAR_MOMENTUM+2];
-                      pe_b = variables_b[VAR_DENSITY_ENERGY];
+                      momentum_b.x = variables_b[(VAR_MOMENTUM+0)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT];
+                      momentum_b.y = variables_b[(VAR_MOMENTUM+1)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT];
+                      momentum_b.z = variables_b[(VAR_MOMENTUM+2)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT];
+                      pe_b = variables_b[(VAR_DENSITY_ENERGY)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT];
                   
                       #ifdef IDIVIDE
                       compute_velocity(ip_b, momentum_b, velocity_b);
@@ -268,11 +258,11 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
                           flux_contribution_i_momentum_z_b,
                           flux_contribution_i_density_energy_b);
                   
-                      fluxes_b[VAR_DENSITY]        += 0;
-                      fluxes_b[VAR_MOMENTUM +0]    += edge_weight[0]*pressure_b;
-                      fluxes_b[VAR_MOMENTUM +1]    += edge_weight[1]*pressure_b;
-                      fluxes_b[VAR_MOMENTUM +2]    += edge_weight[2]*pressure_b;
-                      fluxes_b[VAR_DENSITY_ENERGY] += 0;
+                      fluxes_b[(VAR_DENSITY)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT]        += 0;
+                      fluxes_b[(VAR_MOMENTUM +0)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT]    += edge_weight[(0)*direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT]*pressure_b;
+                      fluxes_b[(VAR_MOMENTUM +1)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT]    += edge_weight[(1)*direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT]*pressure_b;
+                      fluxes_b[(VAR_MOMENTUM +2)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT]    += edge_weight[(2)*direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT]*pressure_b;
+                      fluxes_b[(VAR_DENSITY_ENERGY)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT] += 0;
                   
             
                 } else if ((*g) == 3 || ((*g) >= 4 && (*g) <= 7) ) {
@@ -285,7 +275,7 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
                   
                   
                   
-                      double p_b = variables_b[VAR_DENSITY];
+                      double p_b = variables_b[(VAR_DENSITY)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT];
                   
                       #ifdef IDIVIDE
                       double ip_b = 1.0 / p_b;
@@ -298,10 +288,10 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
                              flux_contribution_i_momentum_z_b[NDIM],
                              flux_contribution_i_density_energy_b[NDIM];
                   
-                      momentum_b.x = variables_b[VAR_MOMENTUM+0];
-                      momentum_b.y = variables_b[VAR_MOMENTUM+1];
-                      momentum_b.z = variables_b[VAR_MOMENTUM+2];
-                      pe_b = variables_b[VAR_DENSITY_ENERGY];
+                      momentum_b.x = variables_b[(VAR_MOMENTUM+0)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT];
+                      momentum_b.y = variables_b[(VAR_MOMENTUM+1)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT];
+                      momentum_b.z = variables_b[(VAR_MOMENTUM+2)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT];
+                      pe_b = variables_b[(VAR_DENSITY_ENERGY)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT];
                   
                       #ifdef IDIVIDE
                       compute_velocity(ip_b, momentum_b, velocity_b);
@@ -326,31 +316,31 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
                                                 flux_contribution_i_momentum_z_b,
                                                 flux_contribution_i_density_energy_b);
                   
-                      double factor_x = 0.5 * edge_weight[0],
-                             factor_y = 0.5 * edge_weight[1],
-                             factor_z = 0.5 * edge_weight[2];
+                      double factor_x = 0.5 * edge_weight[(0)*direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT],
+                             factor_y = 0.5 * edge_weight[(1)*direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT],
+                             factor_z = 0.5 * edge_weight[(2)*direct_compute_bnd_node_flux_kernel_stride_OP2CONSTANT];
                   
-                      fluxes_b[VAR_DENSITY] +=
+                      fluxes_b[(VAR_DENSITY)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT] +=
                             factor_x*(ff_variable_sycl[VAR_MOMENTUM+0] + momentum_b.x)
                           + factor_y*(ff_variable_sycl[VAR_MOMENTUM+1] + momentum_b.y)
                           + factor_z*(ff_variable_sycl[VAR_MOMENTUM+2] + momentum_b.z);
                   
-                      fluxes_b[VAR_DENSITY_ENERGY] += 
+                      fluxes_b[(VAR_DENSITY_ENERGY)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT] += 
                             factor_x*(ff_flux_contribution_density_energy_sycl[0] + flux_contribution_i_density_energy_b[0])
                           + factor_y*(ff_flux_contribution_density_energy_sycl[1] + flux_contribution_i_density_energy_b[1])
                           + factor_z*(ff_flux_contribution_density_energy_sycl[2] + flux_contribution_i_density_energy_b[2]);
                   
-                      fluxes_b[VAR_MOMENTUM + 0] += 
+                      fluxes_b[(VAR_MOMENTUM + 0)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT] += 
                             factor_x*(ff_flux_contribution_momentum_x_sycl[0] + flux_contribution_i_momentum_x_b[0])
                           + factor_y*(ff_flux_contribution_momentum_x_sycl[1] + flux_contribution_i_momentum_x_b[1])
                           + factor_z*(ff_flux_contribution_momentum_x_sycl[2] + flux_contribution_i_momentum_x_b[2]);
                   
-                      fluxes_b[VAR_MOMENTUM + 1] += 
+                      fluxes_b[(VAR_MOMENTUM + 1)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT] += 
                             factor_x*(ff_flux_contribution_momentum_y_sycl[0] + flux_contribution_i_momentum_y_b[0])
                           + factor_y*(ff_flux_contribution_momentum_y_sycl[1] + flux_contribution_i_momentum_y_b[1])
                           + factor_z*(ff_flux_contribution_momentum_y_sycl[2] + flux_contribution_i_momentum_y_b[2]);
                   
-                      fluxes_b[VAR_MOMENTUM + 2] += 
+                      fluxes_b[(VAR_MOMENTUM + 2)*opDat2_compute_bnd_node_flux_kernel_stride_OP2CONSTANT] += 
                             factor_x*(ff_flux_contribution_momentum_z_sycl[0] + flux_contribution_i_momentum_z_b[0])
                           + factor_y*(ff_flux_contribution_momentum_z_sycl[1] + flux_contribution_i_momentum_z_b[1])
                           + factor_z*(ff_flux_contribution_momentum_z_sycl[2] + flux_contribution_i_momentum_z_b[2]);
@@ -361,7 +351,6 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
             };
             
           auto kern = [=](cl::sycl::nd_item<1> item) [[intel::reqd_sub_group_size(SIMD_VEC)]] {
-            double arg3_l[5];
 
 
             //get sizes and shift pointers and direct-mapped data
@@ -372,48 +361,18 @@ void op_par_loop_compute_bnd_node_flux_kernel(char const *name, op_set set,
 
               int nelem    = nelems[blockId];
               int offset_b = offset[blockId];
-              sycl::ONEAPI::sub_group sg = item.get_sub_group();
-
-              int nelems2  = item.get_local_range()[0]*(1+(nelem-1)/item.get_local_range()[0]);
-              int ncolor   = ncolors[blockId];
 
 
-              for ( int n=item.get_local_id(0); n<nelems2; n+=item.get_local_range()[0] ){
-                int col2 = -1;
+              for ( int n=0; n<nelem; n++ ){
                 int map2idx;
-                if (n<nelem) {
-                  //initialise local variables
-                  for ( int d=0; d<5; d++ ){
-                    arg3_l[d] = ZERO_double;
-                  }
-                  map2idx = opDat2Map[n + offset_b + set_size * 0];
+                map2idx = opDat2Map[n + offset_b + set_size * 0];
 
 
-                  //user-supplied kernel call
-                  compute_bnd_node_flux_kernel_gpu(&arg0[(n+offset_b)*1],
-                                                   &arg1[(n+offset_b)*3],
-                                                   &ind_arg0[map2idx*5],
-                                                   arg3_l);
-                  col2 = colors[n+offset_b];
-                }
-
-                //store local variables
-
-                for ( int col=0; col<ncolor; col++ ){
-                  if (col2==col) {
-                    arg3_l[0] += ind_arg1[0+map2idx*5];
-                    arg3_l[1] += ind_arg1[1+map2idx*5];
-                    arg3_l[2] += ind_arg1[2+map2idx*5];
-                    arg3_l[3] += ind_arg1[3+map2idx*5];
-                    arg3_l[4] += ind_arg1[4+map2idx*5];
-                    ind_arg1[0+map2idx*5] = arg3_l[0];
-                    ind_arg1[1+map2idx*5] = arg3_l[1];
-                    ind_arg1[2+map2idx*5] = arg3_l[2];
-                    ind_arg1[3+map2idx*5] = arg3_l[3];
-                    ind_arg1[4+map2idx*5] = arg3_l[4];
-                  }
-                  sg.barrier();
-                }
+                //user-supplied kernel call
+                compute_bnd_node_flux_kernel_gpu(&arg0_d[(n+offset_b)*1],
+                                                 &arg1_d[n+offset_b],
+                                                 &ind_arg0[map2idx],
+                                                 &ind_arg1[map2idx]);
               }
 
             }

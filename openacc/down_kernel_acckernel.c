@@ -6,6 +6,10 @@
 #include <math.h>
 #include "const.h"
 
+int opDat3_down_kernel_stride_OP2CONSTANT;
+int opDat3_down_kernel_stride_OP2HOST=-1;
+int direct_down_kernel_stride_OP2CONSTANT;
+int direct_down_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void down_kernel_openacc( 
@@ -14,16 +18,21 @@ inline void down_kernel_openacc(
     const double* coord,
     const double* residual_above,
     const double* coord_above) {
-    double dx = fabs(coord[0] - coord_above[0]);
-    double dy = fabs(coord[1] - coord_above[1]);
-    double dz = fabs(coord[2] - coord_above[2]);
-    double dm = sqrt(dx*dx + dy*dy + dz*dz);
+  double dx = fabs(coord[(0)*direct_down_kernel_stride_OP2CONSTANT] - coord_above[(0)*opDat3_down_kernel_stride_OP2CONSTANT]);
+  double dy = fabs(coord[(1)*direct_down_kernel_stride_OP2CONSTANT] - coord_above[(1)*opDat3_down_kernel_stride_OP2CONSTANT]);
+  double dz = fabs(coord[(2)*direct_down_kernel_stride_OP2CONSTANT] - coord_above[(2)*opDat3_down_kernel_stride_OP2CONSTANT]);
+  double dm = sqrt(dx * dx + dy * dy + dz * dz);
 
-    variable[VAR_DENSITY]        -= dm* (residual_above[VAR_DENSITY]        - residual[VAR_DENSITY]);
-    variable[VAR_MOMENTUM+0]     -= dx* (residual_above[VAR_MOMENTUM+0]     - residual[VAR_MOMENTUM+0]);
-    variable[VAR_MOMENTUM+1]     -= dy* (residual_above[VAR_MOMENTUM+1]     - residual[VAR_MOMENTUM+1]);
-    variable[VAR_MOMENTUM+2]     -= dz* (residual_above[VAR_MOMENTUM+2]     - residual[VAR_MOMENTUM+2]);
-    variable[VAR_DENSITY_ENERGY] -= dm* (residual_above[VAR_DENSITY_ENERGY] - residual[VAR_DENSITY_ENERGY]);
+  variable[VAR_DENSITY] -=
+      dm * (residual_above[VAR_DENSITY] - residual[VAR_DENSITY]);
+  variable[VAR_MOMENTUM + 0] -=
+      dx * (residual_above[VAR_MOMENTUM + 0] - residual[VAR_MOMENTUM + 0]);
+  variable[VAR_MOMENTUM + 1] -=
+      dy * (residual_above[VAR_MOMENTUM + 1] - residual[VAR_MOMENTUM + 1]);
+  variable[VAR_MOMENTUM + 2] -=
+      dz * (residual_above[VAR_MOMENTUM + 2] - residual[VAR_MOMENTUM + 2]);
+  variable[VAR_DENSITY_ENERGY] -=
+      dm * (residual_above[VAR_DENSITY_ENERGY] - residual[VAR_DENSITY_ENERGY]);
 }
 
 // host stub function
@@ -69,8 +78,16 @@ void op_par_loop_down_kernel(char const *name, op_set set,
 
   int ncolors = 0;
 
-  if (set_size >0) {
+  if (set->size >0) {
 
+    if ((OP_kernels[22].count==1) || (opDat3_down_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg3))) {
+      opDat3_down_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg3);
+      opDat3_down_kernel_stride_OP2CONSTANT = opDat3_down_kernel_stride_OP2HOST;
+    }
+    if ((OP_kernels[22].count==1) || (direct_down_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_down_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_down_kernel_stride_OP2CONSTANT = direct_down_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
     int *map3 = arg3.map_data_d;
@@ -101,11 +118,11 @@ void op_par_loop_down_kernel(char const *name, op_set set,
 
 
         down_kernel_openacc(
-          &data0[5 * n],
-          &data1[5 * n],
-          &data2[3 * n],
-          &data3[5 * map3idx],
-          &data4[3 * map3idx]);
+          &data0[n],
+          &data1[n],
+          &data2[n],
+          &data3[map3idx],
+          &data4[map3idx]);
       }
 
     }

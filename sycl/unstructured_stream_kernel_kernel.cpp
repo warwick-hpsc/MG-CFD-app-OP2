@@ -5,18 +5,13 @@
 //user function
 class unstructured_stream_kernel_kernel;
 
-#ifdef PAPI
-#include "papi_funcs.h"
-#endif
-
-
-void op_par_loop_unstructured_stream_kernel_instrumented(
-  char const *name, op_set set,
-  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef PAPI
-  , long_long** restrict event_counts
-  #endif
-  ) {
+//host stub function
+void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
+  op_arg arg0,
+  op_arg arg1,
+  op_arg arg2,
+  op_arg arg3,
+  op_arg arg4){
 
   int nargs = 5;
   op_arg args[5];
@@ -49,57 +44,36 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
     int part_size = OP_part_size;
   #endif
 
-  op_mpi_halo_exchanges_cuda(set, nargs, args);
-  if (set->size > 0) {
+  int exec_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  if (exec_size > 0) {
 
     op_plan *Plan = op_plan_get_stage(name,set,part_size,nargs,args,ninds,inds,OP_STAGE_ALL);
 
-    #ifdef PAPI
-      my_papi_start();
-    #endif
-
-    cl::sycl::buffer<double,1> *arg0_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg0.data_d);
-    cl::sycl::buffer<double,1> *arg3_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg3.data_d);
-    cl::sycl::buffer<int,1> *map0_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)arg0.map_data_d);
-    cl::sycl::buffer<double,1> *arg2_buffer = static_cast<cl::sycl::buffer<double,1>*>((void*)arg2.data_d);
-    cl::sycl::buffer<int,1> *blkmap_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->blkmap);
-    cl::sycl::buffer<int,1> *offset_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->offset);
-    cl::sycl::buffer<int,1> *nelems_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nelems);
-    cl::sycl::buffer<int,1> *ncolors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->nthrcol);
-    cl::sycl::buffer<int,1> *colors_buffer = static_cast<cl::sycl::buffer<int,1>*>((void*)Plan->thrcol);
+    const int opDat0_unstructured_stream_kernel_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg0);
+    const int direct_unstructured_stream_kernel_stride_OP2CONSTANT = getSetSizeFromOpArg(&arg2);
+    double *ind_arg0 = (double*)arg0.data_d;
+    double *ind_arg1 = (double*)arg3.data_d;
+    int *opDat0Map = arg0.map_data_d;
+    double *arg2_d = (double*)arg2.data_d;
+    int *blkmap = (int *)Plan->blkmap;
+    int *offset = (int *)Plan->offset;
+    int *nelems = (int *)Plan->nelems;
     int set_size = set->size+set->exec_size;
     //execute plan
 
     int block_offset = 0;
     for ( int col=0; col<Plan->ncolors; col++ ){
       if (col==Plan->ncolors_core) {
-        #ifdef PAPI
-          my_papi_stop(event_counts);
-        #endif
-
         op_mpi_wait_all_cuda(nargs, args);
-
-        #ifdef PAPI
-          my_papi_start();
-        #endif
       }
-      int nthread = SIMD_VEC;
+      int nthread = 1;
 
       int nblocks = op2_queue->get_device().get_info<cl::sycl::info::device::max_compute_units>();
       int nblocks2 = Plan->ncolblk[col];
       if (Plan->ncolblk[col] > 0) {
         try {
+        op2_queue->wait();
         op2_queue->submit([&](cl::sycl::handler& cgh) {
-          auto ind_arg0 = (*arg0_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-          auto ind_arg1 = (*arg3_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
-          auto opDat0Map =  (*map0_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto blkmap    = (*blkmap_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto offset    = (*offset_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto nelems    = (*nelems_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto ncolors   = (*ncolors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-          auto colors    = (*colors_buffer).template get_access<cl::sycl::access::mode::read>(cgh);
-
-          auto arg2 = (*arg2_buffer).template get_access<cl::sycl::access::mode::read_write>(cgh);
 
 
           //user fun as lambda
@@ -109,25 +83,25 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
                 const double *edge_weight,
                 double *fluxes_a,
                 double *fluxes_b) {
-                double ex = edge_weight[0];
-                double ey = edge_weight[1];
-                double ez = edge_weight[2];
+                double ex = edge_weight[(0)*direct_unstructured_stream_kernel_stride_OP2CONSTANT];
+                double ey = edge_weight[(1)*direct_unstructured_stream_kernel_stride_OP2CONSTANT];
+                double ez = edge_weight[(2)*direct_unstructured_stream_kernel_stride_OP2CONSTANT];
             
                 double p_a, pe_a;
                 double3 momentum_a;
-                p_a          = variables_a[VAR_DENSITY];
-                momentum_a.x = variables_a[VAR_MOMENTUM+0];
-                momentum_a.y = variables_a[VAR_MOMENTUM+1];
-                momentum_a.z = variables_a[VAR_MOMENTUM+2];
-                pe_a         = variables_a[VAR_DENSITY_ENERGY];
+                p_a          = variables_a[(VAR_DENSITY)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT];
+                momentum_a.x = variables_a[(VAR_MOMENTUM+0)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT];
+                momentum_a.y = variables_a[(VAR_MOMENTUM+1)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT];
+                momentum_a.z = variables_a[(VAR_MOMENTUM+2)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT];
+                pe_a         = variables_a[(VAR_DENSITY_ENERGY)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT];
             
                 double p_b, pe_b;
                 double3 momentum_b;
-                p_b          = variables_b[VAR_DENSITY];
-                momentum_b.x = variables_b[VAR_MOMENTUM+0];
-                momentum_b.y = variables_b[VAR_MOMENTUM+1];
-                momentum_b.z = variables_b[VAR_MOMENTUM+2];
-                pe_b         = variables_b[VAR_DENSITY_ENERGY];
+                p_b          = variables_b[(VAR_DENSITY)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT];
+                momentum_b.x = variables_b[(VAR_MOMENTUM+0)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT];
+                momentum_b.y = variables_b[(VAR_MOMENTUM+1)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT];
+                momentum_b.z = variables_b[(VAR_MOMENTUM+2)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT];
+                pe_b         = variables_b[(VAR_DENSITY_ENERGY)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT];
             
                 double p_a_val  = p_b + ex;
                 double pe_a_val = pe_b + ey;
@@ -141,23 +115,21 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
                 double my_b_val = momentum_a.y;
                 double mz_b_val = momentum_a.z;
             
-                fluxes_a[VAR_DENSITY]  += p_a_val;
-                fluxes_a[VAR_MOMENTUM+0] += mx_a_val;
-                fluxes_a[VAR_MOMENTUM+1] += my_a_val;
-                fluxes_a[VAR_MOMENTUM+2] += mz_a_val;
-                fluxes_a[VAR_DENSITY_ENERGY] += pe_a_val;
+                fluxes_a[(VAR_DENSITY)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT]  += p_a_val;
+                fluxes_a[(VAR_MOMENTUM+0)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT] += mx_a_val;
+                fluxes_a[(VAR_MOMENTUM+1)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT] += my_a_val;
+                fluxes_a[(VAR_MOMENTUM+2)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT] += mz_a_val;
+                fluxes_a[(VAR_DENSITY_ENERGY)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT] += pe_a_val;
             
-                fluxes_b[VAR_DENSITY]  += p_b_val;
-                fluxes_b[VAR_MOMENTUM+0] += mx_b_val;
-                fluxes_b[VAR_MOMENTUM+1] += my_b_val;
-                fluxes_b[VAR_MOMENTUM+2] += mz_b_val;
-                fluxes_b[VAR_DENSITY_ENERGY] += pe_b_val;
+                fluxes_b[(VAR_DENSITY)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT]  += p_b_val;
+                fluxes_b[(VAR_MOMENTUM+0)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT] += mx_b_val;
+                fluxes_b[(VAR_MOMENTUM+1)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT] += my_b_val;
+                fluxes_b[(VAR_MOMENTUM+2)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT] += mz_b_val;
+                fluxes_b[(VAR_DENSITY_ENERGY)*opDat0_unstructured_stream_kernel_stride_OP2CONSTANT] += pe_b_val;
             
             };
             
           auto kern = [=](cl::sycl::nd_item<1> item) [[intel::reqd_sub_group_size(SIMD_VEC)]] {
-            double arg3_l[5];
-            double arg4_l[5];
 
 
             //get sizes and shift pointers and direct-mapped data
@@ -168,64 +140,21 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
 
               int nelem    = nelems[blockId];
               int offset_b = offset[blockId];
-              sycl::ONEAPI::sub_group sg = item.get_sub_group();
-
-              int nelems2  = item.get_local_range()[0]*(1+(nelem-1)/item.get_local_range()[0]);
-              int ncolor   = ncolors[blockId];
 
 
-              for ( int n=item.get_local_id(0); n<nelems2; n+=item.get_local_range()[0] ){
-                int col2 = -1;
+              for ( int n=0; n<nelem; n++ ){
                 int map0idx;
                 int map1idx;
-                if (n<nelem) {
-                  //initialise local variables
-                  for ( int d=0; d<5; d++ ){
-                    arg3_l[d] = ZERO_double;
-                  }
-                  for ( int d=0; d<5; d++ ){
-                    arg4_l[d] = ZERO_double;
-                  }
-                  map0idx = opDat0Map[n + offset_b + set_size * 0];
-                  map1idx = opDat0Map[n + offset_b + set_size * 1];
+                map0idx = opDat0Map[n + offset_b + set_size * 0];
+                map1idx = opDat0Map[n + offset_b + set_size * 1];
 
 
-                  //user-supplied kernel call
-                  unstructured_stream_kernel_gpu(&ind_arg0[map0idx*5],
-                                                 &ind_arg0[map1idx*5],
-                                                 &arg2[(n+offset_b)*3],
-                                                 arg3_l,
-                                                 arg4_l);
-                  col2 = colors[n+offset_b];
-                }
-
-                //store local variables
-
-                for ( int col=0; col<ncolor; col++ ){
-                  if (col2==col) {
-                    arg3_l[0] += ind_arg1[0+map0idx*5];
-                    arg3_l[1] += ind_arg1[1+map0idx*5];
-                    arg3_l[2] += ind_arg1[2+map0idx*5];
-                    arg3_l[3] += ind_arg1[3+map0idx*5];
-                    arg3_l[4] += ind_arg1[4+map0idx*5];
-                    ind_arg1[0+map0idx*5] = arg3_l[0];
-                    ind_arg1[1+map0idx*5] = arg3_l[1];
-                    ind_arg1[2+map0idx*5] = arg3_l[2];
-                    ind_arg1[3+map0idx*5] = arg3_l[3];
-                    ind_arg1[4+map0idx*5] = arg3_l[4];
-                    arg4_l[0] += ind_arg1[0+map1idx*5];
-                    arg4_l[1] += ind_arg1[1+map1idx*5];
-                    arg4_l[2] += ind_arg1[2+map1idx*5];
-                    arg4_l[3] += ind_arg1[3+map1idx*5];
-                    arg4_l[4] += ind_arg1[4+map1idx*5];
-                    ind_arg1[0+map1idx*5] = arg4_l[0];
-                    ind_arg1[1+map1idx*5] = arg4_l[1];
-                    ind_arg1[2+map1idx*5] = arg4_l[2];
-                    ind_arg1[3+map1idx*5] = arg4_l[3];
-                    ind_arg1[4+map1idx*5] = arg4_l[4];
-                  }
-                  sg.barrier();
-                }
+                //user-supplied kernel call
+                unstructured_stream_kernel_gpu(&ind_arg0[map0idx],
+                                               &ind_arg0[map1idx],
+                                               &arg2_d[n+offset_b],
+                                               &ind_arg1[map0idx],
+                                               &ind_arg1[map1idx]);
               }
 
             }
@@ -241,10 +170,6 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
     }
     OP_kernels[12].transfer  += Plan->transfer;
     OP_kernels[12].transfer2 += Plan->transfer2;
-    
-    #ifdef PAPI
-      my_papi_stop(event_counts);
-    #endif
   }
   op_mpi_set_dirtybit_cuda(nargs, args);
   op2_queue->wait();
@@ -252,19 +177,3 @@ void op_par_loop_unstructured_stream_kernel_instrumented(
   op_timers_core(&cpu_t2, &wall_t2);
   OP_kernels[12].time     += wall_t2 - wall_t1;
 }
-
-// host stub function
-void op_par_loop_unstructured_stream_kernel(char const *name, op_set set,
-  op_arg arg0,
-  op_arg arg1,
-  op_arg arg2,
-  op_arg arg3,
-  op_arg arg4){
-
-  op_par_loop_unstructured_stream_kernel_instrumented(name, set,
-    arg0, arg1, arg2, arg3, arg4
-    #ifdef PAPI
-    , NULL
-    #endif
-    );
-};

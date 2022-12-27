@@ -16,10 +16,6 @@
 #include "global.h"
 #include "config.h"
 
-#ifdef PAPI
-#include "papi_funcs.h"
-#endif
-
 inline void compute_bnd_node_flux_kernel(
   const int *g, 
   const double *edge_weight, 
@@ -393,32 +389,6 @@ void op_par_loop_compute_flux_edge_kernel(char const *name, op_set set,
   op_arg arg3,
   op_arg arg4){
 
-  
-  op_par_loop_compute_flux_edge_kernel_instrumented(name, set, 
-    arg0, arg1, arg2, arg3, arg4
-    #ifdef VERIFY_OP2_TIMING
-      , NULL, NULL
-    #endif
-    , NULL
-    #ifdef PAPI
-    , NULL
-    #endif
-    );
-};
-
-void op_par_loop_compute_flux_edge_kernel_instrumented(
-  char const *name, op_set set,
-  op_arg arg0, op_arg arg1, op_arg arg2, op_arg arg3, op_arg arg4
-  #ifdef VERIFY_OP2_TIMING
-    , double* compute_time_ptr, double* sync_time_ptr
-  #endif
-  , long* iter_counts_ptr
-  #ifdef PAPI
-  , long_long** restrict event_counts
-  #endif
-  )
-{
-
   int nargs = 5;
   op_arg args[5];
 
@@ -443,7 +413,6 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
   double cpu_t1, cpu_t2, wall_t1, wall_t2;
   op_timing_realloc(9);
   op_timers_core(&cpu_t1, &wall_t1);
-  long iter_counts=0;
 
   if (OP_diags>2) {
     printf(" kernel routine with indirection: compute_flux_edge_kernel\n");
@@ -453,21 +422,11 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
 
   if (exec_size >0) {
 
-    #ifdef PAPI
-      my_papi_start();
-    #endif
-
     #ifdef VECTORIZE
     #pragma novector
     for ( int n=0; n<(exec_size/SIMD_VEC)*SIMD_VEC; n+=SIMD_VEC ){
       if ((n+SIMD_VEC >= set->core_size) && (n+SIMD_VEC-set->core_size < SIMD_VEC)) {
-        #ifdef PAPI
-          my_papi_stop(event_counts);
-        #endif
         op_mpi_wait_all(nargs, args);
-        #ifdef PAPI
-          my_papi_start();
-        #endif
       }
       ALIGNED_double double dat0[5][SIMD_VEC];
       ALIGNED_double double dat1[5][SIMD_VEC];
@@ -538,8 +497,6 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
       }
     }
 
-    iter_counts += exec_size;
-    
     //remainder
     for ( int n=(exec_size/SIMD_VEC)*SIMD_VEC; n<exec_size; n++ ){
     #else
@@ -548,8 +505,10 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
       if (n==set->core_size) {
         op_mpi_wait_all(nargs, args);
       }
-      int map0idx = arg0.map_data[n * arg0.map->dim + 0];
-      int map1idx = arg0.map_data[n * arg0.map->dim + 1];
+      int map0idx;
+      int map1idx;
+      map0idx = arg0.map_data[n * arg0.map->dim + 0];
+      map1idx = arg0.map_data[n * arg0.map->dim + 1];
 
       compute_flux_edge_kernel(
         &(ptr0)[5 * map0idx],
@@ -559,10 +518,6 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
         &(ptr4)[5 * map1idx]);
     }
   }
-
-  #ifdef PAPI
-    my_papi_stop(event_counts);
-  #endif
 
   if (exec_size == 0 || exec_size == set->core_size) {
     op_mpi_wait_all(nargs, args);
@@ -579,7 +534,4 @@ void op_par_loop_compute_flux_edge_kernel_instrumented(
   OP_kernels[9].transfer += (float)set->size * arg3.size * 2.0f;
   OP_kernels[9].transfer += (float)set->size * arg2.size;
   OP_kernels[9].transfer += (float)set->size * arg0.map->dim * 4.0f;
-
-  if (iter_counts_ptr != NULL)
-      *iter_counts_ptr += iter_counts;
 }

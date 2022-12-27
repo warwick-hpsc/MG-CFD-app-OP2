@@ -8,6 +8,8 @@
 #include "const.h"
 #include "inlined_funcs.h"
 
+int direct_time_step_kernel_stride_OP2CONSTANT;
+int direct_time_step_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void time_step_kernel_openacc( 
@@ -61,12 +63,16 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  time_step_kernel");
   }
 
-  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  op_mpi_halo_exchanges_cuda(set, nargs, args);
 
   int arg0_l = arg0h[0];
 
-  if (set_size >0) {
+  if (set->size >0) {
 
+    if ((OP_kernels[11].count==1) || (direct_time_step_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg2))) {
+      direct_time_step_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg2);
+      direct_time_step_kernel_stride_OP2CONSTANT = direct_time_step_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
 
@@ -79,9 +85,9 @@ void op_par_loop_time_step_kernel(char const *name, op_set set,
       time_step_kernel_openacc(
         &arg0_l,
         &data1[1*n],
-        &data2[5*n],
-        &data3[5*n],
-        &data4[5*n]);
+        &data2[n],
+        &data3[n],
+        &data4[n]);
     }
   }
 

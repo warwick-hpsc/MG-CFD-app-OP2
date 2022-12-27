@@ -5,13 +5,15 @@
 //user function
 #include "utils.h"
 
+int direct_calc_rms_kernel_stride_OP2CONSTANT;
+int direct_calc_rms_kernel_stride_OP2HOST=-1;
 //user function
 //#pragma acc routine
 inline void calc_rms_kernel_openacc( 
     const double* residual,
     double* rms) {
     for (int i=0; i<NVAR; i++) {
-        *rms += residual[i]*residual[i];
+        *rms += residual[(i)*direct_calc_rms_kernel_stride_OP2CONSTANT]*residual[(i)*direct_calc_rms_kernel_stride_OP2CONSTANT];
     }
 }
 
@@ -39,12 +41,16 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
     printf(" kernel routine w/o indirection:  calc_rms_kernel");
   }
 
-  int set_size = op_mpi_halo_exchanges_cuda(set, nargs, args);
+  op_mpi_halo_exchanges_cuda(set, nargs, args);
 
   double arg1_l = arg1h[0];
 
-  if (set_size >0) {
+  if (set->size >0) {
 
+    if ((OP_kernels[14].count==1) || (direct_calc_rms_kernel_stride_OP2HOST != getSetSizeFromOpArg(&arg0))) {
+      direct_calc_rms_kernel_stride_OP2HOST = getSetSizeFromOpArg(&arg0);
+      direct_calc_rms_kernel_stride_OP2CONSTANT = direct_calc_rms_kernel_stride_OP2HOST;
+    }
 
     //Set up typed device pointers for OpenACC
 
@@ -52,7 +58,7 @@ void op_par_loop_calc_rms_kernel(char const *name, op_set set,
     #pragma acc parallel loop independent deviceptr(data0) reduction(+:arg1_l)
     for ( int n=0; n<set->size; n++ ){
       calc_rms_kernel_openacc(
-        &data0[5*n],
+        &data0[n],
         &arg1_l);
     }
   }
