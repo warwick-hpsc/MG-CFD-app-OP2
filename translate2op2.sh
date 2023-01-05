@@ -24,9 +24,11 @@ function _main {
 	## Thus cannot detect load imbalance within a team of OpenMP threads. 
 	## To add thread timers, set OP_TIME_THREADS environment variable:
 	# OP_TIME_THREADS=1 python "${OP2_INSTALL_PATH}"/../translator/c/python/op2.py $files
-
-	python3 "${OP2_INSTALL_PATH}"/../translator/c/python/op2.py $files
-	#python3 "${OP2_INSTALL_PATH}"/../translator/c/op2.py $files
+	if [[ -v OP2_OLD ]]; then
+		python3 "${OP2_INSTALL_PATH}"/../translator/c/python/op2.py $files
+	else
+		python3 "${OP2_INSTALL_PATH}"/../translator/c/op2.py $files
+	fi
 } 
 
 _main
