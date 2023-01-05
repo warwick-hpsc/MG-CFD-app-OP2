@@ -343,6 +343,10 @@ ifdef PAPI
   MGCFD_LIBS := -lpapi -lpfm
 endif
 
+ifdef PROFILE_ITT
+  MGCFD_INCS += -DPROFILE_ITT -I$(VTUNE_PROFILER_DIR)/include
+  MGCFD_LIBS := -L$(VTUNE_PROFILER_DIR)/lib64 -littnotify
+endif
 
 ## Enable VERIFY_OP2_TIMING to perform timing measurements external to
 ## those performed by OP2 internally. Intended to verify whether OP2 timers

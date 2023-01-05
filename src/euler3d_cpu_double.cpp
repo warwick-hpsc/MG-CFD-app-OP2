@@ -19,6 +19,10 @@
 
 #include "hdf5.h"
 
+#ifdef PROFILE_ITT
+#include <ittnotify.h>
+#endif
+
 #ifdef PAPI
 #include <papi.h>
 long_long** flux_kernel_event_counts = NULL;
@@ -463,7 +467,12 @@ int main(int argc, char** argv)
             if (level==0)
             op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
         #endif
-	if (i==1 && level == 0) op_timers(&cpu_t1, &wall_t1);
+        if (i==1 && level == 0) {
+#ifdef PROFILE_ITT
+          __itt_resume();
+#endif
+          op_timers(&cpu_t1, &wall_t1);
+        }
         op_par_loop(copy_double_kernel, "copy_double_kernel", op_nodes[level],
                     op_arg_dat(p_variables[level],     -1, OP_ID, NVAR, "double", OP_READ),
                     op_arg_dat(p_old_variables[level], -1, OP_ID, NVAR, "double", OP_WRITE));
@@ -647,6 +656,9 @@ int main(int argc, char** argv)
 	op_printf("Compute complete\n");
 
     op_timers(&cpu_t2, &wall_t2);
+#ifdef PROFILE_ITT
+    __itt_pause();
+#endif
     double walltime = wall_t2 - wall_t1;
     op_printf("Max total runtime = %f\n", walltime);
 
