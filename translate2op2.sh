@@ -29,6 +29,7 @@ function _main {
 	else
 		python3 "${OP2_INSTALL_PATH}"/../translator/c/op2.py $files
 	fi
+	sed -i 's/SIMD_VEC 4/SIMD_VEC 8/g' vec/_veckernels.cpp
 } 
 
 _main

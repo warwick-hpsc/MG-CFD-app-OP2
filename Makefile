@@ -423,10 +423,10 @@ OP2_MPI_CUDA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_cuda_main.o \
                         $(OBJ_DIR)/mgcfd_mpi_kernels_cu.o
 
 OP2_HIP_OBJECTS := $(OBJ_DIR)/mgcfd_hip_main.o \
-                    $(OBJ_DIR)/mgcfd_kernels.o
+                    $(OBJ_DIR)/mgcfd_hip_kernels.o
 
 OP2_MPI_HIP_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_hip_main.o \
-                        $(OBJ_DIR)/mgcfd_mpi_kernels.o
+                        $(OBJ_DIR)/mgcfd_mpi_hip_kernels.o
 
 OP2_OMP4_OBJECTS := $(OBJ_DIR)/mgcfd_omp4_main.o \
                     $(OBJ_DIR)/mgcfd_omp4_kernel_funcs.o \
@@ -615,7 +615,7 @@ $(OBJ_DIR)/mgcfd_hip_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
 	$(CPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) \
 	    -DCUDA_ON -c -o $@ $^
-$(OBJ_DIR)/mgcfd_kernels.o: $(SRC_DIR)/../hip/_kernels.cpp $(HIP_KERNELS)
+$(OBJ_DIR)/mgcfd_hip_kernels.o: $(SRC_DIR)/../hip/_kernels.cpp $(HIP_KERNELS)
 	mkdir -p $(OBJ_DIR)
 	$(CPP) $(HIPFLAGS) $(MGCFD_INCS) $(OP2_INC) \
 		-c -o $@ $(SRC_DIR)/../hip/_kernels.cpp
@@ -627,7 +627,7 @@ $(BIN_DIR)/mgcfd_hip: $(OP2_HIP_OBJECTS)
 
 
 ## MPI HIP
-$(OBJ_DIR)/mgcfd_mpi_kernels.o: $(SRC_DIR)/../hip/_kernels.cpp $(HIP_KERNELS)
+$(OBJ_DIR)/mgcfd_mpi_hip_kernels.o: $(SRC_DIR)/../hip/_kernels.cpp $(HIP_KERNELS)
 	mkdir -p $(OBJ_DIR)
 	$(CPP) $(HIPFLAGS) $(MGCFD_INCS) $(OP2_INC) -I $(MPI_INSTALL_PATH)/include \
         -c -o $@ $(SRC_DIR)/../hip/_kernels.cpp
