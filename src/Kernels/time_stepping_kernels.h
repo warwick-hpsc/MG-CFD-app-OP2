@@ -28,7 +28,7 @@ inline void calculate_dt_kernel(
     float pressure       = compute_pressure(density, density_energy, speed_sqd);
     float speed_of_sound = compute_speed_of_sound(density, pressure);
 
-    *dt = float(0.5) * (cbrt(*volume) / (sqrt(speed_sqd) + speed_of_sound));
+    *dt = float(0.5f) * (cbrt(*volume) / (sqrt(speed_sqd) + speed_of_sound));
 }
 
 inline void get_min_dt_kernel(
@@ -78,11 +78,11 @@ inline void time_step_kernel(
     variable[VAR_MOMENTUM+2]     = old_variable[VAR_MOMENTUM+2]     + factor*flux[VAR_MOMENTUM+2];
     variable[VAR_DENSITY_ENERGY] = old_variable[VAR_DENSITY_ENERGY] + factor*flux[VAR_DENSITY_ENERGY];
 
-    flux[VAR_DENSITY]        = 0.0;
-    flux[VAR_MOMENTUM+0]     = 0.0;
-    flux[VAR_MOMENTUM+1]     = 0.0;
-    flux[VAR_MOMENTUM+2]     = 0.0;
-    flux[VAR_DENSITY_ENERGY] = 0.0;
+    flux[VAR_DENSITY]        = 0.0f;
+    flux[VAR_MOMENTUM+0]     = 0.0f;
+    flux[VAR_MOMENTUM+1]     = 0.0f;
+    flux[VAR_MOMENTUM+2]     = 0.0f;
+    flux[VAR_DENSITY_ENERGY] = 0.0f;
 }
 
 #endif

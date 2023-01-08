@@ -2,7 +2,7 @@
 #define STRUCTURES_H
 
 #if !defined(__HIPSYCL__) && !defined(__CUDACC__) && !defined(__HIPCC__)
-  struct float3 { double x, y, z; };
+  struct float3 { float x, y, z; };
 #else
   // nvcc will pull in '/usr/include/vector_types.h' which 
   // contains an identical definition of 'float3' (above).

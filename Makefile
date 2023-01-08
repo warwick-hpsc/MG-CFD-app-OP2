@@ -265,7 +265,7 @@ ifeq ($(OP2_COMPILER),intel-sycl)
   OMPFLAGS      = -I$(OMPTARGET_LIBS)/../include -fopenmp
   SYCL_LIB   = -L$(SYCL_INSTALL_PATH)/lib -lOpenCL
   NVCCFLAGS = -ccbin=$(NVCC_HOST_COMPILER)
-  SYCL_FLAGS = -std=c++17 -fsycl -fsycl-targets=spir64_x86_64 -Xs "-march=avx512" #-I$(SYCL_INSTALL_PATH)/include -I$(SYCL_INSTALL_PATH)/include #intel sycl
+  SYCL_FLAGS = -std=c++17 -fsycl #-fsycl-targets=spir64_x86_64 -Xs "-march=avx512" #-I$(SYCL_INSTALL_PATH)/include -I$(SYCL_INSTALL_PATH)/include #intel sycl
   #SYCL_FLAGS = -std=c++11 -fsycl #intel sycl
   SYCL_LINK_SEQ = $(OP2_INSTALL_PATH)/c/lib/libop2_sycl.a
   SYCL_LINK_MPI = $(OP2_INSTALL_PATH)/c/lib/libop2_mpi_sycl.a

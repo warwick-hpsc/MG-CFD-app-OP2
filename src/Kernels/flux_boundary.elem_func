@@ -47,8 +47,8 @@
         flux_contribution_i_momentum_z_b,
         flux_contribution_i_density_energy_b);
 
-    fluxes_b[VAR_DENSITY]        += 0;
+    fluxes_b[VAR_DENSITY]        += 0.0f;
     fluxes_b[VAR_MOMENTUM +0]    += edge_weight[0]*pressure_b;
     fluxes_b[VAR_MOMENTUM +1]    += edge_weight[1]*pressure_b;
     fluxes_b[VAR_MOMENTUM +2]    += edge_weight[2]*pressure_b;
-    fluxes_b[VAR_DENSITY_ENERGY] += 0;
+    fluxes_b[VAR_DENSITY_ENERGY] += 0.0f;
