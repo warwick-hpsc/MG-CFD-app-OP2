@@ -891,7 +891,9 @@ int main(int argc, char** argv)
                     // for all tiles of this color
                     const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
 
+#ifndef SLOPE_MPI_ONLY
                     #pragma omp parallel for
+#endif
                     for (int j = 0; j < n_tiles_per_color; j++) {
 
                         tile_t* tile = exec_tile_at (exec[level], color, j);
@@ -987,7 +989,9 @@ int main(int argc, char** argv)
                     // for all tiles of this color
                     const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
 
+#ifndef SLOPE_MPI_ONLY
                     #pragma omp parallel for
+#endif
                     for (int j = 0; j < n_tiles_per_color; j++) {
 
                         tile_t* tile = exec_tile_at (exec[level], color, j, LOCAL);
@@ -1045,7 +1049,9 @@ int main(int argc, char** argv)
                     int var_index = 0;
                     const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
 
+#ifndef SLOPE_MPI_ONLY
                     #pragma omp parallel for
+#endif
                     for (int j = 0; j < n_tiles_per_color; j++) {
 
                         tile_t* tile = exec_tile_at (exec[level], color, j, EXEC_HALO);
@@ -1096,7 +1102,9 @@ int main(int argc, char** argv)
                     // for all tiles of this color
                     const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
 
+#ifndef SLOPE_MPI_ONLY
                     #pragma omp parallel for
+#endif
                     for (int j = 0; j < n_tiles_per_color; j++) {
 
                         tile_t* tile = exec_tile_at (exec[level], color, j, EXEC_HALO);
