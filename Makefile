@@ -5,7 +5,15 @@
 # For others (cough PGI), need to explicitly state each library
 # directory.
 #
-aDEBUG = 1
+
+# DEBUG = 1
+# ITT_NOTIFY = 1
+# VTUNE_INSTALL_PATH = /opt/intel/oneapi/vtune
+
+ifdef VTUNE_INSTALL_PATH
+	VTUNE_INC = -I$(VTUNE_INSTALL_PATH)/2021.7.1/include
+	VTUNE_LIB = -L$(VTUNE_INSTALL_PATH)/2021.7.1/lib64/
+endif
 
 ifdef SLOPE_INSTALL_PATH
   SLOPE_INC = -I$(SLOPE_INSTALL_PATH)/sparsetiling/include
@@ -334,6 +342,10 @@ ifdef PAPI
   MGCFD_LIBS := -lpapi -lpfm
 endif
 
+ifdef ITT_NOTIFY
+  MGCFD_INCS += $(VTUNE_INC) -DITT_NOTIFY
+  MGCFD_LIBS += $(VTUNE_LIB) -littnotify
+endif
 
 ## Enable VERIFY_OP2_TIMING to perform timing measurements external to
 ## those performed by OP2 internally. Intended to verify whether OP2 timers
@@ -617,7 +629,7 @@ $(OBJ_DIR)/mgcfd_mpi_ca_main.o: $(OP2_MAIN_SRC)
 	     -DMPI_ON -c -o $@ $^
 $(OBJ_DIR)/mgcfd_mpi_ca_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(SEQ_KERNELS)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC)  -DCOMM_AVOID \
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DCOMM_AVOID \
 	     -DMPI_ON -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
 $(BIN_DIR)/mgcfd_mpi_ca: $(OP2_MPI_CA_OBJECTS)
 	mkdir -p $(BIN_DIR)
@@ -628,11 +640,11 @@ $(BIN_DIR)/mgcfd_mpi_ca: $(OP2_MPI_CA_OBJECTS)
 ## MPI_CA SINGLE_DAT
 $(OBJ_DIR)/mgcfd_mpi_ca_opt_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC)  -DCOMM_AVOID -DSINGLE_DAT_VAR \
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DCOMM_AVOID -DSINGLE_DAT_VAR \
 	     -DMPI_ON -c -o $@ $^
 $(OBJ_DIR)/mgcfd_mpi_ca_opt_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(SEQ_KERNELS)
 	mkdir -p $(OBJ_DIR)
-	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC)  -DCOMM_AVOID -DSINGLE_DAT_VAR \
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DCOMM_AVOID -DSINGLE_DAT_VAR \
 	     -DMPI_ON -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
 $(BIN_DIR)/mgcfd_mpi_ca_opt: $(OP2_MPI_CA_OPT_OBJECTS)
 	mkdir -p $(BIN_DIR)

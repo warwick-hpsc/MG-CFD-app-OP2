@@ -20,6 +20,10 @@
     #endif
 #endif
 
+#ifdef ITT_NOTIFY
+#include <ittnotify.h>
+#endif
+
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
@@ -268,6 +272,10 @@ void validate_result(op_dat* correct_dat, op_dat* dat, op_set* set, std::string 
 
 int main(int argc, char** argv)
 {
+#ifdef ITT_NOTIFY
+    __itt_pause();
+#endif
+    
     #ifdef NANCHECK
         feenableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
     #endif
@@ -879,8 +887,11 @@ int main(int argc, char** argv)
 
 #ifdef SLOPE
 
-#ifndef MPI_ON
+#ifdef ITT_NOTIFY
+    __itt_resume(); // slope only
+#endif
 
+#ifndef MPI_ON
             for(int nc = 0; nc < nchains; nc++){
 #ifdef SINGLE_DAT_VAR
                 int var_index = 0;
@@ -933,7 +944,11 @@ int main(int argc, char** argv)
                 }
             }
 
-#else
+#ifdef ITT_NOTIFY
+    __itt_detach(); // slope only
+#endif
+
+#else   // SLOPE
 
             int map_index = nhalos;
 
@@ -978,7 +993,11 @@ int main(int argc, char** argv)
 #ifdef SINGLE_DAT_VAR   // no latency hiding for single var dat
             op_mpi_wait_all_chained(nargs_ex0, args_ex0, 1);
 #endif
-            
+
+#ifdef ITT_NOTIFY
+            __itt_resume();     // ca + slope opt, // ca + slope
+#endif
+
             for(int nc = 0; nc < nchains; nc++){
 #ifdef SINGLE_DAT_VAR
             int var_index = 0;
@@ -1093,6 +1112,10 @@ int main(int argc, char** argv)
 #endif  // SINGLE_DAT_VAR
             }
 
+#ifdef ITT_NOTIFY
+            __itt_detach();     // ca + slope opt
+#endif
+
 #ifndef SINGLE_DAT_VAR
             op_mpi_wait_all_chained(nargs_ex0, args_ex0, 1);    // no latency hiding for single var dat
 
@@ -1144,16 +1167,31 @@ int main(int argc, char** argv)
                     }
                 }
             }
+#ifdef ITT_NOTIFY
+            __itt_detach(); // ca + slope
+#endif
+
 #endif  // SINGLE_DAT_VAR
 
             op_mpi_set_dirtybit(nargs1, args1[DEFAULT_VARIABLE_INDEX]);
 #endif  // MPI_ON
 #else   // SLOPE
+
+#ifdef ITT_NOTIFY
+            __itt_resume(); // ca only
+#endif
             test_comm_avoid("ca_test_comm_avoid", p_variables[level], p_edge_weights[level], p_dummy_fluxes[level], p_edge_to_nodes[level], op_edges[level],
                     nloops, nchains, DEFAULT_VARIABLE_INDEX);
+#ifdef ITT_NOTIFY
+            __itt_detach(); // ca only
+#endif
+
 #endif  // SLOPE
 #else   // COMM_AVOID
 
+#ifdef ITT_NOTIFY
+            __itt_resume(); // op only
+#endif
             for(int nc = 0; nc < nchains; nc++){
 #ifdef SINGLE_DAT_VAR
                 int var_index = 0;
@@ -1171,6 +1209,11 @@ int main(int argc, char** argv)
                             op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
                             op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));          
             }
+
+#ifdef ITT_NOTIFY
+            __itt_detach(); // op only
+#endif
+
 #endif  // COMM_AVOID
 #ifdef SINGLE_DAT_VAR
                 int diff = nchains;
