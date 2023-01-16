@@ -717,7 +717,18 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     double *p_variables_recv = (double*) malloc(nodes_size * NVAR * sizeof(double));
 
     std::chrono::duration<double> total_seconds;
-
+	std::chrono::duration<double> wait_seconds;
+	std::chrono::duration<double> elapsed_seconds;
+	int z;
+	int coupler_position;
+	int unit_count_2;
+	int coupler_unit_count;
+	int coupler_vars;
+	int rkCycle;
+	std::chrono::steady_clock::time_point start;
+	std::chrono::steady_clock::time_point end;
+	std::chrono::steady_clock::time_point start1;
+	std::chrono::steady_clock::time_point end1;
     while(i < conf.num_cycles)
     {
         #ifdef LOG_PROGRESS
@@ -761,12 +772,12 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                     op_printf("MG-CFD cycle %d comms starting\n", ((int) (i+1) / mg_conversion_factor));
                 }
 
-                for(int z = 0; z < total_coupler_unit_count; z++){
+                for(z = 0; z < total_coupler_unit_count; z++){
                     coupler_rank = units[unit_count].coupler_ranks[z][0];
-					int coupler_position = relative_positions[coupler_rank].placelocator;
+					coupler_position = relative_positions[coupler_rank].placelocator;
 					found = false;
-					int unit_count_2 = 0;
-					int coupler_unit_count = 1;
+					unit_count_2 = 0;
+					coupler_unit_count = 1;
 					while(!found){//this is used to find out the unit index of the coupler unit we want
 						if(units[unit_count_2].type == 'C' && coupler_unit_count == coupler_position){
 						found=true;
@@ -777,7 +788,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 							unit_count_2++;
 						}
 					}
-					int coupler_vars = 0;
+					coupler_vars = 0;
 					if(units[unit_count_2].coupling_type == 'S'){
 						coupler_vars = 5;
                         boundary_nodes_size = round(nodes_size * 0.0042);
@@ -789,31 +800,38 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                             boundary_nodes_size = round(nodes_size * 0.05);
                         }
 					}
+					start1 = std::chrono::steady_clock::now();
                     if(hide_search == true){
                         if((i % (search_freq*mg_conversion_factor)) == 0){
                             op_printf("Cycle %d - search taking place\n", (i+1) % mg_conversion_factor);
                             MPI_Send(p_variables_data, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+							end1 = std::chrono::steady_clock::now();
+							wait_seconds += end1-start1;
                         }else if((i % mg_conversion_factor) == mg_conversion_factor - 1){
 
-                            auto start = std::chrono::steady_clock::now();
+                            start = std::chrono::steady_clock::now();
                             MPI_Recv(p_variables_recv, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                            auto end = std::chrono::steady_clock::now();
-                            std::chrono::duration<double> elapsed_seconds = end-start;
+                            end = std::chrono::steady_clock::now();
+                            elapsed_seconds = end-start;
                             total_seconds += elapsed_seconds;
                         }else{
                             MPI_Send(p_variables_data, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                            auto start = std::chrono::steady_clock::now();
+							end1 = std::chrono::steady_clock::now();
+							wait_seconds += end1-start1;
+                            start = std::chrono::steady_clock::now();
                             MPI_Recv(p_variables_recv, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                            auto end = std::chrono::steady_clock::now();
-                            std::chrono::duration<double> elapsed_seconds = end-start;
+                            end = std::chrono::steady_clock::now();
+                            elapsed_seconds = end-start;
                             total_seconds += elapsed_seconds;
                         }
                     }else{
                         MPI_Send(p_variables_data, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                        auto start = std::chrono::steady_clock::now();
+						end1 = std::chrono::steady_clock::now();
+						wait_seconds += end1-start1;
+						start = std::chrono::steady_clock::now();
                         MPI_Recv(p_variables_recv, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                        auto end = std::chrono::steady_clock::now();
-                        std::chrono::duration<double> elapsed_seconds = end-start;
+                        end = std::chrono::steady_clock::now();
+                        elapsed_seconds = end-start;
                         total_seconds += elapsed_seconds;
                     }
                 }
@@ -851,8 +869,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                     op_arg_dat(p_volumes[level],-1,OP_ID,1,"double",OP_READ),
                     op_arg_gbl(&min_dt,1,"double",OP_READ),
                     op_arg_dat(p_step_factors[level],-1,OP_ID,1,"double",OP_WRITE));
-
-        int rkCycle;
+		
         for (rkCycle=0; rkCycle<RK; rkCycle++)
         {
             #ifdef LOG_PROGRESS
@@ -998,6 +1015,9 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
     sprintf(buffer,"Time spent coupling = %f\n", total_seconds.count());
     op_print_file(buffer, fp);
+
+	sprintf(buffer,"Time waiting coupling = %f\n", wait_seconds.count());
+	op_print_file(buffer, fp);
 
     op_printf("MG-CFD Instance %s has finished!\n", filename);
 

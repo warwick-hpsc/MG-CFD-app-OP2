@@ -363,7 +363,7 @@ int main(int argc, char** argv){
                 coupler_vars = 1;
 			}else if(units[unit_count].coupling_type == 'C'){
                 left_search_scaling = 3;
-                right_search_scaling = 3;
+                right_search_scaling = 2;
                 coupler_vars = 1;
             }
 
@@ -398,7 +398,7 @@ int main(int argc, char** argv){
 			std::vector<double> node_state_vars_temp;
 
 			//set up some random data for cht interpolation
-			int ar_size_max = ((left_nodes_size + right_nodes_size)/2)*1.5;
+			int ar_size_max = ((left_nodes_size + right_nodes_size)/2)*0.9;
 			if(rank == 0 && debug == true){
 				printf("size is %d\n", ar_size_max);
 			}
@@ -411,15 +411,21 @@ int main(int argc, char** argv){
 			}
 			
 			std::chrono::duration<double> total_seconds;
+			std::chrono::duration<double> non_coupling_secs;
+			std::chrono::duration<double> pure_compute_sec;
 			std::chrono::time_point<std::chrono::steady_clock> start;
+			std::chrono::time_point<std::chrono::steady_clock> start1;
 
 			for(int cycle_counter = 0; cycle_counter < coupler_cycles; cycle_counter++){
 				int local_size;
 				MPI_Comm_size(coupler_comm, &local_size);
 				if(rank == root_rank){
 					printf("Coupler cycle %d starting\n", cycle_counter+1);
+					start = std::chrono::steady_clock::now();
 					MPI_Recv(left_p_variables, left_nodes_size * coupler_vars, MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 					MPI_Recv(right_p_variables, right_nodes_size * coupler_vars, MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+					auto end = std::chrono::steady_clock::now();
+					non_coupling_secs += (end-start);
 					start = std::chrono::steady_clock::now();
 		        }
 
@@ -431,6 +437,10 @@ int main(int argc, char** argv){
 				if(MUM == 0){
 					MPI_Bcast(left_p_variables, left_nodes_size * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
 					MPI_Bcast(right_p_variables, right_nodes_size * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
+				}
+
+				if(rank == root_rank){
+					start1 = std::chrono::steady_clock::now();
 				}
 				
 				//rendezvous routines start
@@ -572,29 +582,38 @@ int main(int argc, char** argv){
 				}else if(units[unit_count].coupling_type == 'C'){
 					std::vector<double> quad_array_rt;
 					std::vector<double> quad_array_lt;
-					for(int i = 0; i < ar_size_max*0.85; i++){
-						quad_array_rt.push_back(data_ran[i][0]);
-						quad_array_lt.push_back(data_ran[i][0]);
-						for(int k = 1; k < 4; k++){
-							quad_array_rt.at(i) = (quad_array_rt.at(i) + data_ran[i][k]);
-							quad_array_lt.at(i) = (quad_array_lt.at(i) + data_ran[i][k]);
+					for(int l = 0; l < 1; l++){
+						quad_array_rt.clear();
+						quad_array_lt.clear();
+						for(int i = 0; i < ar_size_max*0.7; i++){
+							quad_array_rt.push_back(0.0);
+							quad_array_lt.push_back(0.0);
+							for(int k = 0; k < 4; k++){
+								quad_array_rt.at(i) = (quad_array_rt.at(i) + data_ran[i][k]);
+								quad_array_lt.at(i) = (quad_array_lt.at(i) + data_ran[i][k]);
+							}
+							quad_array_rt.at(i) = (quad_array_rt.at(i)/4);
+							quad_array_lt.at(i) = (quad_array_lt.at(i)/4);
 						}
-						quad_array_rt.at(i) = (quad_array_rt.at(i)/2);
-						quad_array_lt.at(i) = (quad_array_lt.at(i)/2);
-						quad_array_rt.at(i) = 0.0;
-						quad_array_lt.at(i) = 0.0;
 					}
 					vector_counter_max = (left_nodes_size_chunks + right_nodes_size_chunks)/2;//this is size of mesh recieved from scatter
-					for(int b = 0; b < vector_counter_max; b++){
-						int temp = 0;
-						for(int i = 0; i < 3; i++){
-							if(data_ran[b][i] != data_ran[b][i % 3 + 1]){
-								temp = temp + 1;
-								quad_array_rt.at(b % (ar_size_max/2)) = quad_array_lt.at(b % (ar_size_max/2));
+					for(int l = 0; l < 7; l++){
+						for(int b = 0; b < vector_counter_max/5; b++){
+							int temp = 0;
+							for(int i = 0; i < 3; i++){
+								if(data_ran[b][i] != data_ran[b][i % 3 + 1]){
+									temp = temp + 1;
+									quad_array_rt.at(b % (ar_size_max/20)) = data_ran[b][temp];
+								}
 							}
 						}
 					}
 				}
+				if(rank == root_rank){
+					auto end1 = std::chrono::steady_clock::now();
+					pure_compute_sec = (end1-start1);
+				}
+
 				//interpolate routine end
 				MPI_Barrier(coupler_comm);
 		        MPI_Gather(left_p_variables_sg, (left_nodes_size_chunks * coupler_vars), MPI_DOUBLE, left_p_variables, (left_nodes_size_chunks * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
@@ -612,6 +631,8 @@ int main(int argc, char** argv){
 			MPI_Barrier(coupler_comm);
 			if(rank == root_rank){
 				printf("total coupling time is %f\n", total_seconds.count());
+				printf("total time not coupling is %f\n", non_coupling_secs.count());
+				printf("total pure compute time is %f\n", pure_compute_sec.count());
 			}
 			MPI_Finalize();
 	   		exit(0);

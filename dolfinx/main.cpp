@@ -639,21 +639,29 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
             }else if(units[unit_count_2].coupling_type == 'C'){
               coupler_vars = 1;
             }
-            common::Timer t_14th("06 Coupling");
+			common::Timer t_15th("06 waiting");
             if(hide_search == true){
               if((i % (search_freq*fenics_conversion_factor)) == 0){
                 MPI_Send(p_variables_data, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+				t_15th.stop();
               }else if((i % fenics_conversion_factor) == fenics_conversion_factor - 1){
+				common::Timer t_14th("06 Coupling");
                 MPI_Recv(p_variables_recv, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				t_14th.stop();
               }else{
                 MPI_Send(p_variables_data, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+				t_15th.stop();
+				common::Timer t_14th("06 Coupling");
                 MPI_Recv(p_variables_recv, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-              }
+                t_14th.stop();
+			  }
             }else{
               MPI_Send(p_variables_data, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+			  t_15th.stop();
+			  common::Timer t_14th("06 Coupling");
               MPI_Recv(p_variables_recv, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+              t_14th.stop();
             }
-            t_14th.stop();
           }
         }
       }
