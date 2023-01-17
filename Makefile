@@ -8,11 +8,12 @@
 
 # DEBUG = 1
 # ITT_NOTIFY = 1
-# VTUNE_INSTALL_PATH = /opt/intel/oneapi/vtune
+# VTUNE_INSTALL_PATH = /opt/intel/oneapi/2021.3/vtune/latest
+# VTUNE_INSTALL_PATH = /opt/intel/oneapi/vtune/2021.7.1
 
 ifdef VTUNE_INSTALL_PATH
-	VTUNE_INC = -I$(VTUNE_INSTALL_PATH)/2021.7.1/include
-	VTUNE_LIB = -L$(VTUNE_INSTALL_PATH)/2021.7.1/lib64/
+	VTUNE_INC = -I$(VTUNE_INSTALL_PATH)/include
+	VTUNE_LIB = -L$(VTUNE_INSTALL_PATH)/lib64/
 endif
 
 ifdef SLOPE_INSTALL_PATH

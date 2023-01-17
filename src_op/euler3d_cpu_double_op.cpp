@@ -945,7 +945,11 @@ int main(int argc, char** argv)
             }
 
 #ifdef ITT_NOTIFY
-    __itt_detach(); // slope only
+    if(i == conf.num_cycles){
+        __itt_detach();
+    }else{
+        __itt_pause(); // slope only
+    }
 #endif
 
 #else   // SLOPE
@@ -1113,7 +1117,11 @@ int main(int argc, char** argv)
             }
 
 #ifdef ITT_NOTIFY
-            __itt_detach();     // ca + slope opt
+        if(i == conf.num_cycles){
+            __itt_detach();
+        }else{
+            __itt_pause(); // ca + slope opt
+        }
 #endif
 
 #ifndef SINGLE_DAT_VAR
@@ -1168,7 +1176,11 @@ int main(int argc, char** argv)
                 }
             }
 #ifdef ITT_NOTIFY
-            __itt_detach(); // ca + slope
+            if(i == conf.num_cycles){
+                __itt_detach();
+            }else{
+                __itt_pause(); // ca + slope
+            }
 #endif
 
 #endif  // SINGLE_DAT_VAR
@@ -1183,7 +1195,11 @@ int main(int argc, char** argv)
             test_comm_avoid("ca_test_comm_avoid", p_variables[level], p_edge_weights[level], p_dummy_fluxes[level], p_edge_to_nodes[level], op_edges[level],
                     nloops, nchains, DEFAULT_VARIABLE_INDEX);
 #ifdef ITT_NOTIFY
-            __itt_detach(); // ca only
+            if(i == conf.num_cycles){
+                __itt_detach();
+            }else{
+                __itt_pause(); // ca only
+            }
 #endif
 
 #endif  // SLOPE
@@ -1211,7 +1227,11 @@ int main(int argc, char** argv)
             }
 
 #ifdef ITT_NOTIFY
-            __itt_detach(); // op only
+            if(i == conf.num_cycles){
+                __itt_detach();
+            }else{
+                __itt_pause(); // op only
+            }
 #endif
 
 #endif  // COMM_AVOID
