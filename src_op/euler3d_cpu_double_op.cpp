@@ -680,7 +680,11 @@ int main(int argc, char** argv)
             map_list m ({sl_edge_to_nodes[i]});
             mesh_maps[i] = m;
 
+#ifdef SLOPE_MPI_ONLY
+            insp[i] = insp_init(avg_tile_size, ONLY_MPI);
+#else
             insp[i] = insp_init(avg_tile_size, OMP_MPI);
+#endif
             insp[i]->meshMaps = &mesh_maps[i];
 
             for(int n = 0; n < 1; /*nchains;*/ n++){
