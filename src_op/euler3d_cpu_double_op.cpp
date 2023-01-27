@@ -458,7 +458,18 @@ int main(int argc, char** argv)
     int nchains = conf.num_chains;
     op_printf("nchains=%d\n", nchains);
     int nloops = 2;
-    int nhalos = nloops; // * nchains;
+#ifdef COMM_AVOID
+    #ifdef SINGLE_DAT_VAR
+        #ifdef SLOPE
+            int nhalos = nloops;    // this can be changed after liibrary moodification
+        #else
+            int nhalos = nloops * nchains;
+        #endif
+    #else
+        int nhalos = nloops;
+    #endif 
+#endif 
+
     #define DEFAULT_VARIABLE_INDEX 0
 
     // Temporary set data (ie, arrays that are populated by kernels)
@@ -1529,7 +1540,7 @@ int main(int argc, char** argv)
     #ifdef MPI_ON
     op_mpi_halo_exchange_summary();
     #endif
-    op_print_dat_to_txtfile(p_dummy_fluxes[0], "dummy_fluxes.dat"); // ASCI
+    // op_print_dat_to_txtfile(p_dummy_fluxes[0], "dummy_fluxes.dat"); // ASCI
     op_exit();
 
     return 0;
