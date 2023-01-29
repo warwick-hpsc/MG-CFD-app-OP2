@@ -456,7 +456,6 @@ int main(int argc, char** argv)
     op_dat dummy_fluxes_correct[levels];
 
     int nchains = conf.num_chains;
-    op_printf("nchains=%d\n", nchains);
     int nloops = 2;
 #ifdef COMM_AVOID
     #ifdef SINGLE_DAT_VAR
@@ -471,7 +470,7 @@ int main(int argc, char** argv)
 #endif 
 
     #define DEFAULT_VARIABLE_INDEX 0
-
+    op_printf("nchains=%d nloops=%d nhalos=%d\n", nchains, nloops, nhalos);
     // Temporary set data (ie, arrays that are populated by kernels)
 #ifdef SINGLE_DAT_VAR
     op_dat p_variables[levels][1],
@@ -620,6 +619,24 @@ int main(int argc, char** argv)
         if (conf.renumber) op_renumber(p_edge_to_nodes[0]);
 
 #ifdef COMM_AVOID
+#ifdef MPI_ON
+#ifndef SLOPE
+#ifdef SINGLE_DAT_VAR
+        for (int i = 0; i < levels; i++) {
+            for(int l = 0; l < nhalos; l++){
+                // release memory of unused augmented maps which were created to have multiple core sizes
+                if(l != 0 && l != nloops - 1){
+                    op_printf("op_remove_aug_map l = %d\n", l);
+                    op_remove_aug_map(p_edge_to_nodes[i], l);
+                }
+            }
+        }
+#endif
+#endif
+#endif
+#endif
+
+#ifdef COMM_AVOID
         #ifdef SLOPE
 
         for(int i = 0; i < levels; i++){
@@ -698,7 +715,15 @@ int main(int argc, char** argv)
 #endif
             insp[i]->meshMaps = &mesh_maps[i];
 
-            for(int n = 0; n < 1; /*nchains;*/ n++){
+#ifdef MPI_ON
+    #ifdef SINGLE_DAT_VAR
+            for(int n = 0; n < nchains; n++){
+    #else
+            for(int n = 0; n < 1; n++){
+    #endif
+#else
+            for(int n = 0; n < 1; n++){
+#endif
                 sprintf(sl_name, "test_write_L%d", i);
                 insp_add_parloop(insp[i], sl_name, sl_edges[i], &test_write_desc[i], 2);
 
@@ -1007,11 +1032,7 @@ int main(int argc, char** argv)
                 args1[nc][3] = op_arg_dat_halo(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
                 args1[nc][4] = op_arg_dat_halo(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
             }
-
             op_mpi_halo_exchanges_chained(op_edges[level], nargs_ex0, args_ex0, nhalos, 1);
-#ifdef SINGLE_DAT_VAR   // no latency hiding for single var dat
-            op_mpi_wait_all_chained(nargs_ex0, args_ex0, 1);
-#endif
 
 #ifdef ITT_NOTIFY
             __itt_resume();     // ca + slope opt, // ca + slope
@@ -1040,8 +1061,11 @@ int main(int argc, char** argv)
                         int tile_id = 0;
 
                         // loop test_write_kernel
-                        // tile_id = 2 * nc + 0;
+#ifdef SINGLE_DAT_VAR
+                        tile_id = 2 * nc + 0;
+#else
                         tile_id = 0;
+#endif
                         iterations_list& le2n_0 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         loop_size = tile_loop_size (tile, tile_id);
 
@@ -1058,8 +1082,11 @@ int main(int argc, char** argv)
                         }
 
                         // loop test_read_kernel
-                        // tile_id =  2 * nc + 1;
-                        tile_id = 1;
+#ifdef SINGLE_DAT_VAR
+                        tile_id =  2 * nc + 1;
+#else
+                        tile_id = 0;
+#endif
                         iterations_list& le2n_1 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         iterations_list& iterations_1 = tile_get_iterations (tile, tile_id);
                         loop_size = tile_loop_size (tile, tile_id);
@@ -1080,70 +1107,17 @@ int main(int argc, char** argv)
                         }
                     }
                 }
-
-#ifdef SINGLE_DAT_VAR
-                for (int color = 0; color < ncolors; color++) {
-                    // for all tiles of this color
-                    int var_index = 0;
-                    const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
-
-#ifndef SLOPE_MPI_ONLY
-                    #pragma omp parallel for
-#endif
-                    for (int j = 0; j < n_tiles_per_color; j++) {
-
-                        tile_t* tile = exec_tile_at (exec[level], color, j, EXEC_HALO);
-                        if(tile == NULL)
-                                continue;
-                        // printf("EXEC tile=%d color=%d ntiles=%d\n", j, color, n_tiles_per_color);
-                        int loop_size;
-                        int tile_id = 0;
-
-                        // loop test_write_kernel
-                        // tile_id = 2 * nc + 0;
-                        tile_id = 0;
-                        iterations_list& le2n_0 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
-                        loop_size = tile_loop_size (tile, tile_id);
-
-                        for (int k = 0; k < loop_size; k++) {
-                            test_write_kernel(
-                                &(((double*)(p_variables[level][var_index]->data))[le2n_0[k*2 + 0] * 5]),
-                                &(((double*)(p_variables[level][var_index]->data))[le2n_0[k*2 + 1] * 5]));
-                        }
-
-                        // loop test_read_kernel
-                        // tile_id =  2 * nc + 1;
-                        tile_id = 1;
-                        iterations_list& le2n_1 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
-                        iterations_list& iterations_1 = tile_get_iterations (tile, tile_id);
-                        loop_size = tile_loop_size (tile, tile_id);
-
-                        for (int k = 0; k < loop_size; k++) {
-                            test_read_kernel(
-                                &(((double*)(p_variables[level][var_index]->data))[le2n_1[k*2 + 0] * 5]),
-                                &(((double*)(p_variables[level][var_index]->data))[le2n_1[k*2 + 1] * 5]),
-                                &(((double*)(p_edge_weights[level]->data))[iterations_1[k] * 3]),
-                                &(((double*)(p_dummy_fluxes[level]->data))[le2n_1[k*2 + 0] * 5]),
-                                &(((double*)(p_dummy_fluxes[level]->data))[le2n_1[k*2 + 1] * 5]));
-                        }
-                    }
-                }
-#endif  // SINGLE_DAT_VAR
             }
 
-#ifdef ITT_NOTIFY
-        if(i == conf.num_cycles){
-            __itt_detach();
-        }else{
-            __itt_pause(); // ca + slope opt
-        }
-#endif
-
-#ifndef SINGLE_DAT_VAR
             op_mpi_wait_all_chained(nargs_ex0, args_ex0, 1);    // no latency hiding for single var dat
 
             for(int nc = 0; nc < nchains; nc++){
-                int var_index = nc;
+#ifdef SINGLE_DAT_VAR
+            int var_index = 0;
+#else
+            int var_index = nc;
+#endif  // SINGLE_DAT_VAR
+                // int var_index = nc;
                 for (int color = 0; color < ncolors; color++) {
                     // for all tiles of this color
                     const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
@@ -1161,8 +1135,11 @@ int main(int argc, char** argv)
                         int tile_id = 0;
 
                         // loop test_write_kernel
-                        // tile_id = 2 * nc + 0;
+#ifdef SINGLE_DAT_VAR
+                        tile_id = 2 * nc + 0;
+#else
                         tile_id = 0;
+#endif
                         iterations_list& le2n_0 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         loop_size = tile_loop_size (tile, tile_id);
 
@@ -1173,8 +1150,11 @@ int main(int argc, char** argv)
                         }
 
                         // loop test_read_kernel
-                        // tile_id =  2 * nc + 1;
-                        tile_id = 1;
+#ifdef SINGLE_DAT_VAR
+                        tile_id =  2 * nc + 1;
+#else
+                        tile_id = 0;
+#endif
                         iterations_list& le2n_1 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         iterations_list& iterations_1 = tile_get_iterations (tile, tile_id);
                         loop_size = tile_loop_size (tile, tile_id);
@@ -1194,11 +1174,9 @@ int main(int argc, char** argv)
             if(i == conf.num_cycles){
                 __itt_detach();
             }else{
-                __itt_pause(); // ca + slope
+                __itt_pause();  // ca + slope opt, // ca + slope
             }
 #endif
-
-#endif  // SINGLE_DAT_VAR
 
             op_mpi_set_dirtybit(nargs1, args1[DEFAULT_VARIABLE_INDEX]);
 #endif  // MPI_ON
