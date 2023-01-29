@@ -466,11 +466,14 @@ int main(int argc, char** argv)
         #endif
     #else
         int nhalos = nloops;
-    #endif 
-#endif 
+    #endif
+    op_printf("nchains=%d nloops=%d nhalos=%d\n", nchains, nloops, nhalos); 
+#else
+    op_printf("nchains=%d nloops=%d\n", nchains, nloops);
+#endif
 
     #define DEFAULT_VARIABLE_INDEX 0
-    op_printf("nchains=%d nloops=%d nhalos=%d\n", nchains, nloops, nhalos);
+    
     // Temporary set data (ie, arrays that are populated by kernels)
 #ifdef SINGLE_DAT_VAR
     op_dat p_variables[levels][1],
