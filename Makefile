@@ -376,6 +376,8 @@ parallel:; @$(MAKE) -j$(N) -l$(N) all
 slope_mpi_ca: $(BIN_DIR)/mgcfd_slope_mpi_ca
 slope_mpi_ca_opt: $(BIN_DIR)/mgcfd_slope_mpi_ca_opt
 slope_mpi_ca_opt_seq: $(BIN_DIR)/mgcfd_slope_mpi_ca_opt_seq
+slope_mpi_ca_opt_lat: $(BIN_DIR)/mgcfd_slope_mpi_ca_opt_lat
+slope_mpi_ca_opt_seq_lat: $(BIN_DIR)/mgcfd_slope_mpi_ca_opt_seq_lat
 
 ## User-friendly wrappers around actual targets:
 seq: $(BIN_DIR)/mgcfd_seq
@@ -397,6 +399,7 @@ openacc: $(BIN_DIR)/mgcfd_openacc
 mpi_ca: $(BIN_DIR)/mgcfd_mpi_ca
 mpi_ca_cuda: $(BIN_DIR)/mgcfd_mpi_ca_cuda
 mpi_ca_opt: $(BIN_DIR)/mgcfd_mpi_ca_opt
+mpi_ca_opt_lat: $(BIN_DIR)/mgcfd_mpi_ca_opt_lat
 mpi_ca_opt_cuda: $(BIN_DIR)/mgcfd_mpi_ca_opt_cuda
 
 
@@ -417,8 +420,14 @@ OP2_SLOPE_MPI_CA_OBJECTS := $(OBJ_DIR)/mgcfd_slope_mpi_ca_main.o \
 OP2_SLOPE_MPI_CA_OPT_OBJECTS := $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_main.o \
                          $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_kernels.o
 
+OP2_SLOPE_MPI_CA_OPT_LAT_OBJECTS := $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_lat_main.o \
+                         $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_lat_kernels.o
+
 OP2_SLOPE_MPI_CA_OPT_SEQ_OBJECTS := $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_seq_main.o \
                          $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_seq_kernels.o
+
+OP2_SLOPE_MPI_CA_OPT_SEQ_LAT_OBJECTS := $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_seq_lat_main.o \
+                         $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_seq_lat_kernels.o
 
 OP2_SYCL_OBJECTS := $(OBJ_DIR)/mgcfd_sycl_main.o \
                    $(OBJ_DIR)/mgcfd_sycl_kernels.o
@@ -462,6 +471,9 @@ OP2_MPI_CA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_main.o \
 
 OP2_MPI_CA_OPT_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_opt_main.o \
                    $(OBJ_DIR)/mgcfd_mpi_ca_opt_kernels.o
+
+OP2_MPI_CA_OPT_LAT_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_opt_lat_main.o \
+                   $(OBJ_DIR)/mgcfd_mpi_ca_opt_lat_kernels.o
 
 OP2_MPI_CA_CUDA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_cuda_main.o \
                    $(OBJ_DIR)/mgcfd_mpi_ca_kernels_cu.o
@@ -653,6 +665,21 @@ $(BIN_DIR)/mgcfd_mpi_ca_opt: $(OP2_MPI_CA_OPT_OBJECTS)
 		-lm $(OP2_LIB) -lop2_mpi_comm_avoid $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
 
+## MPI_CA SINGLE_DAT LATENCY_HIDING
+$(OBJ_DIR)/mgcfd_mpi_ca_opt_lat_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DCOMM_AVOID -DSINGLE_DAT_VAR -DENABLE_LATENCY_HIDING \
+	     -DMPI_ON -c -o $@ $^
+$(OBJ_DIR)/mgcfd_mpi_ca_opt_lat_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(SEQ_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DCOMM_AVOID -DSINGLE_DAT_VAR -DENABLE_LATENCY_HIDING \
+	     -DMPI_ON -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
+$(BIN_DIR)/mgcfd_mpi_ca_opt_lat: $(OP2_MPI_CA_OPT_LAT_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+		-o $@
+
 ## SLOPE + MPI_CA
 $(OBJ_DIR)/mgcfd_slope_mpi_ca_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
@@ -687,6 +714,23 @@ $(BIN_DIR)/mgcfd_slope_mpi_ca_opt_seq: $(OP2_SLOPE_MPI_CA_OPT_SEQ_OBJECTS)
 		-lm $(OP2_LIB) -lop2_mpi_comm_avoid $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \
 		-o $@
 
+## SLOPE + MPI_CA SINGLE_DAT - MPI_ONLY - LATENCY_HIDING
+$(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_seq_lat_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC)  -DSLOPE -DOP2 -DCOMM_AVOID -DSINGLE_DAT_VAR  -DSLOPE_MPI_ONLY -DENABLE_LATENCY_HIDING \
+		 $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
+	     -DMPI_ON -c -o $@ $^
+$(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_seq_lat_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(SEQ_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DSLOPE -DOP2 -DCOMM_AVOID -DSINGLE_DAT_VAR -DSLOPE_MPI_ONLY -DENABLE_LATENCY_HIDING \
+		 $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
+	     -Iopenmp -DMPI_ON -c -o $@ $(SRC_DIR)/../seq/_seqkernels.cpp
+$(BIN_DIR)/mgcfd_slope_mpi_ca_opt_seq_lat: $(OP2_SLOPE_MPI_CA_OPT_SEQ_LAT_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \
+		-o $@
+
 
 ## SLOPE + MPI_CA SINGLE_DAT
 $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_main.o: $(OP2_MAIN_SRC)
@@ -700,6 +744,23 @@ $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $
 	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
 		-Iopenmp  -DMPI_ON -c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp 2>&1 | tee $@.log
 $(BIN_DIR)/mgcfd_slope_mpi_ca_opt: $(OP2_SLOPE_MPI_CA_OPT_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \
+		-o $@
+
+## SLOPE + MPI_CA SINGLE_DAT LATENCY_HIDING
+$(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_lat_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE -DCOMM_AVOID -DOP2 -DSINGLE_DAT_VAR -DENABLE_LATENCY_HIDING \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
+		-DMPI_ON  -c -o $@ $^ 2>&1 | tee $@.log
+$(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_lat_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(SLOPE_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $(MGCFD_INCS) -DSLOPE -DCOMM_AVOID -DOP2 -DSINGLE_DAT_VAR -DENABLE_LATENCY_HIDING \
+	    $(OP2_INC) $(HDF5_INC) $(PARMETIS_INC) $(PTSCOTCH_INC) $(SLOPE_INC) $(METIS_INC) \
+		-Iopenmp  -DMPI_ON -c -o $@ $(SRC_DIR)/../openmp/_kernels.cpp 2>&1 | tee $@.log
+$(BIN_DIR)/mgcfd_slope_mpi_ca_opt_lat: $(OP2_SLOPE_MPI_CA_OPT_LAT_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_mpi_comm_avoid -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \

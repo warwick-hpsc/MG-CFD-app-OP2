@@ -185,10 +185,11 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
     
 
     for(int i = 0; i < nchains; i++){
-
 #ifdef SINGLE_DAT_VAR
-      n_lower0 = get_set_core_size(set, i * nloops + 1);
-      n_lower1 = get_set_core_size(set, i * nloops + 2);
+      #ifdef ENABLE_LATENCY_HIDING
+            n_lower0 = get_set_core_size(set, i * nloops + 1);
+            n_lower1 = get_set_core_size(set, i * nloops + 2);
+      #endif
 #endif
       ca_loop_test_write_kernel("ca_test_write_kernel",set,
                             args0[i][0], args0[i][1], 0, n_lower0);
@@ -206,8 +207,11 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
     for(int i = 0; i < nchains; i++){
 
 #ifdef SINGLE_DAT_VAR
-      // n_lower0 = 0;
-      n_lower0 = get_set_core_size(set, i * nloops + 1);
+      #ifdef ENABLE_LATENCY_HIDING
+            n_lower0 = get_set_core_size(set, i * nloops + 1);
+      #else
+            n_lower0 = 0;
+      #endif
 #else
       n_lower0 = get_set_core_size(set, nloops - 1);
 #endif
@@ -223,8 +227,11 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
       }
 
 #ifdef SINGLE_DAT_VAR
-      // n_lower1 =0;
-      n_lower1 = get_set_core_size(set, i * nloops + 2);
+      #ifdef ENABLE_LATENCY_HIDING
+            n_lower1 = get_set_core_size(set, i * nloops + 2);
+      #else
+             n_lower1 =0;
+      #endif
 #else
       n_lower1 = get_set_core_size(set, nloops);
 #endif
