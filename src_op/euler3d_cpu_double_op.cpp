@@ -584,6 +584,7 @@ int main(int argc, char** argv)
             for(int l = 1; l <= nhalos; l++){
                 op_mpi_add_nhalos_map(p_edge_to_nodes[i], l);
             }
+            op_mpi_add_nhalos_map_calc(p_edge_to_nodes[i], nloops);
 #endif
 #endif
         }
