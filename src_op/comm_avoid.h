@@ -230,7 +230,7 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
       #ifdef ENABLE_LATENCY_HIDING
             n_lower1 = get_set_core_size(set, i * nloops + 2);
       #else
-             n_lower1 =0;
+            n_lower1 = 0;
       #endif
 #else
       n_lower1 = get_set_core_size(set, nloops);

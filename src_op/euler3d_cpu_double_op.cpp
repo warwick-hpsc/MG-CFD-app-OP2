@@ -459,14 +459,18 @@ int main(int argc, char** argv)
     op_printf("nchains=%d\n", nchains);
     int nloops = 2;
 #ifdef COMM_AVOID
-    #ifdef SINGLE_DAT_VAR
-        #ifdef ENABLE_LATENCY_HIDING
-            int nhalos = nloops * nchains;
+    #ifdef SLOPE
+        int nhalos = nloops;
+    #else
+        #ifdef SINGLE_DAT_VAR
+            #ifdef ENABLE_LATENCY_HIDING
+                int nhalos = nloops * nchains;
+            #else
+                int nhalos = nloops;
+            #endif
         #else
             int nhalos = nloops;
         #endif
-    #else
-        int nhalos = nloops;
     #endif
     op_printf("nchains=%d nloops=%d nhalos=%d\n", nchains, nloops, nhalos); 
 #endif
@@ -628,7 +632,7 @@ int main(int argc, char** argv)
             for(int l = 0; l < nhalos; l++){
                 // release memory of unused augmented maps which were created to have multiple core sizes
                 if(l != 0 && l != nloops - 1){
-                    op_printf("op_remove_aug_map l = %d\n", l);
+                    // op_printf("op_remove_aug_map l = %d\n", l);
                     op_remove_aug_map(p_edge_to_nodes[i], l);
                 }
             }
