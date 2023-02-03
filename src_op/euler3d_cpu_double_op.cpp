@@ -632,7 +632,7 @@ int main(int argc, char** argv)
             for(int l = 0; l < nhalos; l++){
                 // release memory of unused augmented maps which were created to have multiple core sizes
                 if(l != 0 && l != nloops - 1){
-                    // op_printf("op_remove_aug_map l = %d\n", l);
+                    op_printf("op_remove_aug_map l = %d\n", l);
                     op_remove_aug_map(p_edge_to_nodes[i], l);
                 }
             }

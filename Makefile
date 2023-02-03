@@ -679,7 +679,7 @@ $(BIN_DIR)/mgcfd_mpi_ca_opt_lat: $(OP2_MPI_CA_OPT_LAT_OBJECTS)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
 		-lm $(OP2_LIB) -lop2_mpi_comm_avoid $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
-
+		
 ## SLOPE + MPI_CA
 $(OBJ_DIR)/mgcfd_slope_mpi_ca_main.o: $(OP2_MAIN_SRC)
 	mkdir -p $(OBJ_DIR)
