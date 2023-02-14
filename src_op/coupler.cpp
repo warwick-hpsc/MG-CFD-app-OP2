@@ -334,6 +334,8 @@ int main(int argc, char** argv){
 	        MPI_Recv(&left_nodes_size, 1, MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	        MPI_Recv(&right_nodes_size, 1, MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
+			int left_right_size = (int) ((left_nodes_size + right_nodes_size)/2);
+
 			double adjusted_sizes_left = ceil((left_nodes_size/34000)/4);
 			double adjusted_sizes_right = ceil((right_nodes_size/34000)/4);
 
@@ -367,22 +369,23 @@ int main(int argc, char** argv){
                 coupler_vars = 1;
             }
 
-	        double *left_p_variables = (double *) malloc(left_nodes_size * coupler_vars * sizeof(double));
-	        double *right_p_variables = (double *) malloc(right_nodes_size * coupler_vars * sizeof(double));
+	        double *left_p_variables_recv = (double *) malloc(left_nodes_size * coupler_vars * sizeof(double));
+	        double *right_p_variables_recv = (double *) malloc(right_nodes_size * coupler_vars * sizeof(double));
+			double *left_p_variables = (double *) malloc(left_right_size * coupler_vars * sizeof(double));
+			double *right_p_variables = (double *) malloc(left_right_size * coupler_vars * sizeof(double));
 
 			int total_ranks = units[unit_count].coupler_ranks[0].size();
 			int root_rank = units[unit_count].coupler_ranks[0][0];
 
-			double left_nodes_size_chunks = left_nodes_size / total_ranks;
-			double right_nodes_size_chunks = right_nodes_size / total_ranks;
+			double left_right_size_chunks = left_right_size / total_ranks;
 
 			double vector_counter;
 			int sub_count;
 			double vector_counter_max;
 
 			//p_variables storage for scatter/gather
-			double *left_p_variables_sg = (double *) malloc((left_nodes_size_chunks) * coupler_vars * sizeof(double));
-	        double *right_p_variables_sg = (double *) malloc((right_nodes_size_chunks) * coupler_vars * sizeof(double));
+			double *left_p_variables_sg = (double *) malloc((left_right_size_chunks) * coupler_vars * sizeof(double));
+	        double *right_p_variables_sg = (double *) malloc((left_right_size_chunks) * coupler_vars * sizeof(double));
 
 			//p_variable vectors to represent brute force search
 			std::vector< std::vector<double> > left_vector_of_state_vars;
@@ -398,8 +401,8 @@ int main(int argc, char** argv){
 			std::vector<double> node_state_vars_temp;
 
 			//set up some random data for cht interpolation
-			int ar_size_max = ((left_nodes_size + right_nodes_size)/2)*0.9;
-			if(rank == 0 && debug == true){
+			int ar_size_max = left_right_size*0.9;
+			if(rank == root_rank && debug == true){
 				printf("size is %d\n", ar_size_max);
 			}
 			srand((unsigned)time(NULL));
@@ -413,6 +416,7 @@ int main(int argc, char** argv){
 			std::chrono::duration<double> total_seconds;
 			std::chrono::duration<double> non_coupling_secs;
 			std::chrono::duration<double> pure_compute_sec;
+			std::chrono::duration<double> wait_sec;
 			std::chrono::time_point<std::chrono::steady_clock> start;
 			std::chrono::time_point<std::chrono::steady_clock> start1;
 
@@ -422,21 +426,41 @@ int main(int argc, char** argv){
 				if(rank == root_rank){
 					printf("Coupler cycle %d starting\n", cycle_counter+1);
 					start = std::chrono::steady_clock::now();
-					MPI_Recv(left_p_variables, left_nodes_size * coupler_vars, MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-					MPI_Recv(right_p_variables, right_nodes_size * coupler_vars, MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+					MPI_Recv(left_p_variables_recv, left_nodes_size * coupler_vars, MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+					start1 = std::chrono::steady_clock::now();
+					MPI_Recv(right_p_variables_recv, right_nodes_size * coupler_vars, MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 					auto end = std::chrono::steady_clock::now();
 					non_coupling_secs += (end-start);
+					wait_sec = (end-start1);
+					//sort the left and right variables to be roughly the avg of the two sides
+					int counter = 0;
+					for(int i = 0; i < left_nodes_size * coupler_vars; i++){
+						if(counter < left_right_size * coupler_vars){
+							left_p_variables[counter] = left_p_variables_recv[i];
+						}else if(counter < 2 * left_nodes_size * coupler_vars){
+							right_p_variables[counter-(left_right_size * coupler_vars)] = left_p_variables_recv[i];
+						}
+						counter++;
+					}
+					for(int i = 0; i < right_nodes_size * coupler_vars; i++){
+						if(counter < left_right_size * coupler_vars){
+							left_p_variables[counter] = right_p_variables_recv[i];
+						}else if(counter < 2 * left_right_size * coupler_vars){
+							right_p_variables[counter-(left_right_size * coupler_vars)] = right_p_variables_recv[i];
+						}
+						counter++;
+					}
 					start = std::chrono::steady_clock::now();
 		        }
 
 				MPI_Barrier(coupler_comm);
-				MPI_Scatter(left_p_variables, (left_nodes_size_chunks * coupler_vars), MPI_DOUBLE, left_p_variables_sg, (left_nodes_size_chunks * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+				MPI_Scatter(left_p_variables, (left_right_size_chunks * coupler_vars), MPI_DOUBLE, left_p_variables_sg, (left_right_size_chunks * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
 				MPI_Barrier(coupler_comm);
-				MPI_Scatter(right_p_variables, (right_nodes_size_chunks * coupler_vars), MPI_DOUBLE, right_p_variables_sg, (right_nodes_size_chunks * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+				MPI_Scatter(right_p_variables, (left_right_size_chunks * coupler_vars), MPI_DOUBLE, right_p_variables_sg, (left_right_size_chunks * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
 				
 				if(MUM == 0){
-					MPI_Bcast(left_p_variables, left_nodes_size * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
-					MPI_Bcast(right_p_variables, right_nodes_size * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
+					MPI_Bcast(left_p_variables, left_right_size * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
+					MPI_Bcast(right_p_variables, left_right_size * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
 				}
 
 				if(rank == root_rank){
@@ -447,9 +471,9 @@ int main(int argc, char** argv){
 				if(units[unit_count].coupling_type == 'S' || cycle_counter == 0){
 					if((cycle_counter % search_freq) == 0){
 						if(MUM == 0){
-							vector_counter_max = std::min(left_nodes_size, right_nodes_size);//this is size of mesh recieved from broadcast
+							vector_counter_max = left_right_size;//this is size of mesh recieved from broadcast
 						}else{
-							vector_counter_max = std::min(left_nodes_size_chunks, right_nodes_size_chunks);//this is size of mesh recieved from scatter
+							vector_counter_max = left_right_size_chunks;//this is size of mesh recieved from scatter
 						}
 						if(!fastsearch){
 							for(int l = 0; l < left_search_scaling; l++){
@@ -495,9 +519,9 @@ int main(int argc, char** argv){
 
 					if((cycle_counter % search_freq) == 0){
 						if(MUM == 0){
-							vector_counter_max = std::min(left_nodes_size, right_nodes_size);//this is size of mesh recieved from broadcast
+							vector_counter_max = left_right_size;//this is size of mesh recieved from broadcast
 						}else{
-							vector_counter_max = std::min(left_nodes_size_chunks, right_nodes_size_chunks);//this is size of mesh recieved from scatter
+							vector_counter_max = left_right_size_chunks;//this is size of mesh recieved from scatter
 						}
 						if(!fastsearch){
 							for(int l = 0; l < right_search_scaling; l++){
@@ -542,7 +566,7 @@ int main(int argc, char** argv){
 					}
 					//this routine is used to convert the tree in the based search to a vector so the interpolation routine can run as before
 					if(fastsearch){
-						vector_counter_max = std::min(left_nodes_size_chunks, right_nodes_size_chunks);
+						vector_counter_max = left_right_size_chunks;
 						left_vector_of_state_vars.clear();
 						right_vector_of_state_vars.clear();
 						for(int i=0; i<(vector_counter_max/total_ranks); i++){
@@ -556,7 +580,7 @@ int main(int argc, char** argv){
 					}
 				}
 				//rendezvous routines end
-				
+	
 				//interpolate routine start
 				if(units[unit_count].coupling_type == 'S' || units[unit_count].coupling_type == 'O'){
 					node_state_vars_left.clear();
@@ -564,7 +588,7 @@ int main(int argc, char** argv){
 					node_state_vars_temp.clear();
 					vector_counter = 0;
 					sub_count = 0;
-					vector_counter_max = std::min(left_nodes_size_chunks, right_nodes_size_chunks);//this is size of mesh recieved from scatter
+					vector_counter_max = left_right_size_chunks;//this is size of mesh recieved from scatter
 					while(sub_count < (total_ranks*(interp_scaling/((adjusted_sizes_left + adjusted_sizes_right)/2)))){//TODO: changes the adjusted_sizes to whichever is lower
 						while(vector_counter < vector_counter_max/total_ranks){
 							node_state_vars_left = left_vector_of_state_vars.at(vector_counter);
@@ -596,14 +620,14 @@ int main(int argc, char** argv){
 							quad_array_lt.at(i) = (quad_array_lt.at(i)/4);
 						}
 					}
-					vector_counter_max = (left_nodes_size_chunks + right_nodes_size_chunks)/2;//this is size of mesh recieved from scatter
+					vector_counter_max = left_right_size_chunks;//this is size of mesh recieved from scatter
 					for(int l = 0; l < 7; l++){
 						for(int b = 0; b < vector_counter_max/5; b++){
 							int temp = 0;
 							for(int i = 0; i < 3; i++){
 								if(data_ran[b][i] != data_ran[b][i % 3 + 1]){
 									temp = temp + 1;
-									quad_array_rt.at(b % (ar_size_max/20)) = data_ran[b][temp];
+									quad_array_rt.at(b % (std::max(ar_size_max/20,1))) = data_ran[b][temp];
 								}
 							}
 						}
@@ -613,16 +637,16 @@ int main(int argc, char** argv){
 					auto end1 = std::chrono::steady_clock::now();
 					pure_compute_sec = (end1-start1);
 				}
-
+				
 				//interpolate routine end
 				MPI_Barrier(coupler_comm);
-		        MPI_Gather(left_p_variables_sg, (left_nodes_size_chunks * coupler_vars), MPI_DOUBLE, left_p_variables, (left_nodes_size_chunks * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+		        MPI_Gather(left_p_variables_sg, (left_right_size_chunks * coupler_vars), MPI_DOUBLE, left_p_variables, (left_right_size_chunks * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
 				MPI_Barrier(coupler_comm);
-		        MPI_Gather(right_p_variables_sg, (right_nodes_size_chunks * coupler_vars), MPI_DOUBLE, right_p_variables, (right_nodes_size_chunks * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
-
+		        MPI_Gather(right_p_variables_sg, (left_right_size_chunks * coupler_vars), MPI_DOUBLE, right_p_variables, (left_right_size_chunks * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
+				
 				if(rank == root_rank){
-		            MPI_Send(right_p_variables, right_nodes_size * coupler_vars, MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
-		            MPI_Send(left_p_variables, left_nodes_size * coupler_vars, MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
+		            MPI_Send(right_p_variables_recv, right_nodes_size * coupler_vars, MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
+		            MPI_Send(left_p_variables_recv, left_nodes_size * coupler_vars, MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
 					auto end = std::chrono::steady_clock::now();
 					total_seconds += (end-start);
 					printf("Coupler cycle %d ending\n", cycle_counter+1);
@@ -631,7 +655,8 @@ int main(int argc, char** argv){
 			MPI_Barrier(coupler_comm);
 			if(rank == root_rank){
 				printf("total coupling time is %f\n", total_seconds.count());
-				printf("total time not coupling is %f\n", non_coupling_secs.count());
+				printf("total time waiting %f\n", non_coupling_secs.count());
+				printf("time between left send and right send %f\n",wait_sec.count());
 				printf("total pure compute time is %f\n", pure_compute_sec.count());
 			}
 			MPI_Finalize();

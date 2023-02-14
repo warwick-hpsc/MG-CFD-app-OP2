@@ -673,8 +673,8 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
     null_check = op_get_size(op_nodes[0]);
     nodes_size = null_check;
-
-    boundary_nodes_size = round(nodes_size * 0.0042);//set the boundary size
+	
+    boundary_nodes_size = 0;//initialise the boundary size
 
     
     
@@ -791,14 +791,8 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 					coupler_vars = 0;
 					if(units[unit_count_2].coupling_type == 'S'){
 						coupler_vars = 5;
-                        boundary_nodes_size = round(nodes_size * 0.0042);
 					}else if(units[unit_count_2].coupling_type == 'C' || units[unit_count_2].coupling_type == 'O'){
 						coupler_vars = 1;
-                        if(units[unit_count_2].coupling_type == 'C'){
-                            boundary_nodes_size = round(nodes_size * 0.0042);
-                        }else{
-                            boundary_nodes_size = round(nodes_size * 0.05);
-                        }
 					}
 					start1 = std::chrono::steady_clock::now();
                     if(hide_search == true){
