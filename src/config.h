@@ -66,7 +66,7 @@ typedef struct {
     char* input_file_directory;
     char* output_file_prefix;
 
-    #ifdef PAPI
+    #if defined PAPI || defined LIKWID
     char* papi_config_file;
     #endif
 
@@ -139,7 +139,7 @@ inline void set_config_defaults() {
     conf.output_file_prefix = (char*)malloc(sizeof(char));
     conf.output_file_prefix[0] = '\0';
 
-    #ifdef PAPI
+    #if defined PAPI || defined LIKWID
     conf.papi_config_file = (char*)malloc(sizeof(char));
     conf.papi_config_file[0] = '\0';
     #endif
@@ -183,7 +183,7 @@ inline void set_config_param(const char* const key, const char* const value) {
         conf.output_file_prefix = strdup(value);
     }
 
-    #ifdef PAPI
+    #if defined PAPI || defined LIKWID
     else if (strcmp(key,"papi-config-file")==0) {
         conf.papi_config_file = strdup(value);
     }
@@ -325,7 +325,7 @@ inline void read_config() {
     //     set_config_param(&conf, "input_file_directory", input_file_directory_corrected.c_str());
     // }
 
-    #ifdef PAPI
+    #if defined PAPI || defined LIKWID
     if (conf.papi_config_file != std::string("") && conf.papi_config_file[0] != '/') {
         set_config_param("papi-config-file", (std::string(conf.input_file_directory) + "/" + conf.papi_config_file).c_str());
     }

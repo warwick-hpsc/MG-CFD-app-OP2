@@ -6,14 +6,24 @@
 # directory.
 #
 
+# LIKWID = 1
+# PAPI = 1
 # DEBUG = 1
 # ITT_NOTIFY = 1
 # VTUNE_INSTALL_PATH = /opt/intel/oneapi/2021.3/vtune/latest
 # VTUNE_INSTALL_PATH = /opt/intel/oneapi/vtune/2021.7.1
 
+PAPI_INSTALL_PATH = /home/u1991323/warwick/libs/papi/
+LIKWID_INSTALL_PATH = /home/u1991323/warwick/libs/likwid/
+
 ifdef VTUNE_INSTALL_PATH
 	VTUNE_INC = -I$(VTUNE_INSTALL_PATH)/include
 	VTUNE_LIB = -L$(VTUNE_INSTALL_PATH)/lib64/
+endif
+
+ifdef PAPI_INSTALL_PATH
+	PAPI_INC = -I$(PAPI_INSTALL_PATH)/include
+	PAPI_LIB = -L$(PAPI_INSTALL_PATH)/lib/
 endif
 
 ifdef SLOPE_INSTALL_PATH
@@ -339,8 +349,17 @@ MGCFD_INCS := -Isrc -Isrc/Kernels
 
 # Enable PAPI flag to enable performance counter monitoring with PAPI library:
 ifdef PAPI
-  MGCFD_INCS += -DPAPI
-  MGCFD_LIBS := -lpapi -lpfm
+  MGCFD_INCS += $(PAPI_INC) -DPAPI
+  MGCFD_LIBS := $(PAPI_LIB) -lpapi -lpfm
+endif
+
+ifdef LIKWID
+  MGCFD_INCS += -DLIKWID -DLIKWID_PERFMON
+  MGCFD_LIBS += -llikwid -lm -pthread
+  ifdef LIKWID_INSTALL_PATH
+    MGCFD_INCS += -I$(LIKWID_INSTALL_PATH)/include
+    MGCFD_LIBS += -L$(LIKWID_INSTALL_PATH)/lib
+  endif
 endif
 
 ifdef ITT_NOTIFY

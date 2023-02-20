@@ -50,6 +50,18 @@ int** events = NULL;
 #include "papi_funcs.h"
 #endif
 
+#ifdef LIKWID
+#include "likwid_funcs.h"
+long_long** flux_kernel_event_counts = NULL;
+long_long** ustream_kernel_event_counts = NULL;
+int n_events;
+char** event_names = NULL;
+int likwid_gid;
+CpuTopology_t likwid_topo;
+int n_cpus_monitored;
+int last_cpu_id;
+#endif
+
 // #define LOG_PROGRESS
 
 // OP2:
@@ -354,6 +366,11 @@ int main(int argc, char** argv)
     #ifdef PAPI
         init_papi();
         load_papi_events();
+    #endif
+
+    #ifdef LIKWID
+        init_likwid();
+        load_likwid_events();
     #endif
     double file_io_times[levels];
     for (int i=0; i<levels; i++) {
@@ -852,8 +869,8 @@ int main(int argc, char** argv)
     #ifdef MPI_ON
     for (int l = 0; l < levels; l++) {
         // use only when need to calculate dat sizes
-        calculate_dat_sizes(my_rank);
-        calculate_set_sizes(my_rank);
+        // calculate_dat_sizes(my_rank);
+        // calculate_set_sizes(my_rank);
     }
     #endif
     #endif
@@ -933,6 +950,10 @@ int main(int argc, char** argv)
     __itt_resume(); // slope only
 #endif
 
+#ifdef LIKWID
+    my_likwid_start();
+#endif
+
 #ifndef MPI_ON
             for(int nc = 0; nc < nchains; nc++){
 #ifdef SINGLE_DAT_VAR
@@ -994,6 +1015,10 @@ int main(int argc, char** argv)
     }
 #endif
 
+#ifdef LIKWID
+    my_likwid_stop(flux_kernel_event_counts);
+#endif
+
 #else   // SLOPE
 
             int map_index = nhalos;
@@ -1044,6 +1069,10 @@ int main(int argc, char** argv)
 
 #ifdef ITT_NOTIFY
             __itt_resume();     // ca + slope opt, // ca + slope
+#endif
+
+#ifdef LIKWID
+            my_likwid_start();
 #endif
 
             for(int nc = 0; nc < nchains; nc++){
@@ -1184,6 +1213,10 @@ int main(int argc, char** argv)
         }
 #endif
 
+#ifdef LIKWID
+    my_likwid_stop(flux_kernel_event_counts);
+#endif
+
 #ifdef ENABLE_LATENCY_HIDING
             op_mpi_wait_all_chained(nargs_ex0, args_ex0, 1);    // no latency hiding for single var dat
 
@@ -1253,6 +1286,10 @@ int main(int argc, char** argv)
             }
 #endif
 
+#ifdef LIKWID
+    my_likwid_stop(flux_kernel_event_counts);
+#endif
+
 #endif  // ENABLE_LATENCY_HIDING
 
             op_mpi_set_dirtybit(nargs1, args1[DEFAULT_VARIABLE_INDEX]);
@@ -1261,6 +1298,10 @@ int main(int argc, char** argv)
 
 #ifdef ITT_NOTIFY
             __itt_resume(); // ca only
+#endif
+
+#ifdef LIKWID
+            my_likwid_start();
 #endif
             test_comm_avoid("ca_test_comm_avoid", p_variables[level], p_edge_weights[level], p_dummy_fluxes[level], p_edge_to_nodes[level], op_edges[level],
                     nloops, nchains, DEFAULT_VARIABLE_INDEX);
@@ -1272,11 +1313,19 @@ int main(int argc, char** argv)
             }
 #endif
 
+#ifdef LIKWID
+    my_likwid_stop(flux_kernel_event_counts);
+#endif
+
 #endif  // SLOPE
 #else   // COMM_AVOID
 
 #ifdef ITT_NOTIFY
             __itt_resume(); // op only
+#endif
+
+#ifdef LIKWID
+            my_likwid_start();
 #endif
             for(int nc = 0; nc < nchains; nc++){
 #ifdef SINGLE_DAT_VAR
@@ -1295,13 +1344,16 @@ int main(int argc, char** argv)
                             op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
                             op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));          
             }
-
 #ifdef ITT_NOTIFY
             if(i == conf.num_cycles){
                 __itt_detach();
             }else{
                 __itt_pause(); // op only
             }
+#endif
+
+#ifdef LIKWID
+            my_likwid_stop(flux_kernel_event_counts);
 #endif
 
 #endif  // COMM_AVOID
@@ -1364,6 +1416,11 @@ int main(int argc, char** argv)
             if (bad_val_count > 0) {
                 op_printf("Bad variable values detected, aborting\n");
                 op_exit();
+
+                #ifdef LIKWID
+                    clear_likwid();
+                #endif
+                
                 return 1;
             }
             op_printf("\n");
@@ -1560,6 +1617,13 @@ int main(int argc, char** argv)
             conf.output_file_prefix);
     #endif
 
+    #ifdef LIKWID
+        dump_likwid_counters_to_file(
+            flux_kernel_event_counts, 
+            ustream_kernel_event_counts,
+            conf.output_file_prefix);
+    #endif
+
     #ifdef DUMP_EXT_PERF_DATA
         dump_perf_data_to_file(
             my_rank, 
@@ -1587,6 +1651,10 @@ int main(int argc, char** argv)
         conf.output_file_prefix);
     #ifndef DUMP_EXT_PERF_DATA
         }
+    #endif
+
+    #ifdef LIKWID
+        clear_likwid();
     #endif
 
     op_printf("-----------------------------------------------------\n");

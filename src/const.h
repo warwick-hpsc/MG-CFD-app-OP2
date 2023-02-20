@@ -18,7 +18,12 @@
 
 #ifdef __clang__
 #define restrict __restrict__
+#elif defined __GNUC__
+#define restrict __restrict__
 #endif
+
+
+#define TABLE_STRING_LENGTH 128
 
 /*
  * Options
