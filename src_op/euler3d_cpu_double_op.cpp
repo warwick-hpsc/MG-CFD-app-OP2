@@ -942,32 +942,35 @@ int main(int argc, char** argv)
                         op_arg_dat(p_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
                         op_arg_dat(p_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));
 
-#ifdef COMM_AVOID
+#ifdef COMM_AVOID   // ========================
 
-#ifdef SLOPE
+    #ifdef SLOPE    // ---------------------
 
-#ifdef ITT_NOTIFY
-    __itt_resume(); // slope only
-#endif
+        #ifndef MPI_ON
 
-#ifdef LIKWID
-    my_likwid_start();
-#endif
+            #ifdef ITT_NOTIFY
+                __itt_resume(); // slope only
+            #endif
+            #ifdef LIKWID
+                my_likwid_start();
+            #endif
+            #ifdef PAPI
+                my_papi_start();
+            #endif
 
-#ifndef MPI_ON
             for(int nc = 0; nc < nchains; nc++){
-#ifdef SINGLE_DAT_VAR
+            #ifdef SINGLE_DAT_VAR
                 int var_index = 0;
-#else
+            #else
                 int var_index = nc;
-#endif  // SINGLE_DAT_VAR
+            #endif  // SINGLE_DAT_VAR
                 for (int color = 0; color < ncolors; color++) {
                     // for all tiles of this color
                     const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
 
-#ifndef SLOPE_MPI_ONLY
+                #ifndef SLOPE_MPI_ONLY
                     #pragma omp parallel for
-#endif
+                #endif
                     for (int j = 0; j < n_tiles_per_color; j++) {
 
                         tile_t* tile = exec_tile_at (exec[level], color, j);
@@ -1007,33 +1010,35 @@ int main(int argc, char** argv)
                 }
             }
 
-#ifdef ITT_NOTIFY
-    if(i == conf.num_cycles){
-        __itt_detach();
-    }else{
-        __itt_pause(); // slope only
-    }
-#endif
+            #ifdef ITT_NOTIFY
+                if(i == conf.num_cycles){
+                    __itt_detach();
+                }else{
+                    __itt_pause(); // slope only
+                }
+            #endif
+            #ifdef LIKWID
+                my_likwid_stop(flux_kernel_event_counts);
+            #endif
+            #ifdef PAPI
+                my_papi_stop(flux_kernel_event_counts);
+            #endif
 
-#ifdef LIKWID
-    my_likwid_stop(flux_kernel_event_counts);
-#endif
-
-#else   // SLOPE
+        #else   // MPI_ON
 
             int map_index = nhalos;
 
-#ifdef SINGLE_DAT_VAR
+        #ifdef SINGLE_DAT_VAR
             int nargs_ex0 = 1;
             op_arg args_ex0[1];
 
             for(int nc = 0; nc < 1; nc++){
-#else
+        #else
             int nargs_ex0 = nchains;
             op_arg args_ex0[nchains];
 
             for(int nc = 0; nc < nchains; nc++){
-#endif  // SINGLE_DAT_VAR
+        #endif  // SINGLE_DAT_VAR
                 args_ex0[nc] = op_arg_dat_halo(p_variables[level][nc],0,p_edge_to_nodes[level],5,"double",OP_READ,nhalos,map_index);
                 set_dat_dirty(&args_ex0[nc]);
             }
@@ -1045,11 +1050,11 @@ int main(int argc, char** argv)
             op_arg args1[nchains][5];
 
             for(int nc = 0; nc < nchains; nc++){
-#ifdef SINGLE_DAT_VAR
+        #ifdef SINGLE_DAT_VAR
             int var_index = 0;
-#else
+        #else
             int var_index = i;
-#endif  // SINGLE_DAT_VAR
+        #endif  // SINGLE_DAT_VAR
                 args0[nc][0] = op_arg_dat_halo(p_variables[level][var_index],0,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
                 args0[nc][1] = op_arg_dat_halo(p_variables[level][var_index],1,p_edge_to_nodes[level],5,"double",OP_INC,nhalos,map_index);
 
@@ -1061,33 +1066,35 @@ int main(int argc, char** argv)
             }
 
             op_mpi_halo_exchanges_chained(op_edges[level], nargs_ex0, args_ex0, nhalos, 1);
-#ifdef SINGLE_DAT_VAR   // no latency hiding for single var dat
-    #ifndef ENABLE_LATENCY_HIDING
+    #ifdef SINGLE_DAT_VAR   // no latency hiding for single var dat
+        #ifndef ENABLE_LATENCY_HIDING
             op_mpi_wait_all_chained(nargs_ex0, args_ex0, 1);
+        #endif
     #endif
-#endif
 
-#ifdef ITT_NOTIFY
+        #ifdef ITT_NOTIFY
             __itt_resume();     // ca + slope opt, // ca + slope
-#endif
-
-#ifdef LIKWID
+        #endif
+        #ifdef LIKWID
             my_likwid_start();
-#endif
+        #endif
+        #ifdef PAPI
+            my_papi_start();
+        #endif
 
             for(int nc = 0; nc < nchains; nc++){
-#ifdef SINGLE_DAT_VAR
+        #ifdef SINGLE_DAT_VAR
             int var_index = 0;
-#else
+        #else
             int var_index = nc;
-#endif  // SINGLE_DAT_VAR
+        #endif  // SINGLE_DAT_VAR
                 for (int color = 0; color < ncolors; color++) {
                     // for all tiles of this color
                     const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
 
-#ifndef SLOPE_MPI_ONLY
+                #ifndef SLOPE_MPI_ONLY
                     #pragma omp parallel for
-#endif
+                #endif
                     for (int j = 0; j < n_tiles_per_color; j++) {
 
                         tile_t* tile = exec_tile_at (exec[level], color, j, LOCAL);
@@ -1098,15 +1105,15 @@ int main(int argc, char** argv)
                         int tile_id = 0;
 
                         // loop test_write_kernel
-#ifdef SINGLE_DAT_VAR
-    #ifdef ENABLE_LATENCY_HIDING
+                #ifdef SINGLE_DAT_VAR
+                    #ifdef ENABLE_LATENCY_HIDING
                         tile_id = 2 * nc + 0;
-    #else
+                    #else
                         tile_id = 0;
-    #endif
-#else
+                    #endif
+                #else
                         tile_id = 0;
-#endif
+                #endif
                         iterations_list& le2n_0 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         loop_size = tile_loop_size (tile, tile_id);
 
@@ -1123,15 +1130,15 @@ int main(int argc, char** argv)
                         }
 
                         // loop test_read_kernel
-#ifdef SINGLE_DAT_VAR
-    #ifdef ENABLE_LATENCY_HIDING
+                #ifdef SINGLE_DAT_VAR
+                    #ifdef ENABLE_LATENCY_HIDING
                         tile_id = 2 * nc + 1;
-    #else
+                    #else
                         tile_id = 1;
-    #endif
-#else
+                    #endif
+                #else
                         tile_id = 1;
-#endif
+                #endif
                         iterations_list& le2n_1 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         iterations_list& iterations_1 = tile_get_iterations (tile, tile_id);
                         loop_size = tile_loop_size (tile, tile_id);
@@ -1153,16 +1160,16 @@ int main(int argc, char** argv)
                     }
                 }
 
-#ifdef SINGLE_DAT_VAR
-    #ifndef ENABLE_LATENCY_HIDING
+        #ifdef SINGLE_DAT_VAR
+            #ifndef ENABLE_LATENCY_HIDING
                 for (int color = 0; color < ncolors; color++) {
                     // for all tiles of this color
                     int var_index = 0;
                     const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
 
-#ifndef SLOPE_MPI_ONLY
+                #ifndef SLOPE_MPI_ONLY
                     #pragma omp parallel for
-#endif
+                #endif
                     for (int j = 0; j < n_tiles_per_color; j++) {
 
                         tile_t* tile = exec_tile_at (exec[level], color, j, EXEC_HALO);
@@ -1201,38 +1208,28 @@ int main(int argc, char** argv)
                         }
                     }
                 }
-    #endif // ENABLE_LATENCY_HIDING
-#endif  // SINGLE_DAT_VAR
+            #endif // ENABLE_LATENCY_HIDING
+        #endif  // SINGLE_DAT_VAR
             }
 
-#ifdef ITT_NOTIFY
-        if(i == conf.num_cycles){
-            __itt_detach();
-        }else{
-            __itt_pause(); // ca + slope opt
-        }
-#endif
+    
 
-#ifdef LIKWID
-    my_likwid_stop(flux_kernel_event_counts);
-#endif
-
-#ifdef ENABLE_LATENCY_HIDING
+        #ifdef ENABLE_LATENCY_HIDING
             op_mpi_wait_all_chained(nargs_ex0, args_ex0, 1);    // no latency hiding for single var dat
 
             for(int nc = 0; nc < nchains; nc++){
-#ifdef SINGLE_DAT_VAR
+            #ifdef SINGLE_DAT_VAR
                 int var_index = 0;
-#else
+            #else
                 int var_index = nc;
-#endif  // SINGLE_DAT_VAR;
+            #endif  // SINGLE_DAT_VAR;
                 for (int color = 0; color < ncolors; color++) {
                     // for all tiles of this color
                     const int n_tiles_per_color = exec_tiles_per_color (exec[level], color);
 
-#ifndef SLOPE_MPI_ONLY
+                #ifndef SLOPE_MPI_ONLY
                     #pragma omp parallel for
-#endif
+                #endif
                     for (int j = 0; j < n_tiles_per_color; j++) {
 
                         tile_t* tile = exec_tile_at (exec[level], color, j, EXEC_HALO);
@@ -1243,11 +1240,11 @@ int main(int argc, char** argv)
                         int tile_id = 0;
 
                         // loop test_write_kernel
-#ifdef SINGLE_DAT_VAR
+                    #ifdef SINGLE_DAT_VAR
                         tile_id = 2 * nc + 0;
-#else
+                    #else
                         tile_id = 0;
-#endif
+                    #endif
                         iterations_list& le2n_0 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         loop_size = tile_loop_size (tile, tile_id);
 
@@ -1258,11 +1255,11 @@ int main(int argc, char** argv)
                         }
 
                         // loop test_read_kernel
-#ifdef SINGLE_DAT_VAR
+                    #ifdef SINGLE_DAT_VAR
                         tile_id =  2 * nc + 1;
-#else
+                    #else
                         tile_id = 1;
-#endif
+                    #endif
                         iterations_list& le2n_1 = tile_get_local_map (tile, tile_id, sl_maps_edge_to_nodes[level]);
                         iterations_list& iterations_1 = tile_get_iterations (tile, tile_id);
                         loop_size = tile_loop_size (tile, tile_id);
@@ -1278,61 +1275,75 @@ int main(int argc, char** argv)
                     }
                 }
             }
-#ifdef ITT_NOTIFY
+        
+        #endif  // ENABLE_LATENCY_HIDING
+
+        #ifdef ITT_NOTIFY
             if(i == conf.num_cycles){
                 __itt_detach();
             }else{
-                __itt_pause(); // ca + slope
+                __itt_pause(); // ca + slope, // ca + slope opt
             }
-#endif
-
-#ifdef LIKWID
-    my_likwid_stop(flux_kernel_event_counts);
-#endif
-
-#endif  // ENABLE_LATENCY_HIDING
+        #endif
+        #ifdef LIKWID
+            my_likwid_stop(flux_kernel_event_counts);
+        #endif
+        #ifdef PAPI
+            my_papi_stop(flux_kernel_event_counts);
+        #endif
 
             op_mpi_set_dirtybit(nargs1, args1[DEFAULT_VARIABLE_INDEX]);
-#endif  // MPI_ON
-#else   // SLOPE
+        #endif  // MPI_ON
 
-#ifdef ITT_NOTIFY
+    #else   // SLOPE --------------------
+
+        #ifdef ITT_NOTIFY
             __itt_resume(); // ca only
-#endif
-
-#ifdef LIKWID
+        #endif
+        #ifdef LIKWID
             my_likwid_start();
-#endif
+        #endif
+        #ifdef PAPI
+            my_papi_start();
+        #endif
+
             test_comm_avoid("ca_test_comm_avoid", p_variables[level], p_edge_weights[level], p_dummy_fluxes[level], p_edge_to_nodes[level], op_edges[level],
                     nloops, nchains, DEFAULT_VARIABLE_INDEX);
-#ifdef ITT_NOTIFY
+
+        #ifdef ITT_NOTIFY
             if(i == conf.num_cycles){
                 __itt_detach();
             }else{
                 __itt_pause(); // ca only
             }
-#endif
+        #endif
+        #ifdef LIKWID
+            my_likwid_stop(flux_kernel_event_counts);
+        #endif
+        #ifdef PAPI
+            my_papi_stop(flux_kernel_event_counts);
+        #endif
 
-#ifdef LIKWID
-    my_likwid_stop(flux_kernel_event_counts);
-#endif
+    #endif  // SLOPE --------------------
 
-#endif  // SLOPE
-#else   // COMM_AVOID
+#else   // COMM_AVOID ========================
 
-#ifdef ITT_NOTIFY
+        #ifdef ITT_NOTIFY
             __itt_resume(); // op only
-#endif
-
-#ifdef LIKWID
+        #endif
+        #ifdef LIKWID
             my_likwid_start();
-#endif
+        #endif
+        #ifdef PAPI
+            my_papi_start();
+        #endif
+
             for(int nc = 0; nc < nchains; nc++){
-#ifdef SINGLE_DAT_VAR
+            #ifdef SINGLE_DAT_VAR
                 int var_index = 0;
-#else
+            #else
                 int var_index = nc;
-#endif  // SINGLE_DAT_VAR
+            #endif  // SINGLE_DAT_VAR
                 op_par_loop_test_write_kernel("ca_test_write_kernel",op_edges[level],
                             op_arg_dat(p_variables[level][var_index],0,p_edge_to_nodes[level],5,"double",OP_INC),
                             op_arg_dat(p_variables[level][var_index],1,p_edge_to_nodes[level],5,"double",OP_INC));
@@ -1344,24 +1355,26 @@ int main(int argc, char** argv)
                             op_arg_dat(p_dummy_fluxes[level],0,p_edge_to_nodes[level],5,"double",OP_INC),
                             op_arg_dat(p_dummy_fluxes[level],1,p_edge_to_nodes[level],5,"double",OP_INC));          
             }
-#ifdef ITT_NOTIFY
+        #ifdef ITT_NOTIFY
             if(i == conf.num_cycles){
                 __itt_detach();
             }else{
                 __itt_pause(); // op only
             }
-#endif
-
-#ifdef LIKWID
+        #endif
+        #ifdef LIKWID
             my_likwid_stop(flux_kernel_event_counts);
-#endif
+        #endif
+        #ifdef PAPI
+            my_papi_stop(flux_kernel_event_counts);
+        #endif
 
-#endif  // COMM_AVOID
-#ifdef SINGLE_DAT_VAR
+#endif  // COMM_AVOID ========================
+            #ifdef SINGLE_DAT_VAR
                 int diff = nchains;
-#else
+            #else
                 int diff = 1;
-#endif  // SINGLE_DAT_VAR
+            #endif  // SINGLE_DAT_VAR
             
             op_par_loop_test_negate_kernel("ca_test_negate_kernel",op_edges[level],
                         op_arg_dat(p_variables[level][DEFAULT_VARIABLE_INDEX],0,p_edge_to_nodes[level],5,"double",OP_INC),
