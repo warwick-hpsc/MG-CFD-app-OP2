@@ -174,7 +174,7 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
 #ifdef SINGLE_DAT_VAR
       // when using a single dat we can do latency hiding, if we reduce the core size gradually in the loop chain.
       // if we have nchains = 2, core sizes should be 1, 2, 3, 4 when the halo extension goes from 4, 3, 2, 1.
-      // we have to make sure the OP2 CA backend calulates corre sizes for these levels.
+      // we have to make sure the OP2 CA backend calulates core sizes for these levels.
       // if we consider core sizes as 1, 2, we cannot do latency hiding for the single dat version.
       int n_lower0 = 0;
       int n_lower1 = 0;
@@ -183,7 +183,6 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
       int n_lower1 = get_set_core_size(set, nloops);
 #endif
     
-
     for(int i = 0; i < nchains; i++){
 #ifdef SINGLE_DAT_VAR
       #ifdef ENABLE_LATENCY_HIDING

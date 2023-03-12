@@ -13,8 +13,8 @@
 # VTUNE_INSTALL_PATH = /opt/intel/oneapi/2021.3/vtune/latest
 # VTUNE_INSTALL_PATH = /opt/intel/oneapi/vtune/2021.7.1
 
-PAPI_INSTALL_PATH = /home/u1991323/warwick/libs/papi/
-LIKWID_INSTALL_PATH = /home/u1991323/warwick/libs/likwid/
+# PAPI_INSTALL_PATH = /home/u1991323/warwick/libs/papi/
+# LIKWID_INSTALL_PATH = /home/u1991323/warwick/libs/likwid/
 
 ifdef VTUNE_INSTALL_PATH
 	VTUNE_INC = -I$(VTUNE_INSTALL_PATH)/include
@@ -420,6 +420,7 @@ mpi_ca_cuda: $(BIN_DIR)/mgcfd_mpi_ca_cuda
 mpi_ca_opt: $(BIN_DIR)/mgcfd_mpi_ca_opt
 mpi_ca_opt_lat: $(BIN_DIR)/mgcfd_mpi_ca_opt_lat
 mpi_ca_opt_cuda: $(BIN_DIR)/mgcfd_mpi_ca_opt_cuda
+mpi_ca_opt_cuda_lat: $(BIN_DIR)/mgcfd_mpi_ca_opt_cuda_lat
 
 
 OP2_MAIN_SRC = $(SRC_DIR)_op/euler3d_cpu_double_op.cpp
@@ -499,6 +500,9 @@ OP2_MPI_CA_CUDA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_cuda_main.o \
 
 OP2_MPI_CA_OPT_CUDA_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_opt_cuda_main.o \
                    $(OBJ_DIR)/mgcfd_mpi_ca_opt_kernels_cu.o
+
+OP2_MPI_CA_OPT_CUDA_LAT_OBJECTS := $(OBJ_DIR)/mgcfd_mpi_ca_opt_cuda_lat_main.o \
+                   $(OBJ_DIR)/mgcfd_mpi_ca_opt_lat_kernels_cu.o
 
 KERNELS := calc_rms_kernel \
 	calculate_cell_volumes \
@@ -905,6 +909,21 @@ $(OBJ_DIR)/mgcfd_mpi_ca_opt_cuda_main.o: $(OP2_MAIN_SRC)
 	$(MPICPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DCOMM_AVOID -DCOMM_AVOID_CUDA -DSINGLE_DAT_VAR -DMPI_ON \
         -DCUDA_ON -c -o $@ $^
 $(BIN_DIR)/mgcfd_mpi_ca_opt_cuda: $(OP2_MPI_CA_OPT_CUDA_OBJECTS)
+	mkdir -p $(BIN_DIR)
+	$(MPICPP) $(CFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
+	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_comm_avoid_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+        -o $@
+
+## MPI_CA CUDA SINGLE_DAT LATENCY_HIDING
+$(OBJ_DIR)/mgcfd_mpi_ca_opt_lat_kernels_cu.o: $(SRC_DIR)/../cuda/_kernels.cu $(CUDA_KERNELS)
+	mkdir -p $(OBJ_DIR)
+	nvcc $(NVCCFLAGS) $(MGCFD_INCS) $(OP2_INC) -I $(MPI_INSTALL_PATH)/include -DCOMM_AVOID -DCOMM_AVOID_CUDA -DSINGLE_DAT_VAR -DMPI_ON -DENABLE_LATENCY_HIDING \
+        -c -o $@ $(SRC_DIR)/../cuda/_kernels.cu
+$(OBJ_DIR)/mgcfd_mpi_ca_opt_cuda_lat_main.o: $(OP2_MAIN_SRC)
+	mkdir -p $(OBJ_DIR)
+	$(MPICPP) $(CFLAGS) $(OPTIMISE) $(MGCFD_INCS) $(OP2_INC) $(HDF5_INC) -DCOMM_AVOID -DCOMM_AVOID_CUDA -DSINGLE_DAT_VAR -DMPI_ON -DENABLE_LATENCY_HIDING \
+        -DCUDA_ON -c -o $@ $^
+$(BIN_DIR)/mgcfd_mpi_ca_opt_cuda_lat: $(OP2_MPI_CA_OPT_CUDA_LAT_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
 	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_comm_avoid_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
