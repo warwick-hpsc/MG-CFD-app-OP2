@@ -93,6 +93,7 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
             n_lower1 = get_set_core_size(set, i * nloops + 2);
       #endif
 #endif
+      // op_printf("core i=%d n_lower0=%d n_lower1=%d\n", i, n_lower0, n_lower1);
       ca_op_par_loop_test_write_kernel("ca_test_write_kernel",set,
                             args0[i][0], args0[i][1], 0, n_lower0, 1);
 
@@ -119,13 +120,20 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
 #endif
       n_upper0 = set->size;
       ca_op_par_loop_test_write_kernel("ca_test_write_kernel",set,
-                            args0[i][0], args0[i][1], n_lower0, n_upper0, 0);
+                            args0[i][0], args0[i][1], n_lower0, n_upper0, 1);
+
+      // op_printf("write first i=%d n_lower0=%d n_upper0=%d\n", i, n_lower0, n_upper0);
 
       for(int j = 1; j <= nloops; j++){
         n_lower0 = get_halo_start_size(set, j);
         n_upper0 = get_halo_end_size(set, j);
+      //   op_printf("write i=%d j=%d n_lower0=%d n_upper0=%d\n", i, j, n_lower0, n_upper0);
+        int is_core = 1;
+        if(j == nloops){
+            is_core = 0;
+        }
         ca_op_par_loop_test_write_kernel("ca_test_write_kernel",set,
-                            args0[i][0], args0[i][1], n_lower0, n_upper0, 0);
+                            args0[i][0], args0[i][1], n_lower0, n_upper0, is_core);
       }
 
 #ifdef SINGLE_DAT_VAR
@@ -139,14 +147,20 @@ void test_comm_avoid(char const *name, op_dat* p_variables, op_dat p_edge_weight
 #endif
       n_upper1 = set->size;
 
+      // op_printf("read first i=%d n_lower0=%d n_upper0=%d\n", i, n_lower1, n_upper1);
       ca_op_par_loop_test_read_kernel("ca_test_read_kernel",set,
-                            args1[i][0], args1[i][1], args1[i][2], args1[i][3], args1[i][4], n_lower1, n_upper1, 0);
+                            args1[i][0], args1[i][1], args1[i][2], args1[i][3], args1[i][4], n_lower1, n_upper1, 1);
       
       for(int j = 1; j <= nloops - 1; j++){
         n_lower1 = get_halo_start_size(set, j);
         n_upper1 = get_halo_end_size(set, j);
+      //   op_printf("read i=%d j=%d n_lower0=%d n_upper0=%d\n", i, j, n_lower1, n_upper1);
+        int is_core = 1;
+        if(j == nloops - 1){
+            is_core = 0;
+        }
         ca_op_par_loop_test_read_kernel("ca_test_read_kernel",set,
-                            args1[i][0], args1[i][1], args1[i][2], args1[i][3], args1[i][4], n_lower1, n_upper1, 0);
+                            args1[i][0], args1[i][1], args1[i][2], args1[i][3], args1[i][4], n_lower1, n_upper1, is_core);
       }
     }
 
