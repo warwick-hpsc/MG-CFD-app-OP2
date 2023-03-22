@@ -869,8 +869,8 @@ int main(int argc, char** argv)
     #ifdef MPI_ON
     for (int l = 0; l < levels; l++) {
         // use only when need to calculate dat sizes
-        // calculate_dat_sizes(my_rank);
-        // calculate_set_sizes(my_rank);
+        calculate_dat_sizes(my_rank);
+        calculate_set_sizes(my_rank);
     }
     #endif
     #endif
@@ -1739,7 +1739,8 @@ void validate_result(op_dat* correct_dat, op_dat* dat, op_set* set, std::string 
                 }
                 char* op_name = alloc<char>(100);
                 std::string dataset_name("p_" + dat_name + "_diff_L");
-                sprintf(op_name, dataset_name.c_str(), l);
+                sprintf(op_name, "%s", dataset_name.c_str());
+                sprintf(&op_name[strlen(dataset_name.c_str())], "%d", l);
                 op_dat variables_difference = op_decl_dat_temp_char(set[l], NVAR, "double", sizeof(double), op_name);
 
                 op_par_loop_identify_differences("identify_differences",set[l],
