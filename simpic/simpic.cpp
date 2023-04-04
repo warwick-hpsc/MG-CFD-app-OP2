@@ -309,7 +309,7 @@ void mainloop(Scalar tmax, Scalar dt)
   int coupler_rank;
 
   if(rank == 0){
-    interface_size = std::round(0.05 * 1000000 * artificalsize);
+    /*interface_size = std::round(0.05 * 1000000 * artificalsize);
     large_interface = new Scalar[interface_size];
     large_interface_recv = new Scalar[interface_size];
     std::fill_n(large_interface, interface_size, 0);
@@ -317,10 +317,38 @@ void mainloop(Scalar tmax, Scalar dt)
       transfer_size = interface_size;
     }else{
       transfer_size = ng * comm_size;
-    }
+    }*/
     int ranks_per_coupler;
     for(int z = 0; z < total_coupler_unit_count; z++){
       ranks_per_coupler = units_copy[unit_count].coupler_ranks[z].size();
+      coupler_rank = units_copy[unit_count].coupler_ranks[z][0];
+      int coupler_position = relative_positions_copy[coupler_rank].placelocator;
+      bool found = false;
+      int unit_count_2 = 0;
+      int coupler_unit_count = 1;
+      while(!found){//find out the unit index of the coupler unit we want
+        if(units_copy[unit_count_2].type == 'C' && coupler_unit_count == coupler_position){
+          found=true;
+        }else{
+          if(units_copy[unit_count_2].type == 'C'){
+            coupler_unit_count++;
+          }
+          unit_count_2++;
+        }
+      }
+      if(units_copy[unit_count_2].coupling_type == 'C'){
+        interface_size = std::round(0.05 * 1000000 * artificalsize);
+      }else if(units_copy[unit_count_2].coupling_type == 'O'){
+        interface_size = std::round(0.0042 * 1000000 * artificalsize);
+      }
+      /*large_interface = new Scalar[interface_size];
+      large_interface_recv = new Scalar[interface_size];
+      std::fill_n(large_interface, interface_size, 0);
+      if(ng * comm_size > interface_size){
+        transfer_size = interface_size;
+      }else{
+        transfer_size = ng * comm_size;
+      }*/
       for(int z2 = 0; z2 < ranks_per_coupler; z2++){
           MPI_Send(&interface_size, 1, MPI_DOUBLE, units_copy[unit_count].coupler_ranks[z][z2], 0, MPI_COMM_WORLD);//this sends the node sizes to each of the coupler ranks of each of the coupler units
       }
@@ -333,9 +361,38 @@ void mainloop(Scalar tmax, Scalar dt)
         MPI_Barrier(custom_comm);
         MPI_Gather(narray, ng, MPI_SCALAR, narray_variables, ng, MPI_SCALAR, 0, custom_comm);//gather the SIMPIC mesh data from each of the ranks
         if(rank == 0){
-          printf("Count is %d, sending from simpic side\n", count);  
-          std::memcpy(large_interface, narray, transfer_size);
+          printf("Count is %d, sending from simpic side\n", count);
+          //std::memcpy(large_interface, narray, transfer_size);
           for(int z = 0; z < total_coupler_unit_count; z++){
+            int coupler_rank = units_copy[unit_count].coupler_ranks[z][0];
+            int coupler_position = relative_positions_copy[coupler_rank].placelocator;
+            bool found = false;
+            int unit_count_2 = 0;
+            int coupler_unit_count = 1;
+            while(!found){//find out the unit index of the coupler unit we want
+              if(units_copy[unit_count_2].type == 'C' && coupler_unit_count == coupler_position){
+                found=true;
+              }else{
+                if(units_copy[unit_count_2].type == 'C'){
+                  coupler_unit_count++;
+                }
+                unit_count_2++;
+              }
+            }
+            if(units_copy[unit_count_2].coupling_type == 'C'){
+              interface_size = std::round(0.05 * 1000000 * artificalsize);
+            }else if(units_copy[unit_count_2].coupling_type == 'O'){
+              interface_size = std::round(0.0042 * 1000000 * artificalsize);
+            }
+            large_interface = new Scalar[interface_size];
+            large_interface_recv = new Scalar[interface_size];
+            std::fill_n(large_interface, interface_size, 0);
+            if(ng * comm_size > interface_size){
+              transfer_size = interface_size;
+            }else{
+              transfer_size = ng * comm_size;
+            }
+            std::memcpy(large_interface, narray, transfer_size);
             coupler_rank = units_copy[unit_count].coupler_ranks[z][0];
             MPI_Send(large_interface, interface_size, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
             MPI_Recv(large_interface_recv, interface_size, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);

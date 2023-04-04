@@ -791,8 +791,13 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 					coupler_vars = 0;
 					if(units[unit_count_2].coupling_type == 'S'){
 						coupler_vars = 5;
+						boundary_nodes_size = round(nodes_size * 0.0042);
 					}else if(units[unit_count_2].coupling_type == 'C' || units[unit_count_2].coupling_type == 'O'){
 						coupler_vars = 1;
+						boundary_nodes_size = round(nodes_size * 0.0042);
+						if(units[unit_count_2].coupling_type == 'O'){
+							boundary_nodes_size = round(nodes_size * 0.05);	
+						}
 					}
 					start1 = std::chrono::steady_clock::now();
                     if(hide_search == true){
