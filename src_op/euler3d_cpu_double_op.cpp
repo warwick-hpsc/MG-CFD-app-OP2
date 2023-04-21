@@ -239,7 +239,9 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     if(strcmp(input_file_name, "file")==0){
         
         /* The input flag must be set to 'file' and input file names */
-        printf("Reading input from file\n");
+		if(debug == true){
+			printf("Reading input from file\n");
+		}
         FILE *mg_files = fopen("mg_files.input", "r");
         size_t line_buf_size = 0;
         ssize_t line_size;
@@ -701,8 +703,10 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                 }
             }
 
-            if(units[unit_count_2].coupling_type == 'S' || units[unit_count_2].coupling_type == 'C'){
-                boundary_nodes_size = round(nodes_size * 0.0042);
+            if(units[unit_count_2].coupling_type == 'S'){
+				boundary_nodes_size = round(nodes_size * 0.0042);
+			}else if( units[unit_count_2].coupling_type == 'C'){
+                boundary_nodes_size = round(nodes_size * 0.018);
             }else if(units[unit_count_2].coupling_type == 'O'){
                 //OVERSET boundary is much larger to emulate the larger interface needed due to stability issues with CFD-Combustion interaction
                 boundary_nodes_size = round(nodes_size * 0.05);
@@ -792,12 +796,12 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 					if(units[unit_count_2].coupling_type == 'S'){
 						coupler_vars = 5;
 						boundary_nodes_size = round(nodes_size * 0.0042);
-					}else if(units[unit_count_2].coupling_type == 'C' || units[unit_count_2].coupling_type == 'O'){
+					}else if(units[unit_count_2].coupling_type == 'C'){
 						coupler_vars = 1;
-						boundary_nodes_size = round(nodes_size * 0.0042);
-						if(units[unit_count_2].coupling_type == 'O'){
-							boundary_nodes_size = round(nodes_size * 0.05);	
-						}
+						boundary_nodes_size = round(nodes_size * 0.018);
+					}else if(units[unit_count_2].coupling_type == 'O'){
+						coupler_vars = 1;
+						boundary_nodes_size = round(nodes_size * 0.05);	
 					}
 					start1 = std::chrono::steady_clock::now();
                     if(hide_search == true){

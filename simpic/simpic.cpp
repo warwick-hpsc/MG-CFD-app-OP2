@@ -337,9 +337,9 @@ void mainloop(Scalar tmax, Scalar dt)
         }
       }
       if(units_copy[unit_count_2].coupling_type == 'C'){
-        interface_size = std::round(0.05 * 1000000 * artificalsize);
+        interface_size = std::round(0.018 * 1000000 * artificalsize);
       }else if(units_copy[unit_count_2].coupling_type == 'O'){
-        interface_size = std::round(0.0042 * 1000000 * artificalsize);
+        interface_size = std::round(0.05 * 1000000 * artificalsize);
       }
       /*large_interface = new Scalar[interface_size];
       large_interface_recv = new Scalar[interface_size];
@@ -380,9 +380,9 @@ void mainloop(Scalar tmax, Scalar dt)
               }
             }
             if(units_copy[unit_count_2].coupling_type == 'C'){
-              interface_size = std::round(0.05 * 1000000 * artificalsize);
+              interface_size = std::round(0.018 * 1000000 * artificalsize);
             }else if(units_copy[unit_count_2].coupling_type == 'O'){
-              interface_size = std::round(0.0042 * 1000000 * artificalsize);
+              interface_size = std::round(0.05 * 1000000 * artificalsize);
             }
             large_interface = new Scalar[interface_size];
             large_interface_recv = new Scalar[interface_size];

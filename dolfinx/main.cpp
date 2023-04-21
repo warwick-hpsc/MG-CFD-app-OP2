@@ -10,6 +10,8 @@
 #include "structures.h"
 #include "coupler_config.h"
 #include "const_op.h"
+#include <utility>
+#include <vector>
 
 namespace po = boost::program_options;
 using namespace dolfinx;
@@ -24,8 +26,6 @@ public:
       : _l(L), _j(J), _bcs(bcs),
         _b(L->function_spaces()[0]->dofmap()->index_map,
            L->function_spaces()[0]->dofmap()->index_map_bs()),
-        //_matA(la::petsc::Matrix(fem::petsc::create_matrix(*J, "baij"), false))
-        ////hyperelasticity uses this form
         _matA(la::petsc::Matrix(fem::petsc::create_matrix(*J, "aij"), false))
   {
     auto map = L->function_spaces()[0]->dofmap()->index_map;
@@ -61,7 +61,7 @@ public:
     return [&](const Vec x, Vec)
     {
       // Assemble b and update ghosts
-      xtl::span<PetscScalar> b(_b.mutable_array());
+      std::span<PetscScalar> b(_b.mutable_array());
       std::fill(b.begin(), b.end(), 0.0);
       fem::assemble_vector<PetscScalar>(b, *_l);
       VecGhostUpdateBegin(_b_petsc, ADD_VALUES, SCATTER_REVERSE);
@@ -74,7 +74,7 @@ public:
       VecGetSize(x_local, &n);
       const PetscScalar* array = nullptr;
       VecGetArrayRead(x_local, &array);
-      fem::set_bc<PetscScalar>(b, _bcs, xtl::span<const PetscScalar>(array, n),
+      fem::set_bc<PetscScalar>(b, _bcs, std::span<const PetscScalar>(array, n),
                                -1.0);
       VecRestoreArrayRead(x, &array);
     };
@@ -123,7 +123,7 @@ MatNullSpace build_near_nullspace(const dolfinx::fem::FunctionSpace& V)
   std::int32_t length_block = map->size_local() + map->num_ghosts();
   for (int k = 0; k < 3; ++k)
   {
-    xtl::span<PetscScalar> x = basis[k].mutable_array();
+    std::span<PetscScalar> x = basis[k].mutable_array();
     for (std::int32_t i = 0; i < length_block; ++i)
       x[bs * i + k] = 1.0;
   }
@@ -133,34 +133,36 @@ MatNullSpace build_near_nullspace(const dolfinx::fem::FunctionSpace& V)
   auto x4 = basis[4].mutable_array();
   auto x5 = basis[5].mutable_array();
 
-  const xt::xtensor<double, 2> x = V.tabulate_dof_coordinates(false);
+  std::vector<double> x = V.tabulate_dof_coordinates(false);
+
   auto& dofs = V.dofmap()->list().array();
   for (std::size_t i = 0; i < dofs.size(); ++i)
   {
-    x3[bs * dofs[i] + 0] = -x(dofs[i], 1);
-    x3[bs * dofs[i] + 1] = x(dofs[i], 0);
+    std::span<const double, 3> xd(x.data() + 3 * dofs[i], 3);
+    x3[bs * dofs[i] + 0] = -xd[1];
+    x3[bs * dofs[i] + 1] = xd[0];
 
-    x4[bs * dofs[i] + 0] = x(dofs[i], 2);
-    x4[bs * dofs[i] + 2] = -x(dofs[i], 0);
+    x4[bs * dofs[i] + 0] = xd[2];
+    x4[bs * dofs[i] + 2] = -xd[0];
 
-    x5[bs * dofs[i] + 2] = x(dofs[i], 1);
-    x5[bs * dofs[i] + 1] = -x(dofs[i], 2);
+    x5[bs * dofs[i] + 2] = xd[1];
+    x5[bs * dofs[i] + 1] = -xd[2];
   }
 
   // Orthonormalize basis
-  dolfinx::la::orthonormalize(tcb::make_span(basis));
+  dolfinx::la::orthonormalize(std::span(basis));
   if (!dolfinx::la::is_orthonormal(
-          tcb::span<const decltype(basis)::value_type>(basis)))
+          std::span<const decltype(basis)::value_type>(basis)))
   {
     throw std::runtime_error("Space not orthonormal");
   }
 
   // Build PETSc nullspace object
   std::int32_t length = bs * map->size_local();
-  std::vector<xtl::span<const PetscScalar>> basis_local;
-  std::transform(basis.cbegin(), basis.cend(), std::back_inserter(basis_local),
+  std::vector<std::span<const PetscScalar>> basis_local;
+  std::transform(basis.begin(), basis.end(), std::back_inserter(basis_local),
                  [length](auto& x)
-                 { return xtl::span(x.array().data(), length); });
+                 { return std::span(x.array().data(), length); });
   MPI_Comm comm = V.mesh()->comm();
   std::vector<Vec> v = dolfinx::la::petsc::create_vectors(comm, basis_local);
   MatNullSpace ns = dolfinx::la::petsc::create_nullspace(comm, v);
@@ -272,7 +274,6 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
     return 0;
   }
 
-  //loguru::g_stderr_verbosity = loguru::Verbosity_INFO;
   {
 
     const std::string st_thermal_its = vm["Thermal_iterations"].as<std::string>();
@@ -304,25 +305,27 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
 #error "No mesh partitioner has been selected"
 #endif
 
-    auto cell_part = dolfinx::mesh::create_cell_partitioner(graph_part);
+    auto cell_part = dolfinx::mesh::create_cell_partitioner(mesh::GhostMode::none, graph_part);
 
     float tmp = round(std::cbrt(num_vertices));
     long unsigned int mesh_vertices = int(tmp) - 1;
     double left_corner = 10.0;
 
-    std::shared_ptr<mesh::Mesh> mesh = std::make_shared<mesh::Mesh>(mesh::create_box(
+	auto mesh = std::make_shared<dolfinx::mesh::Mesh>(dolfinx::mesh::create_box(
                                         fenics_comm, {{{0.0, 0.0, 0.0},
                                         {left_corner, left_corner, left_corner}}},
                                         {mesh_vertices, mesh_vertices, mesh_vertices},
-                                        mesh::CellType::tetrahedron, mesh::GhostMode::none,
-                                        cell_part));
+                                        mesh::CellType::tetrahedron, cell_part));
 
     mesh->topology_mutable().create_entities(2);
     mesh->topology_mutable().create_connectivity(2, 3);
 
     int tdim = mesh->topology().dim();
     auto domain2_indices2 = locate_entities(*mesh, tdim,
-                           [](auto&& x) { return xt::isfinite(xt::row(x, 0)); });
+                           [](auto&& x) { 
+										std::vector<std::int8_t> marker(x.extent(1), true);
+										return marker; 
+										});
     int num_domain_indices = domain2_indices2.size();
     std::vector<int> domain2_indices(num_domain_indices);
     std::iota(std::begin(domain2_indices), std::end(domain2_indices), 0);
@@ -331,7 +334,10 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
 
     int fdim = mesh->topology().dim()-1;
     auto facet2_indices2 = locate_entities(*mesh, fdim,
-                           [](auto&& x) { return xt::isfinite(xt::row(x, 0)); });
+                           [](auto&& x) {
+										std::vector<std::int8_t> marker(x.extent(1), true); 
+										return marker;
+										});
     int num_facet_indices = facet2_indices2.size();
     std::vector<int> facet2_indices(num_facet_indices);
     std::iota(std::begin(facet2_indices), std::end(facet2_indices), 0);
@@ -340,7 +346,6 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
 
     //============================= Transient Thermal
     //==============================//
-
     // Create function space
     common::Timer t_11th("03 Transient Thermal: Setup");
     auto V_th = std::make_shared<fem::FunctionSpace>(fem::create_functionspace(
@@ -378,20 +383,6 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
              {fem::IntegralType::exterior_facet, &facet2}}));
 
     if (internal_rank == 0)
-      fprintf(fp, "Create matrix ... \n");
-
-    // Initialize stiffness matrix & vector
-    la::petsc::Matrix A_th
-        = la::petsc::Matrix(fem::petsc::create_matrix(*a_th), false);
-
-    if (internal_rank == 0)
-      fprintf(fp, "Create vector ... \n");
-
-    la::petsc::Vector b_th(
-        *L_th->function_spaces()[0]->dofmap()->index_map,
-        L_th->function_spaces()[0]->dofmap()->index_map_bs());
-
-    if (internal_rank == 0)
       fprintf(fp, "Create nonlinear problem ... \n");
 
     // Configure Solver
@@ -415,8 +406,10 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
     la::petsc::options::set(prefix_t + "pc_hypre_boomeramg_strong_threshold", 0.7);
     la::petsc::options::set(prefix_t + "pc_hypre_boomeramg_agg_nl", 4);
     la::petsc::options::set(prefix_t + "pc_hypre_boomeramg_agg_num_paths", 2);
-    la::petsc::options::set(prefix_t + "ksp_monitor", "");
-    la::petsc::options::set(prefix_t + "ksp_view", "");
+	if(debug == true){
+		la::petsc::options::set(prefix_t + "ksp_monitor", "");
+		la::petsc::options::set(prefix_t + "ksp_view", "");
+	}
     kspsolver.set_from_options();
 
     dolfinx::io::XDMFFile xdmf_file_th(fenics_comm, "Temperatures.xdmf",
@@ -442,7 +435,6 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
     if (internal_rank == 0)
       fprintf(fp, "Building Structural Bilinear forms ... \n");
 
-    // auto a_st =
     auto a_st = std::make_shared<fem::Form<PetscScalar>>(
         fem::create_form<PetscScalar>(
             *form_Structural_J, {V_st, V_st}, {{"T", u_th}, {"u", u_st}},
@@ -459,37 +451,34 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
             {{"time", t}},
             {{fem::IntegralType::cell, &domain2},
              {fem::IntegralType::exterior_facet, &facet2}}));
-
     //Set up boundary conditions
     std::vector<std::shared_ptr<const fem::DirichletBC<PetscScalar>>> bcs_st;
-    auto VD = std::make_shared<fem::Function<PetscScalar>>(V_st);
-    std::fill(VD->x()->mutable_array().begin(),
-              VD->x()->mutable_array().end(), 0);
     auto bound_facets = dolfinx::mesh::locate_entities_boundary(
-         *mesh, mesh->topology().dim() - 1,
-         [](auto&& x) -> xt::xtensor<bool, 1>
-         {
-           auto x0 = xt::row(x, 0);
-           return xt::isclose(x0, 0.0) or xt::isclose(x0, 10.0);
-         });
-    auto bc_1 = std::make_shared<const fem::DirichletBC<PetscScalar>>(VD, dolfinx::fem::locate_dofs_topological(*V_st, mesh->topology().dim() - 1, bound_facets));
+         *mesh, 1, [left_corner](auto x){
+							constexpr double eps = 1.0e-8;
+							std::vector<std::int8_t> marker(x.extent(1), false);
+							for (std::size_t p = 0; p < x.extent(1); ++p){
+								double x0 = x(0, p);
+								if (std::abs(x0) < eps or std::abs(x0 - left_corner) < eps)
+									marker[p] = true;
+							}
+							return marker;
+							});
+	const auto bdofs = fem::locate_dofs_topological({*V_st}, 1, bound_facets);
+	auto bc_1 = std::make_shared<const fem::DirichletBC<PetscScalar>>(
+											std::vector<PetscScalar>{0, 0, 0}, 
+											bdofs, V_st);
     bcs_st.push_back(bc_1);
 
-    // Initialize stiffness matrix & vector
-    la::petsc::Matrix A_st
-        = la::petsc::Matrix(fem::petsc::create_matrix(*a_st), false);
-    la::petsc::Vector b_st(
-        *L_st->function_spaces()[0]->dofmap()->index_map,
-        L_st->function_spaces()[0]->dofmap()->index_map_bs());
-
+	NLProblem problem_st(L_st, a_st, bcs_st);
     // Create near null space basis (required for smoothed aggregation AMG).
     MatNullSpace ns = build_near_nullspace(*V_st);
     // Attach near nullspace to matrix
-    MatSetNearNullSpace(A_st.mat(), ns);
+	MatSetNearNullSpace(problem_st.matrix(), ns);
+	MatSetBlockSize(problem_st.matrix(), 3);
     MatNullSpaceDestroy(&ns);
 
     // Configure Solver
-    NLProblem problem_st(L_st, a_st, bcs_st);
     nls::petsc::NewtonSolver nlst_solver(mesh->comm());
     nlst_solver.atol = -1.0;
     nlst_solver.rtol = -1.0;
@@ -501,8 +490,10 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
     const la::petsc::KrylovSolver& kspsolver2 = nlst_solver.get_krylov_solver();
     std::string prefix = kspsolver2.get_options_prefix();
     la::petsc::options::set(prefix + "ksp_type", "cg");
-    la::petsc::options::set(prefix + "ksp_view", "");
-    la::petsc::options::set(prefix + "ksp_monitor", "");
+    if(debug == true){
+		la::petsc::options::set(prefix + "ksp_view", "");
+		la::petsc::options::set(prefix + "ksp_monitor", "");
+	}
     la::petsc::options::set(prefix + "ksp_max_it", st_its);
     la::petsc::options::set(prefix + "ksp_convergence_test", "skip");
     la::petsc::options::set(prefix + "pc_type", "gamg");
@@ -510,7 +501,6 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
     la::petsc::options::set(prefix + "mg_levels_ksp_type", "chebyshev");
     la::petsc::options::set(prefix + "mg_levels_pc_type", "jacobi");
     la::petsc::options::set(prefix + "pc_gamg_esteig_ksp_type", "cg");
-    la::petsc::options::set("-matptap_via", "scalable");
     kspsolver2.set_from_options();
 
     dolfinx::io::XDMFFile xdmf_file_st(fenics_comm, "Displacements.xdmf",
@@ -544,7 +534,7 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
     //get and send boundary sizes
     PetscInt size_u;
     VecGetSize(_u_th.vec(), &size_u);
-    double nodes_size = round(size_u * 0.025); //TEMP boundary 2.5% of grid.
+    double nodes_size = round(size_u * 0.03); //TEMP boundary 2.5% of grid.
     if(internal_rank==0)
       fprintf(fp, "boudary size %f\n", nodes_size);
 
@@ -562,8 +552,7 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
         }
       }
     }
-
-
+	
     if(internal_rank == 0)
       fprintf(fp, "Entering transient thermo-mechanical iteration loop... \n");
 
@@ -582,13 +571,13 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
       // Solving for thermal
       nlth_solver.setF(problem_th.F(), problem_th.vector());
       nlth_solver.setJ(problem_th.J(), problem_th.matrix());
-      nlth_solver.set_form(problem_th.form());
-
+	  nlth_solver.set_form(problem_th.form());
       nlth_solver.solve(_u_th.vec());
+
       xdmf_file_th.write_function(*u_th, t->value[0]);
 
       // Copy solution from this time step to previous time step
-      std::copy(uth_span.cbegin(), uth_span.cend(), u0th_span.begin());
+      std::copy(uth_span.begin(), uth_span.end(), u0th_span.begin());
 
       if(strut_flag == 1){
         if(internal_rank == 0){
