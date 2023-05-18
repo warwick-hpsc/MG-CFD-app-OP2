@@ -867,11 +867,17 @@ int main(int argc, char** argv)
 
     #ifdef COMM_AVOID
     #ifdef MPI_ON
-    for (int l = 0; l < levels; l++) {
-        // use only when need to calculate dat sizes
-        calculate_dat_sizes(my_rank);
-        calculate_set_sizes(my_rank);
-    }
+    // use only when need to calculate dat sizes
+    calculate_dat_sizes(my_rank);
+    calculate_set_sizes(my_rank);
+
+    int max_dat_count = 0;
+#ifdef SINGLE_DAT_VAR
+    max_dat_count = nloops;
+#else
+    max_dat_count = nloops * nchains;
+#endif
+    merge_halos(max_dat_count);
     #endif
     #endif
 
