@@ -28,6 +28,10 @@
 #include "papi_funcs.h"
 #endif
 
+#define ASIO_STANDALONE
+#include <asio.hpp>
+#include <unistd.h>
+
 // #define LOG_PROGRESS
 
 // OP2:
@@ -234,7 +238,7 @@ config conf;
 #include "indirect_rw.h"
 #include "coupler_config.h"
 
-int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, struct unit units[], struct locators relative_positions[])
+int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, struct unit units[], struct locators relative_positions[], int l_mgcfd_unit)
 {
     #ifdef NANCHECK
         feenableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
@@ -619,6 +623,13 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     MPI_Comm_rank(mgcfd_comm, &internal_rank); 
     MPI_Comm_size(mgcfd_comm, &internal_size);
     int *ranks = new int[internal_size];
+
+    bool l_couple = false;
+    asio::io_context io_context;
+    asio::error_code ec;
+    asio::ip::tcp::endpoint *endp;
+
+    asio::ip::tcp::socket *sock;
     
     //int temp_buffer;
   
@@ -634,6 +645,9 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     while(!found){
         if(units[unit_count].type == 'M' && mgcfd_unit_num == mgcfd_count){
             found=true;
+            if(mgcfd_unit_num == l_mgcfd_unit) {
+                l_couple = true;
+            }
         }else {
             if(units[unit_count].type != 'C'){
                 mgcfd_count++;
@@ -674,7 +688,10 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         }*/
     }
         
-    int coupler_rank = units[unit_count].coupler_ranks[0][0]; //This assumes only 1 coupler unit per 2 MG-CFD sessions 
+    int coupler_rank;
+    if(total_coupler_unit_count > 0) {
+        coupler_rank = units[unit_count].coupler_ranks[0][0]; //This assumes only 1 coupler unit per 2 MG-CFD sessions
+    }     
     //int *recv_buffer = new int[recv_size];
     int prev_cycle = -1;
 
@@ -703,7 +720,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     }
 
     for (int z = 0; z < levels; z++) {
-        boundary_nodes_sizes[z] = round(nodes_sizes[z] * 0.025);//the boundary mesh is roughly 2.5% the actual mesh size
+        boundary_nodes_sizes[z] = round(nodes_sizes[z] * 0.05);//set the boundary size
     }
 
     int ranks_per_coupler;
@@ -713,6 +730,37 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             for(int z2 = 0; z2 < ranks_per_coupler; z2++){
                 MPI_Send(boundary_nodes_sizes, 4, MPI_DOUBLE, units[unit_count].coupler_ranks[z][z2], 0, MPI_COMM_WORLD);//this sends the node sizes to each of the coupler ranks of each of the coupler units
             }
+        }
+
+        if(l_couple == true) {
+            endp = new asio::ip::tcp::endpoint(asio::ip::make_address("127.0.0.1", ec), 65000);
+            sock = new asio::ip::tcp::socket(io_context);
+
+            sock->connect(*endp, ec);
+
+    	    if (!ec) {
+    		    printf("Connected\n");
+    	    }
+    	    else {
+    		    std::cout << "Error: " << ec.message() << std::endl;
+                sock->close();
+    	    }
+
+            while(ec){
+                sock->connect(*endp, ec);
+    	        if (!ec) {
+    		        printf("Connected\n");
+    	        }
+    	        else {
+                    sock->close();
+                    sleep(1);
+    	        }
+            }
+
+            printf("Sizes sent: %f %f %f %f\n", boundary_nodes_sizes[0], boundary_nodes_sizes[1], boundary_nodes_sizes[2], boundary_nodes_sizes[3]);
+
+            std::size_t n = asio::write(*sock, asio::buffer(boundary_nodes_sizes, 4 * sizeof(double)));
+            std::cout << n << std::endl;
         }
     }
 
@@ -729,6 +777,8 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     double *p_variables_pointers[4] = {p_variables_data_l0,p_variables_data_l1,p_variables_data_l2,p_variables_data_l3}; 
     
     std::chrono::duration<double> total_seconds;
+    double send_time = 0.0;
+    double send_total = 0.0;
 
     while(i < conf.num_cycles)
     {
@@ -753,15 +803,36 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                 op_printf("Cycle %d comms starting\n", i);
                 for(int z = 0; z < total_coupler_unit_count; z++){
                     coupler_rank = units[unit_count].coupler_ranks[z][0];
-                    MPI_Send(p_variables_data_l0, boundary_nodes_sizes[0] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                    send_time = MPI_Wtime();
                     auto start = std::chrono::steady_clock::now();
+                    MPI_Send(p_variables_data_l0, boundary_nodes_sizes[0] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
                     MPI_Send(p_variables_data_l1, boundary_nodes_sizes[1] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
                     MPI_Send(p_variables_data_l2, boundary_nodes_sizes[2] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
                     MPI_Send(p_variables_data_l3, boundary_nodes_sizes[3] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+                    send_time = MPI_Wtime() - send_time;
+                    send_total += send_time;
                     MPI_Recv(p_variables_recv_l0, boundary_nodes_sizes[0] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     MPI_Recv(p_variables_recv_l1, boundary_nodes_sizes[1] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     MPI_Recv(p_variables_recv_l2, boundary_nodes_sizes[2] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     MPI_Recv(p_variables_recv_l3, boundary_nodes_sizes[3] * NVAR, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    auto end = std::chrono::steady_clock::now();
+                    std::chrono::duration<double> elapsed_seconds = end-start;
+                    total_seconds += elapsed_seconds;
+                }
+
+                if(l_couple == true) {
+                    send_time = MPI_Wtime();
+                    auto start = std::chrono::steady_clock::now();
+                    std::size_t n = asio::write(*sock, asio::buffer(p_variables_data_l0, boundary_nodes_sizes[0] * NVAR * sizeof(double)));
+					n = asio::write(*sock, asio::buffer(p_variables_data_l1, boundary_nodes_sizes[1] * NVAR * sizeof(double)));
+                    n = asio::write(*sock, asio::buffer(p_variables_data_l2, boundary_nodes_sizes[2] * NVAR * sizeof(double)));
+                    n = asio::write(*sock, asio::buffer(p_variables_data_l3, boundary_nodes_sizes[3] * NVAR * sizeof(double)));
+                    send_time = MPI_Wtime() - send_time;
+                    send_total += send_time;
+                    n = asio::read(*sock, asio::buffer(p_variables_recv_l0, boundary_nodes_sizes[0] * NVAR * sizeof(double)));
+					n = asio::read(*sock, asio::buffer(p_variables_recv_l1, boundary_nodes_sizes[1] * NVAR * sizeof(double)));
+                    n = asio::read(*sock, asio::buffer(p_variables_recv_l2, boundary_nodes_sizes[2] * NVAR * sizeof(double)));
+                    n = asio::read(*sock, asio::buffer(p_variables_recv_l3, boundary_nodes_sizes[3] * NVAR * sizeof(double)));
                     auto end = std::chrono::steady_clock::now();
                     std::chrono::duration<double> elapsed_seconds = end-start;
                     total_seconds += elapsed_seconds;
@@ -952,6 +1023,9 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     op_print_file(buffer, fp);
 
     sprintf(buffer,"Time spent coupling = %f\n", total_seconds.count());
+    op_print_file(buffer, fp);
+
+    sprintf(buffer,"Time spent sending = %f\n", send_total);
     op_print_file(buffer, fp);
 
     op_printf("MG-CFD Instance %s has finished!\n", filename);
