@@ -236,7 +236,8 @@ void op_par_loop_count_non_zeros(char const *, op_set,
 
 #ifdef COMM_AVOID
 #ifdef MPI_ON
-#include "op_mpi_comm_avoid.h"
+// Using mem enhanced version
+#include "op_mpi_comm_avoid_mem.h"
 #endif
 #ifdef COMM_AVOID_CUDA
 #include "comm_avoid_cu.h"
@@ -877,7 +878,7 @@ int main(int argc, char** argv)
 #else
     max_dat_count = nloops * nchains;
 #endif
-    merge_halos(max_dat_count);
+    set_max_dat_count(max_dat_count);
     #endif
     #endif
 

@@ -670,7 +670,7 @@ $(OBJ_DIR)/mgcfd_mpi_ca_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(SEQ_KERNE
 $(BIN_DIR)/mgcfd_mpi_ca: $(OP2_MPI_CA_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_mpi_comm_avoid $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid_mem $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
 
 ## MPI_CA SINGLE_DAT
@@ -685,7 +685,7 @@ $(OBJ_DIR)/mgcfd_mpi_ca_opt_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(SEQ_K
 $(BIN_DIR)/mgcfd_mpi_ca_opt: $(OP2_MPI_CA_OPT_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_mpi_comm_avoid $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid_mem $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
 
 ## MPI_CA SINGLE_DAT LATENCY_HIDING
@@ -700,7 +700,7 @@ $(OBJ_DIR)/mgcfd_mpi_ca_opt_lat_kernels.o: $(SRC_DIR)/../seq/_seqkernels.cpp $(S
 $(BIN_DIR)/mgcfd_mpi_ca_opt_lat: $(OP2_MPI_CA_OPT_LAT_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_mpi_comm_avoid $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid_mem $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
 		-o $@
 		
 ## SLOPE + MPI_CA
@@ -717,7 +717,7 @@ $(OBJ_DIR)/mgcfd_slope_mpi_ca_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $(SLO
 $(BIN_DIR)/mgcfd_slope_mpi_ca: $(OP2_SLOPE_MPI_CA_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_mpi_comm_avoid -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid_mem -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \
 		-o $@
 
 ## SLOPE + MPI_CA SINGLE_DAT - MPI_ONLY
@@ -734,7 +734,7 @@ $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_seq_kernels.o: $(SRC_DIR)/../seq/_seqkernels.c
 $(BIN_DIR)/mgcfd_slope_mpi_ca_opt_seq: $(OP2_SLOPE_MPI_CA_OPT_SEQ_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_mpi_comm_avoid $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid_mem $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \
 		-o $@
 
 ## SLOPE + MPI_CA SINGLE_DAT - MPI_ONLY - LATENCY_HIDING
@@ -751,7 +751,7 @@ $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_seq_lat_kernels.o: $(SRC_DIR)/../seq/_seqkerne
 $(BIN_DIR)/mgcfd_slope_mpi_ca_opt_seq_lat: $(OP2_SLOPE_MPI_CA_OPT_SEQ_LAT_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_mpi_comm_avoid $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid_mem $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \
 		-o $@
 
 
@@ -769,7 +769,7 @@ $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_kernels.o: $(SRC_DIR)/../openmp/_kernels.cpp $
 $(BIN_DIR)/mgcfd_slope_mpi_ca_opt: $(OP2_SLOPE_MPI_CA_OPT_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_mpi_comm_avoid -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid_mem -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \
 		-o $@
 
 ## SLOPE + MPI_CA SINGLE_DAT LATENCY_HIDING
@@ -786,7 +786,7 @@ $(OBJ_DIR)/mgcfd_slope_mpi_ca_opt_lat_kernels.o: $(SRC_DIR)/../openmp/_kernels.c
 $(BIN_DIR)/mgcfd_slope_mpi_ca_opt_lat: $(OP2_SLOPE_MPI_CA_OPT_LAT_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OMPFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-		-lm $(OP2_LIB) -lop2_mpi_comm_avoid -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \
+		-lm $(OP2_LIB) -lop2_mpi_comm_avoid_mem -lop2_hdf5 $(HDF5_LIB) $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(SLOPE_LIB) -lop2slope $(METIS_LIB) -lmetis \
 		-o $@
 
 
@@ -896,7 +896,7 @@ $(OBJ_DIR)/mgcfd_mpi_ca_cuda_main.o: $(OP2_MAIN_SRC)
 $(BIN_DIR)/mgcfd_mpi_ca_cuda: $(OP2_MPI_CA_CUDA_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_comm_avoid_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_comm_avoid_mem_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
         -o $@
 
 ## MPI_CA CUDA SINGLE_DAT
@@ -911,7 +911,7 @@ $(OBJ_DIR)/mgcfd_mpi_ca_opt_cuda_main.o: $(OP2_MAIN_SRC)
 $(BIN_DIR)/mgcfd_mpi_ca_opt_cuda: $(OP2_MPI_CA_OPT_CUDA_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_comm_avoid_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_comm_avoid_mem_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
         -o $@
 
 ## MPI_CA CUDA SINGLE_DAT LATENCY_HIDING
@@ -926,7 +926,7 @@ $(OBJ_DIR)/mgcfd_mpi_ca_opt_cuda_lat_main.o: $(OP2_MAIN_SRC)
 $(BIN_DIR)/mgcfd_mpi_ca_opt_cuda_lat: $(OP2_MPI_CA_OPT_CUDA_LAT_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_comm_avoid_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
+	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_mpi_comm_avoid_mem_cuda $(PARMETIS_LIB) $(PTSCOTCH_LIB) $(HDF5_LIB) \
         -o $@
 
 
