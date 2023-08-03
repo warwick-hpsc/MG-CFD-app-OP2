@@ -3,7 +3,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdarg.h>
-
+#include <chrono>
 
 #include "global.h"
 #include <mpi.h>
@@ -82,11 +82,6 @@ void moveparticles(Scalar dt)
       pdata[j+1] += qm*E;
       pdata[j] += pdata[j+1]*dt;
 
-      #ifdef DEBUG
-      //      fprintf(stderr, "particle %d (%d): E=%g, x=%g, v=%g, qm=%g\n", i, j,
-      //	      E, pdata[j], pdata[j+1], qm);
-      #endif
-
       if((pdata[j] > xl) && (pdata[j] < xr))
 	{
 	  weightparticle(pdata[j], qscale, narray);
@@ -95,9 +90,6 @@ void moveparticles(Scalar dt)
 	}
       else
 	{
-	  #ifdef DEBUG
-	  //  fprintf(stderr, "\nParticle %d[of %d] lost, E=%g\n", i, npart, E);
-	  #endif 
 
 	  if(pdata[j] < xl)
 	    {
@@ -251,9 +243,6 @@ void print_diagnostics(char *fmod, int close=0)
 
   if(!init)
     {
-      #ifdef DEBUG
-      //      fprintf(stderr, "\nInitializing diagnostics...\n");
-      #endif
 
       sprintf(diags[NDENSITY], "density");
       thediags[NDENSITY] = narray;
@@ -293,7 +282,7 @@ void print_diagnostics(char *fmod, int close=0)
   printt();
 }
 
-void mainloop(Scalar tmax, Scalar dt)
+void mainloop(Scalar tmax, Scalar dt, FILE *fp)
 {
   tt = 0.;
   int count = 0;
@@ -309,15 +298,6 @@ void mainloop(Scalar tmax, Scalar dt)
   int coupler_rank;
 
   if(rank == 0){
-    /*interface_size = std::round(0.05 * 1000000 * artificalsize);
-    large_interface = new Scalar[interface_size];
-    large_interface_recv = new Scalar[interface_size];
-    std::fill_n(large_interface, interface_size, 0);
-    if(ng * comm_size > interface_size){
-      transfer_size = interface_size;
-    }else{
-      transfer_size = ng * comm_size;
-    }*/
     int ranks_per_coupler;
     for(int z = 0; z < total_coupler_unit_count; z++){
       ranks_per_coupler = units_copy[unit_count].coupler_ranks[z].size();
@@ -341,27 +321,25 @@ void mainloop(Scalar tmax, Scalar dt)
       }else if(units_copy[unit_count_2].coupling_type == 'O'){
         interface_size = std::round(0.05 * 1000000 * artificalsize);
       }
-      /*large_interface = new Scalar[interface_size];
-      large_interface_recv = new Scalar[interface_size];
-      std::fill_n(large_interface, interface_size, 0);
-      if(ng * comm_size > interface_size){
-        transfer_size = interface_size;
-      }else{
-        transfer_size = ng * comm_size;
-      }*/
       for(int z2 = 0; z2 < ranks_per_coupler; z2++){
           MPI_Send(&interface_size, 1, MPI_DOUBLE, units_copy[unit_count].coupler_ranks[z][z2], 0, MPI_COMM_WORLD);//this sends the node sizes to each of the coupler ranks of each of the coupler units
       }
     }
   }
-  
+  std::chrono::duration<double> total_seconds;
+  std::chrono::duration<double> comp_seconds;
+  std::chrono::steady_clock::time_point total_start;
+  std::chrono::steady_clock::time_point total_end;
+  std::chrono::steady_clock::time_point start_comp;
+  std::chrono::steady_clock::time_point end_comp;
+  total_start = std::chrono::steady_clock::now();  
   while(tt < tmax)
     {
       if(count % (ntimesteps/coupler_cycles) == 0 && count < (ntimesteps/coupler_cycles) * coupler_cycles){//this will ensure coupling takes place the right number of times - note that coupling doesn't take place on the final iteration
         MPI_Barrier(custom_comm);
         MPI_Gather(narray, ng, MPI_SCALAR, narray_variables, ng, MPI_SCALAR, 0, custom_comm);//gather the SIMPIC mesh data from each of the ranks
         if(rank == 0){
-          printf("Count is %d, sending from simpic side\n", count);
+          fprintf(fp, "Count is %d, sending from simpic side\n", count);
           //std::memcpy(large_interface, narray, transfer_size);
           for(int z = 0; z < total_coupler_unit_count; z++){
             int coupler_rank = units_copy[unit_count].coupler_ranks[z][0];
@@ -397,16 +375,16 @@ void mainloop(Scalar tmax, Scalar dt)
             MPI_Send(large_interface, interface_size, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
             MPI_Recv(large_interface_recv, interface_size, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
           }
-          printf("Count is %d, receiving from simpic side\n", count); 
+          fprintf(fp, "Count is %d, receiving from simpic side\n", count); 
         }
         MPI_Barrier(custom_comm);
       }
       
-      #ifdef DEBUG
+	  #ifdef DEBUG
       fprintf(stderr, "rank %d mainloop: t=%g, npart=%d{\n", 
 	      rank, tt, npart);
       #endif
-
+	  start_comp = std::chrono::steady_clock::now();
       // reset needed variables
       nlp = nrp = 0;
       memcpy(narray, nback, ng*sizeof(Scalar));
@@ -415,10 +393,6 @@ void mainloop(Scalar tmax, Scalar dt)
 
       moveparticles(dt);
       
-      #ifdef DEBUG
-      //      fprintf(stderr, "after move particles, npart=%d\n", npart);
-      #endif
-
       if(nproc > 1)
 	{
 	  starttime(MPITIME);
@@ -429,10 +403,6 @@ void mainloop(Scalar tmax, Scalar dt)
 
       advancefields(dt);
 
-      #ifdef DEBUG
-      //      fprintf(stderr, "after fields, npart=%d\n", npart);
-      #endif
-
       if(diagnosticsflag)
 	{
 	  char msg[] = "";
@@ -440,10 +410,6 @@ void mainloop(Scalar tmax, Scalar dt)
 	  print_diagnostics(msg);
 	  endtime(DIAGNOSTICS);
 	}
-
-      #ifdef DEBUG
-      //      fprintf(stderr, "after diagnostics, npart=%d\n", npart);
-      #endif
 
       tt += dt;
 
@@ -453,7 +419,15 @@ void mainloop(Scalar tmax, Scalar dt)
       fprintf(stderr, "}[%d]\n", rank);
       #endif
       count++;
+	  end_comp = std::chrono::steady_clock::now();
+	  comp_seconds += (end_comp - start_comp);
     }
+	total_end = std::chrono::steady_clock::now();
+	total_seconds = total_end - total_start;
+	if(rank == 0){
+		fprintf(fp, "Total time in loop = %f\n", total_seconds.count());
+		fprintf(fp, "Total time computing in loop = %f\n", comp_seconds.count());
+	}
     delete [] narray_variables;
 }
 
@@ -566,17 +540,15 @@ void init(void)
   diagnosticsflag = false;
 }
 
-void printdata(void)
+void printdata(FILE *fp)
 {
-  printf("rank %d of %d processors\n", rank, nproc);
-  fprintf(stdout, "MPI version: %d.%d, ", ver, subver);
-  fprintf(stdout, "MPI_Wtime precision: %g\n", wtres);
-  printf("t=%.3g, dt=%.3g, ntimesteps=%d, ", t, dt, ntimesteps);
-  printf("density=%.3g, wp=%.3g, np2c=%.3g\n", density, wp, np2c);
-  printf("%d particles, ng=%d, nc=%d, ", npart, ng, nc);
-  printf("L=%g, Ll=%g, dx=%g, area=%g\n", L, Ll, dx, area);
-
-  fflush(stdout);
+  fprintf(fp, "rank %d of %d processors\n", rank, nproc);
+  fprintf(fp, "MPI version: %d.%d, ", ver, subver);
+  fprintf(fp, "MPI_Wtime precision: %g\n", wtres);
+  fprintf(fp, "t=%.3g, dt=%.3g, ntimesteps=%d, ", t, dt, ntimesteps);
+  fprintf(fp, "density=%.3g, wp=%.3g, np2c=%.3g\n", density, wp, np2c);
+  fprintf(fp, "%d particles, ng=%d, nc=%d, ", npart, ng, nc);
+  fprintf(fp, "L=%g, Ll=%g, dx=%g, area=%g\n", L, Ll, dx, area);
 }
 
 // free fields arrays
@@ -697,16 +669,8 @@ void parsefromfile()
     npart = nc*nnppcc;
     dtfactor = ddttff;
     lhsvoltage = lhsdefault;
-
-    /*
-    printf("Number of timesteps: %d\n", ntimesteps);
-    printf("Number of cells per processor: %d\n", nc);
-    printf("Number of particles per cell: %d\n", nnppcc);
-    printf("Dtfactor: %f\n", dtfactor);
-    printf("Left hand side voltage: %f\n", lhsvoltage);
-    */
-
-    for(i=0; i < count; i++){//free each of the parameter sub-arrays
+    
+	for(i=0; i < count; i++){//free each of the parameter sub-arrays
         free(fiparameters[i]);
     }
     free(fiparameters);//free the parameter array
@@ -723,18 +687,11 @@ void parsecmdline(int argc, char **argv)
   double asz; // artificial mesh size for coupling
   double ddttff, lhsdefault;
 
-  #ifdef DEBUG
-  //  fprintf(stderr, "Program name: %s\n", argv[0]);
-  #endif
-
   ddttff = lhsdefault = 0.;
   nnppcc = nnccpppp = nnnttt = 0;
 
   for(i=1; i < argc; i++)
     {
-      #ifdef DEBUG
-      //      fprintf(stderr, "arg %d : %s\n", i, argv[i]);
-      #endif
 
       if(strcmp(argv[i], "-ppc") == 0)
 	{
@@ -774,12 +731,6 @@ void parsecmdline(int argc, char **argv)
 	}
     }
 
-  #ifdef DEBUG
-  //  fprintf(stderr, "\ncmd line args parsed: ");
-  //  fprintf(stderr, "%d particles/cell, %d cells/processor, %d timesteps\n",
-  //	  nnppcc, nnccpppp, nnnttt);
-  #endif
-
   if((nnppcc < 1) || (nnccpppp < 1) || (nnnttt < 1))
     {
       fprintf(stderr, "\nError, input arguments must be entered!\n");
@@ -815,14 +766,6 @@ void Quit(void)
       printtarray(0, 0, 0., 1);
     }
 
-  #ifdef DEBUG
-  //  fprintf(stderr, "proc %d ready to finalize MPI\n", rank);
-  #endif
-
-
-  //exit(0);
-  //MPI_Abort(custom_comm, 0);
-
    MPI_Finalize();
    exit(0);
 }
@@ -838,13 +781,15 @@ int main_simpic(int argc, char** argv, MPI_Fint custom, int instance_number, str
     MPI_Init(&argc, &argv);
   }
 
+  char filename[2];
+  char default_name[30] = "SIMPIC_output_instance_";
+  sprintf(filename, "%d", instance_number);
+  strcat(default_name, filename);
+  FILE *fp = fopen(default_name, "w");
   custom_comm = MPI_Comm_f2c(custom);
-  //custom_comm = MPI_COMM_WORLD;
   tstart = MPI_Wtime();
 
   starttime(INIT);
-
-  //parsecmdline(argc, argv);
 
   parsefromfile();
   init();
@@ -852,7 +797,7 @@ int main_simpic(int argc, char** argv, MPI_Fint custom, int instance_number, str
   #ifdef DEBUG
   if(rank == 0)
     {
-      printdata();
+      printdata(fp);
     }
   #endif
 
@@ -878,39 +823,29 @@ int main_simpic(int argc, char** argv, MPI_Fint custom, int instance_number, str
   total_coupler_unit_count = units[unit_count].coupler_ranks.size();
   int coupler_rank = units[unit_count].coupler_ranks[0][0]; //This assumes only 1 coupler unit per 2 MG-CFD sessions
   if(rank == 0){
-    printf("Number of ranks in my coupler unit: %zu \n", units[unit_count].coupler_ranks[0].size());
-    printf("Number of SIMPIC iterations: %d\n", ntimesteps);
-    printf("Number of coupler cycles: %d\n", coupler_cycles);
-    printf("Communication happening every %d SIMPIC iterations\n", ntimesteps/coupler_cycles);
-    printf("Artificial interface size: %lf million", artificalsize);
+    fprintf(fp, "Number of ranks in my coupler unit: %zu\n", units[unit_count].coupler_ranks[0].size());
+    fprintf(fp, "Number of SIMPIC iterations: %d\n", ntimesteps);
+    fprintf(fp, "Number of coupler cycles: %d\n", coupler_cycles);
+    fprintf(fp, "Communication happening every %d SIMPIC iterations\n", ntimesteps/coupler_cycles);
+    fprintf(fp, "Artificial interface size: %lf million\n", artificalsize);
   }
 
   units_copy = units;
   relative_positions_copy = relative_positions;
 
+  mainloop(t, dt, fp);
 
-  mainloop(t, dt);
-
-  #ifdef DEBUG
-  //  fprintf(stderr, "Proc %d done with mainloop\n", rank);
-  #endif
   MPI_Barrier(custom_comm);
 
   tend = MPI_Wtime();
   
   if(rank == 0)
     {
-      printtimes(stdout);
+      printtimes(fp);
     }
 
-  #ifdef DEBUG
-  //  fprintf(stderr, "Proc %d ready to Quit()\n", rank);
-  #endif
 
   Quit();
 
-#ifdef DEBUG
-  //  fprintf(stderr, "Proc %d DONE!!!\n", rank);
-#endif
   return 0;
 }

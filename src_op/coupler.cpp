@@ -346,7 +346,23 @@ int main(int argc, char** argv){
 	                unit_count++;
 	            }
 	    	}
+			char filename[3];
+			char default_name[26] = "COUPLER_output_instance_";
+			sprintf(filename,"%d",instance_number);
+			strcat(default_name, filename);
+			FILE *fp = fopen(default_name, "w");
+			if(units[unit_count].coupling_type == 'C'){
+				fprintf(fp, "Coupling type is CHT\n");
+			}else if(units[unit_count].coupling_type == 'O'){
+				fprintf(fp, "Coupling type is Overset\n");
+			}else if(units[unit_count].coupling_type == 'S'){
+				fprintf(fp, "Coupling type is Sliding Plane\n");
+			} 		
+			fprintf(fp, "With the two connected units %d and %d\n", 
+					units[unit_count].mgcfd_units[0], 
+					units[unit_count].mgcfd_units[1]);
 
+				
 			int left_rank = units[unit_count].mgcfd_ranks[0][0];
 			int right_rank = units[unit_count].mgcfd_ranks[1][0];
 			 
@@ -423,7 +439,7 @@ int main(int argc, char** argv){
 			//set up some random data for cht interpolation
 			int ar_size_max = left_right_size*0.9;
 			if(rank == root_rank && debug == true){
-				printf("size is %d\n", ar_size_max);
+				fprintf(fp, "size is %d\n", ar_size_max);
 			}
 			srand((unsigned)time(NULL));
 			double data_ran[ar_size_max][4];
@@ -433,25 +449,19 @@ int main(int argc, char** argv){
 				}
 			}
 			
-			std::chrono::duration<double> total_seconds;
-			std::chrono::duration<double> non_coupling_secs;
-			std::chrono::duration<double> pure_compute_sec;
-			std::chrono::duration<double> wait_sec;
+			std::chrono::duration<double> total_seconds = std::chrono::seconds(0);
+			std::chrono::duration<double> pure_comp_secs = std::chrono::seconds(0);
 			std::chrono::time_point<std::chrono::steady_clock> start;
 			std::chrono::time_point<std::chrono::steady_clock> start1;
-
+			std::chrono::time_point<std::chrono::steady_clock> end; 
+			start = std::chrono::steady_clock::now();
 			for(int cycle_counter = 0; cycle_counter < coupler_cycles; cycle_counter++){
 				int local_size;
 				MPI_Comm_size(coupler_comm, &local_size);
 				if(rank == root_rank){
-					printf("Coupler cycle %d starting\n", cycle_counter+1);
-					start = std::chrono::steady_clock::now();
+					fprintf(fp, "Coupler cycle %d starting\n", cycle_counter+1);
 					MPI_Recv(left_p_variables_recv, left_nodes_size * coupler_vars, MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-					start1 = std::chrono::steady_clock::now();
 					MPI_Recv(right_p_variables_recv, right_nodes_size * coupler_vars, MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-					auto end = std::chrono::steady_clock::now();
-					non_coupling_secs += (end-start);
-					wait_sec = (end-start1);
 					//sort the left and right variables to be roughly the avg of the two sides
 					int counter = 0;
 					for(int i = 0; i < left_nodes_size * coupler_vars; i++){
@@ -470,7 +480,6 @@ int main(int argc, char** argv){
 						}
 						counter++;
 					}
-					start = std::chrono::steady_clock::now();
 		        }
 
 				MPI_Barrier(coupler_comm);
@@ -482,10 +491,7 @@ int main(int argc, char** argv){
 					MPI_Bcast(left_p_variables, left_right_size * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
 					MPI_Bcast(right_p_variables, left_right_size * coupler_vars, MPI_DOUBLE, 0, coupler_comm);
 				}
-
-				if(rank == root_rank){
-					start1 = std::chrono::steady_clock::now();
-				}
+				start1 = std::chrono::steady_clock::now();
 				
 				//rendezvous routines start
 				if(units[unit_count].coupling_type == 'S' || cycle_counter == 0){
@@ -600,7 +606,7 @@ int main(int argc, char** argv){
 					}
 				}
 				//rendezvous routines end
-
+				
 				//interpolate routine start
 				if(units[unit_count].coupling_type == 'S' || units[unit_count].coupling_type == 'O'){
 					node_state_vars_left.clear();
@@ -653,11 +659,9 @@ int main(int argc, char** argv){
 						}
 					}
 				}
-				if(rank == root_rank){
-					auto end1 = std::chrono::steady_clock::now();
-					pure_compute_sec = (end1-start1);
-				}
-
+				
+				end = std::chrono::steady_clock::now();
+				pure_comp_secs += (end-start1);	
 				//interpolate routine end
 				MPI_Barrier(coupler_comm);
 		        MPI_Gather(left_p_variables_sg, (left_right_size_chunks * coupler_vars), MPI_DOUBLE, left_p_variables, (left_right_size_chunks * coupler_vars), MPI_DOUBLE, 0, coupler_comm);
@@ -667,17 +671,15 @@ int main(int argc, char** argv){
 				if(rank == root_rank){
 		            MPI_Send(right_p_variables_recv, right_nodes_size * coupler_vars, MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
 		            MPI_Send(left_p_variables_recv, left_nodes_size * coupler_vars, MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
-					auto end = std::chrono::steady_clock::now();
-					total_seconds += (end-start);
-					printf("Coupler cycle %d ending\n", cycle_counter+1);
+					fprintf(fp, "Coupler cycle %d ending\n", cycle_counter+1);
 		        }
 			}
 			MPI_Barrier(coupler_comm);
+			end = std::chrono::steady_clock::now();
+			total_seconds = (end-start);
 			if(rank == root_rank){
-				printf("total coupling time is %f\n", total_seconds.count());
-				printf("total time waiting %f\n", non_coupling_secs.count());
-				printf("time between left send and right send %f\n",wait_sec.count());
-				printf("total pure compute time is %f\n", pure_compute_sec.count());
+				fprintf(fp, "total time in loop = %f\n", total_seconds.count());
+				fprintf(fp, "total compute in loop = %f\n", pure_comp_secs.count());
 			}
 			MPI_Finalize();
 	   		exit(0);
