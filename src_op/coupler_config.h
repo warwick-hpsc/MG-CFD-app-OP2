@@ -1,6 +1,7 @@
 static int coupler_cycles = 5000;/* number of communication cycles */
 static int mg_conversion_factor = 10; //approx. how many MG cycles equals one production cycle - how many MG cycles run for each coupler cycle.
 static int fenics_conversion_factor = 1; //approx. how many FENICS cycles equals one production cycle - how many FENICS cycles run for each coupler cycle. 
+static int pic_conversion_factor = 220; //approx. how many PIC cycles equals one production cycle - how many PIC cycles run for each coupler cycle.
 static int search_freq = 6;/* in every x coupler cycles, run the search routine in cpx*/
 static int MUM = 1; //multi-unit mode - 0 is single unit, multi rank, 1 is multi unit
 static bool fastsearch = true; //when true, tree based search is used, else brute force search is used

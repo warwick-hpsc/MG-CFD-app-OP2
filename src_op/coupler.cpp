@@ -5,6 +5,9 @@
 #ifdef defsimpic
     #include "simpic_lib.h"
 #endif
+#ifdef defpbpic
+	#include "pbpic_lib.h"
+#endif
 #include <stdio.h>
 #include <mpi.h>
 #include <cmath>
@@ -33,6 +36,7 @@ int main(int argc, char** argv){
 	char mgcfd[] = "MG-CFD";
 	char fenics[] = "FENICS";
 	char simpic[] = "SIMPIC";
+	char pbpic[] = "PBPIC";
 	char unit_1[] = "UNIT_1";
 	char unit_2[] = "UNIT_2";
 	char total[] = "TOTAL";
@@ -46,7 +50,8 @@ int main(int argc, char** argv){
 	int coupler_count = 0;//used to count total number of coupler units
 	int mgcfd_count = 0;//used to count total umber of MG-CFD units
 	int fenics_count = 0;//used to count the number of FENICS units
-	int simpic_count = 0;//used to count the number of CUP-CFD units
+	int simpic_count = 0;//used to count the number of SIMPIC units
+	int pbpic_count = 0;//used to count the number of PBPIC units
 
 	fscanf(ifp, "%s %d", keyword, &temp_unit);
 	if(strcmp(keyword, total) == 0){
@@ -103,6 +108,16 @@ int main(int argc, char** argv){
 			temp_count++;
 			simpic_count++;
 			mpi_ranks += temp_unit;
+		}else if(strcmp(keyword, pbpic) == 0){
+			#ifndef defpbpic
+				fprintf(stderr, "Error: CPX has not been compiled with PBPIC support.\n");
+				exit(1);
+			#endif
+			units[temp_count].type = 'B';
+			units[temp_count].processes = temp_unit;
+			temp_count++;
+			pbpic_count++;
+			mpi_ranks += temp_unit;
 		}else if(strcmp(keyword, unit_1) == 0 || strcmp(keyword, unit_2) == 0){
 			units[temp_count-1].mgcfd_units.push_back(temp_unit);
 		}
@@ -123,20 +138,18 @@ int main(int argc, char** argv){
 
   if(rank == 0){
     printf("It's coupler time ;)");
-		printf("\n Total number of units: %d\n No of MG-CFD units: %d\n No of FENICS units: %d\n No of SIMPIC units: %d\n No of Coupler units: %d\n\n Unit list:\n", num_of_units, mgcfd_count, fenics_count, simpic_count, coupler_count);
-
-		int coupler_count_temp = 0;
-		int work_count_temp = 0;
-
-		for(int i = 0; i < num_of_units; i++){
-			if(units[i].type == 'C'){
-				coupler_count_temp++;
-				printf("  Coupler unit %d\n  Coupler type %c\n  Number of ranks assigned: %d\n  with the two units %d and %d\n\n", coupler_count_temp, units[i].coupling_type, units[i].processes, units[i].mgcfd_units[0], units[i].mgcfd_units[1]);
-			}else{
-				work_count_temp++;
-				printf("  Work unit %d type %c\n  Number of ranks assigned: %d\n\n", work_count_temp, units[i].type, units[i].processes);
-			}
+	printf("\n Total number of units: %d\n No of MG-CFD units: %d\n No of FENICS units: %d\n No of SIMPIC units: %d\n No of PBPIC units: %d\n No of Coupler units: %d\n\n Unit list:\n", num_of_units, mgcfd_count, fenics_count, simpic_count, pbpic_count, coupler_count);
+	int coupler_count_temp = 0;
+	int work_count_temp = 0;
+	for(int i = 0; i < num_of_units; i++){
+		if(units[i].type == 'C'){
+			coupler_count_temp++;
+			printf("  Coupler unit %d\n  Coupler type %c\n  Number of ranks assigned: %d\n  with the two units %d and %d\n\n", coupler_count_temp, units[i].coupling_type, units[i].processes, units[i].mgcfd_units[0], units[i].mgcfd_units[1]);
+		}else{
+			work_count_temp++;
+			printf("  Work unit %d type %c\n  Number of ranks assigned: %d\n\n", work_count_temp, units[i].type, units[i].processes);
 		}
+	}
 
     if(mpi_ranks != size){
     	fprintf(stderr, "Error: there is a mismatch in the number requested MPI ranks and the number of ranks requested in the config file.\n");
@@ -248,6 +261,8 @@ int main(int argc, char** argv){
 	bool is_coupler = false;
 	bool is_mgcfd = false;
 	bool is_fenics = false;
+	bool is_simpic = false;
+	bool is_pbpic = false;
 	int instance_number = 0;
 
 	for(int i=0; i<num_of_units;i++){
@@ -276,6 +291,10 @@ int main(int argc, char** argv){
 						is_mgcfd = true;
 					} else if(units[i].type == 'F'){
 						is_fenics = true;
+					} else if(units[i].type == 'P'){
+						is_simpic = true;
+					} else if(units[i].type == 'B'){
+						is_pbpic = true;
 					}
 					instance_number = relative_positions[rank].placelocator;
 				}
@@ -292,12 +311,15 @@ int main(int argc, char** argv){
                 main_dolfinx(argc, argv, comms_shell, instance_number, units, relative_positions);
 			#endif
             MPI_Finalize();
-		}else{
+		}else if(is_simpic){
 			#ifdef defsimpic
-				//printf("launch simpic here");
 				main_simpic(argc, argv, comms_shell, instance_number, units, relative_positions);
-				//main_cup(argc, argv, comms_shell, instance_number, units, relative_positions);
             #endif
+			MPI_Finalize();
+		}else if(is_pbpic){
+			#ifdef defpbpic
+				main_pbpic(argc, argv, comms_shell, instance_number, units, relative_positions);
+			#endif
 			MPI_Finalize();
 		}
 	}else{
@@ -324,7 +346,7 @@ int main(int argc, char** argv){
 	                unit_count++;
 	            }
 	    	}
-			
+
 			int left_rank = units[unit_count].mgcfd_ranks[0][0];
 			int right_rank = units[unit_count].mgcfd_ranks[1][0];
 			 
@@ -356,12 +378,10 @@ int main(int argc, char** argv){
             if(units[unit_count].coupling_type == 'S'){
                 left_search_scaling = search_repeats * adjusted_sizes_left;
                 right_search_scaling = search_repeats * adjusted_sizes_right;
-                //interp_scaling = 3500/((adjusted_sizes_left + adjusted_sizes_right)/2);
                 coupler_vars = 5;
             }else if(units[unit_count].coupling_type == 'O'){
 				left_search_scaling = search_repeats * adjusted_sizes_left;
                 right_search_scaling = search_repeats * adjusted_sizes_right;
-                //interp_scaling = 3500/((adjusted_sizes_left + adjusted_sizes_right)/2);
                 coupler_vars = 1;
 			}else if(units[unit_count].coupling_type == 'C'){
                 left_search_scaling = 3;
@@ -580,7 +600,7 @@ int main(int argc, char** argv){
 					}
 				}
 				//rendezvous routines end
-	
+
 				//interpolate routine start
 				if(units[unit_count].coupling_type == 'S' || units[unit_count].coupling_type == 'O'){
 					node_state_vars_left.clear();
@@ -637,7 +657,7 @@ int main(int argc, char** argv){
 					auto end1 = std::chrono::steady_clock::now();
 					pure_compute_sec = (end1-start1);
 				}
-				
+
 				//interpolate routine end
 				MPI_Barrier(coupler_comm);
 		        MPI_Gather(left_p_variables_sg, (left_right_size_chunks * coupler_vars), MPI_DOUBLE, left_p_variables, (left_right_size_chunks * coupler_vars), MPI_DOUBLE, 0, coupler_comm);

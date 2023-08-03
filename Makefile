@@ -77,6 +77,7 @@ ifdef FENICS
     PETSC_INC += -DHAVE_PETSC
     PETSC_LIB += -lpetsc
     BOOST_LIB += -lboost_filesystem -lboost_program_options -lboost_timer
+
 endif
 
 ifdef SIMPIC
@@ -84,8 +85,13 @@ ifdef SIMPIC
 	SIMPIC_LIB = $(SIMPIC_INSTALL_PATH)/libsimpic.a
 endif
 
+ifdef PBPIC
+    PBPIC_DEF = -Ddefpbpic
+    PBPIC_LIB = $(PBPIC_INSTALL_PATH)/libpbpic.a
+endif
+
 ifdef DEBUG
-  OPTIMISE := -pg -g -O0
+  OPTIMISE := -g -O0
 else
   OPTIMISE := -O3
 endif
@@ -410,8 +416,8 @@ $(BIN_DIR)/mgcfd_cpx_runtime: $(OP2_MPI_CPX_MAIN) $(BIN_DIR)/mgcfd_cpx.a $(FENIC
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(BIN_DIR)/mgcfd_cpx.a $(SIMPIC_LIB) $(MGCFD_LIBS) \
         -lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(DOLFINX_LIB) $(PETSC_LIB) $(BOOST_LIB)\
-		$(SQLITE_LIB) $(TREETIMER_INC) $(TREETIMER_LIB) \
-        $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) $(SIMPIC_DEF) -o $@ 
+		$(PBPIC_LIB) $(SQLITE_LIB) $(TREETIMER_INC) $(TREETIMER_LIB) \
+        $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) $(SIMPIC_DEF) $(PBPIC_DEF) -o $@ 
 
 
 ## MPI_CPX CUDA
