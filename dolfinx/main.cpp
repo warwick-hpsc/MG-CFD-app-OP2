@@ -283,12 +283,23 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
     const std::string st_num_vertices = vm["num_vertices"].as<std::string>();
     const std::string st_thermomech = vm["Thermomech_simulation"].as<std::string>();
 
-    const int thermal_its = std::stoi(st_thermal_its);
-    const int structural_its = std::stoi(st_structural_its);
+	const int strut_flag = std::stoi(st_thermomech);
+	const int num_vertices = std::stoi(st_num_vertices);
+	int thermal_its;
+	int structural_its;
+	if(strut_flag == 1){
+		if(num_vertices > 400000){
+			structural_its = 0.5*std::stoi(st_structural_its);
+		}else{
+			structural_its = 0.85*std::stoi(st_structural_its);
+		}
+		thermal_its = 0.45*std::stoi(st_thermal_its);
+	}else{
+		thermal_its = 0.45*std::stoi(st_thermal_its);
+		structural_its = std::stoi(st_structural_its);
+	}
     const int thermal_outer_its = std::stoi(st_thermal_outer_its);
     const int structural_outer_its = std::stoi(st_structural_outer_its);
-    const int num_vertices = std::stoi(st_num_vertices);
-    const int strut_flag = std::stoi(st_thermomech);
 
     if (internal_rank == 0)
       fprintf(fp, "Creating Mesh ...");
@@ -305,11 +316,14 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
 #error "No mesh partitioner has been selected"
 #endif
 
-    auto cell_part = dolfinx::mesh::create_cell_partitioner(mesh::GhostMode::none, graph_part);
+    auto cell_part = dolfinx::mesh::create_cell_partitioner(mesh::GhostMode::shared_facet, graph_part);
 
     float tmp = round(std::cbrt(num_vertices));
-    long unsigned int mesh_vertices = int(tmp) - 1;
-    double left_corner = 10.0;
+	long unsigned int mesh_vertices = int(tmp) - 1;
+    long unsigned int guess = (mesh_vertices+1)*(mesh_vertices+1)*(mesh_vertices+1);
+	double left_corner = 10.0;
+	if (internal_rank == 0 && debug)
+		fprintf(fp, "orginal number is %d, sqrt is %f, mesh vert is %lu, cal we think this %lu\n", num_vertices, tmp, mesh_vertices, guess);
 
 	auto mesh = std::make_shared<dolfinx::mesh::Mesh>(dolfinx::mesh::create_box(
                                         fenics_comm, {{{0.0, 0.0, 0.0},
@@ -317,8 +331,8 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
                                         {mesh_vertices, mesh_vertices, mesh_vertices},
                                         mesh::CellType::tetrahedron, cell_part));
 
-    mesh->topology_mutable().create_entities(2);
-    mesh->topology_mutable().create_connectivity(2, 3);
+	mesh->topology_mutable().create_entities(2);
+	mesh->topology_mutable().create_connectivity(2, 3);
 
     int tdim = mesh->topology().dim();
     auto domain2_indices2 = locate_entities(*mesh, tdim,
@@ -454,7 +468,7 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
     //Set up boundary conditions
     std::vector<std::shared_ptr<const fem::DirichletBC<PetscScalar>>> bcs_st;
     auto bound_facets = dolfinx::mesh::locate_entities_boundary(
-         *mesh, 1, [left_corner](auto x){
+         *mesh, mesh->topology().dim() - 1, [left_corner](auto x){
 							constexpr double eps = 1.0e-8;
 							std::vector<std::int8_t> marker(x.extent(1), false);
 							for (std::size_t p = 0; p < x.extent(1); ++p){
@@ -464,10 +478,11 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
 							}
 							return marker;
 							});
-	const auto bdofs = fem::locate_dofs_topological({*V_st}, 1, bound_facets);
+	const auto bdofs = fem::locate_dofs_topological({*V_st}, 
+							mesh->topology().dim() - 1, bound_facets);
 	auto bc_1 = std::make_shared<const fem::DirichletBC<PetscScalar>>(
 											std::vector<PetscScalar>{0, 0, 0}, 
-											bdofs, V_st);
+											std::move(bdofs), V_st);
     bcs_st.push_back(bc_1);
 
 	NLProblem problem_st(L_st, a_st, bcs_st);
@@ -535,7 +550,7 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
     PetscInt size_u;
     VecGetSize(_u_th.vec(), &size_u);
     double nodes_size = round(size_u * 0.03); //TEMP boundary 2.5% of grid.
-    if(internal_rank==0)
+    if(internal_rank==0 && debug)
       fprintf(fp, "boudary size %f\n", nodes_size);
 
     double *p_variables_data = (double*) malloc(nodes_size * NVAR * sizeof(double));
@@ -555,19 +570,34 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
 	
     if(internal_rank == 0)
       fprintf(fp, "Entering transient thermo-mechanical iteration loop... \n");
+	
+	//rerun the two solvers since the first time has some overhead
+	nlth_solver.setF(problem_th.F(), problem_th.vector());
+	nlth_solver.setJ(problem_th.J(), problem_th.matrix());
+	nlth_solver.set_form(problem_th.form());
+	nlth_solver.solve(_u_th.vec());
 
+	if(strut_flag == 1){
+		nlst_solver.setF(problem_st.F(), problem_st.vector());
+		nlst_solver.setJ(problem_st.J(), problem_st.matrix());
+		nlst_solver.set_form(problem_st.form());
+		nlst_solver.solve(_u_st.vec());
+	}
+	
+	Table first_times = timings({TimingType::wall});
+	
     //Calculate number of cycles
     int fenics_cycles = coupler_cycles*fenics_conversion_factor;
-    common::Timer t_13th("05 Compute");
-
+    common::Timer t_13th("05 Loop");
+	
     for(int i = 0; i < fenics_cycles; i++){
-      t->value[0] = t->value[0] + dt->value[0];
+	  t->value[0] = t->value[0] + dt->value[0];
       if(internal_rank == 0){
         fprintf(fp, "Starting FEniCS X cycle %d of %d\n",i+1, fenics_cycles);
         fprintf(fp, "Solving for temperature at time: %f\n", t->value[0]);
       }
 
-      common::Timer t_15th("07 pure Compute");
+      common::Timer t_15th("07 Compute in Loop");
       // Solving for thermal
       nlth_solver.setF(problem_th.F(), problem_th.vector());
       nlth_solver.setJ(problem_th.J(), problem_th.matrix());
@@ -579,7 +609,7 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
       // Copy solution from this time step to previous time step
       std::copy(uth_span.begin(), uth_span.end(), u0th_span.begin());
 
-      if(strut_flag == 1){
+	  if(strut_flag == 1){
         if(internal_rank == 0){
           fprintf(fp, "Solving displacement for time: %f\n", t->value[0]);
         }
@@ -627,26 +657,26 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
               coupler_vars = 5;
             }else if(units[unit_count_2].coupling_type == 'C'){
               coupler_vars = 1;
-            }
-			common::Timer t_15th("06 waiting");
+			}
+			common::Timer t_16th("06 waiting");
             if(hide_search == true){
               if((i % (search_freq*fenics_conversion_factor)) == 0){
                 MPI_Send(p_variables_data, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-				t_15th.stop();
+				t_16th.stop();
               }else if((i % fenics_conversion_factor) == fenics_conversion_factor - 1){
 				common::Timer t_14th("06 Coupling");
                 MPI_Recv(p_variables_recv, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				t_14th.stop();
               }else{
                 MPI_Send(p_variables_data, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-				t_15th.stop();
+				t_16th.stop();
 				common::Timer t_14th("06 Coupling");
                 MPI_Recv(p_variables_recv, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 t_14th.stop();
 			  }
             }else{
               MPI_Send(p_variables_data, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-			  t_15th.stop();
+			  t_16th.stop();
 			  common::Timer t_14th("06 Coupling");
               MPI_Recv(p_variables_recv, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
               t_14th.stop();
@@ -665,11 +695,27 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
       xdmf_file_th.close();
     }
     xdmf_file_th.close();
-    // Display timings (reduced using MPI::Max)
     Table times = timings({TimingType::wall});
-    if(internal_rank == 0){
-      fprintf(fp, times.str().c_str());
+	times.set("PETSc Krylov solver", "wall tot",
+				(std::get<double>(times.get("PETSc Krylov solver", "wall tot"))
+				-std::get<double>(first_times.get("PETSc Krylov solver", "wall tot"))));
+	times.set("PETSc Krylov solver", "reps",
+				(std::get<int>(times.get("PETSc Krylov solver", "reps"))
+				-std::get<int>(first_times.get("PETSc Krylov solver", "reps"))));
+	times.set("PETSc Krylov solver", "wall avg",
+				(std::get<double>(times.get("PETSc Krylov solver", "wall tot"))
+				/std::get<int>(times.get("PETSc Krylov solver", "reps"))));
+	double loop = std::get<double>(times.get("05 Loop", "wall tot"));
+	double pure_compute = std::get<double>(times.get(
+							"07 Compute in Loop", "wall tot"));
+    if(internal_rank == 0 && debug){
+      fprintf(fp,"%s\n\n\n\n" ,times.str().c_str());
     }
+	if(internal_rank == 0){
+	  fprintf(fp, "-------------------------------------\n");
+	  fprintf(fp, "total time in loop = %f\n", loop);
+	  fprintf(fp, "total compute in loop = %f\n", pure_compute);
+	}
   }
   MPI_Barrier(fenics_comm);
   PetscFinalize();

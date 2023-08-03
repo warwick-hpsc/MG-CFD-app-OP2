@@ -73,7 +73,7 @@ endif
 ifdef FENICS
     FENICS_DEF = -Ddeffenics
     DOLFINX_LIB += -ldolfinx
-    FENICS_LIB = $(BIN_DIR)/libdolfinx_cpx.a
+    FENICS_LIB = $(FENICS_INSTALL_PATH)/libdolfinx_cpx.a
     PETSC_INC += -DHAVE_PETSC
     PETSC_LIB += -lpetsc
     BOOST_LIB += -lboost_filesystem -lboost_program_options -lboost_timer

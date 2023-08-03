@@ -8,11 +8,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-#Set the output location.
-set(BIN "${CMAKE_SOURCE_DIR}/../bin")
-set(EXECUTABLE_OUTPUT_PATH ${BIN} CACHE PATH "Build directory" FORCE)
-set(LIBRARY_OUTPUT_PATH ${BIN} CACHE PATH "Build directory" FORCE)
-
 # Get DOLFIN configuration data (DOLFINXConfig.cmake must be in
 # DOLFINX_CMAKE_CONFIG_PATH)
 find_package(DOLFINX REQUIRED)
