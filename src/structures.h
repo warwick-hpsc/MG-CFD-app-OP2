@@ -1,7 +1,7 @@
 #ifndef STRUCTURES_H
 #define STRUCTURES_H
 
-#if !defined(__HIPSYCL__) && !defined(__CUDACC__) && !defined(__HIPCC__)
+#if !defined(__HPSYCL__) && !defined(__CUDACC__) && !defined(__HIPCC__)
   struct double3 { double x, y, z; };
 #else
   // nvcc will pull in '/usr/include/vector_types.h' which 

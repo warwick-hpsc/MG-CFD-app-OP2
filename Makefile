@@ -26,7 +26,7 @@ ifdef HDF5_INSTALL_PATH
   HDF5_INC = -I$(HDF5_INSTALL_PATH)/include
   HDF5_LIB = -L$(HDF5_INSTALL_PATH)/lib
 endif
-HDF5_LIB += -lhdf5 -lz
+HDF5_LIB += -lhdf5 #-lz
 
 PARMETIS_VER=4
 ifdef PARMETIS_INSTALL_PATH
@@ -112,7 +112,7 @@ ifeq ($(COMPILER),clang)
   MPICPP += -cxx=clang++
 else
 ifeq ($(COMPILER),intel)
-  CPP = icpc
+  CPP = icpx
 else
 ifeq ($(COMPILER),xl)
   CPP		 = xlc++
@@ -127,7 +127,11 @@ else
 ifeq ($(OP2_COMPILER),intel-sycl)
   CPP = dpcpp
 else
+ifeq ($(OP2_COMPILER),hipsycl)
+  CPP = syclcc
+else
   $(error unrecognised value for COMPILER: $(COMPILER))
+endif
 endif
 endif
 endif
@@ -179,7 +183,7 @@ ifeq ($(COMPILER),intel)
   CFLAGS += -fmax-errors=1
   CPPFLAGS = $(CFLAGS)
   OMPFLAGS = -qopenmp
-  OMPOFFLOAD = -qopenmp
+  OMPOFFLOAD = -fiopenmp -fopenmp-targets=spir64 #-qopenmp
   # NVCCFLAGS += -ccbin=$(MPICPP)
   MPIFLAGS	= $(CPPFLAGS)
   ifdef ISET
@@ -239,10 +243,12 @@ ifeq ($(OP2_COMPILER),hipsycl)
   CCFLAGS       = -O3 
   CPPFLAGS      = $(CCFLAGS)
   #SYCL_FLAGS    = --hipsycl-gpu-arch=sm_60  -Wdeprecated-declarations
-  SYCL_FLAGS    += -DHIPSYCL
+  SYCL_FLAGS    += -DHIPSYCL $(HIPSYCL_FLAGS)
   NVCCFLAGS = -ccbin=$(NVCC_HOST_COMPILER)
   MPICPP        = $(CC)
   MPIFLAGS      = $(CPPFLAGS)
+  SYCL_LINK_SEQ = $(OP2_INSTALL_PATH)/c/lib/libop2_sycl.a
+  SYCL_LINK_MPI = $(OP2_INSTALL_PATH)/c/lib/libop2_mpi_sycl.a
   ifdef BOOST_INSTALL_PATH
     SYCL_INCLUDES += -I$(BOOST_INSTALL_PATH)/include
     SYCL_LIBS += -L$(BOOST_INSTALL_PATH)/lib
@@ -265,7 +271,7 @@ ifeq ($(OP2_COMPILER),intel-sycl)
   OMPFLAGS      = -I$(OMPTARGET_LIBS)/../include -fopenmp
   SYCL_LIB   = -L$(SYCL_INSTALL_PATH)/lib -lOpenCL
   NVCCFLAGS = -ccbin=$(NVCC_HOST_COMPILER)
-  SYCL_FLAGS = -std=c++17 -fsycl -fsycl-targets=spir64_x86_64 -Xs "-march=avx512" -Ofast -ffast-math -march=native -fp-model fast -fno-alias -std=c++17 -qopenmp #-I$(SYCL_INSTALL_PATH)/include -I$(SYCL_INSTALL_PATH)/include #intel sycl
+  SYCL_FLAGS = -std=c++17 -fsycl -Ofast -ffast-math -march=native -fp-model fast -fno-alias -std=c++17 -qopenmp #-I$(SYCL_INSTALL_PATH)/include -I$(SYCL_INSTALL_PATH)/include #intel sycl -fsycl-targets=spir64_x86_64 -Xs "-march=avx512"
   #SYCL_FLAGS = -std=c++11 -fsycl #intel sycl
   SYCL_LINK_SEQ = $(OP2_INSTALL_PATH)/c/lib/libop2_sycl.a
   SYCL_LINK_MPI = $(OP2_INSTALL_PATH)/c/lib/libop2_mpi_sycl.a
@@ -303,7 +309,7 @@ else
 ifeq ($(NV_ARCH),Kepler)
   CODE_GEN_CUDA=-gencode arch=compute_35,code=sm_35
 ifeq ($(OP2_COMPILER),hipsycl)
-  SYCL_FLAGS += --hipsycl-gpu-arch=sm_35
+#  SYCL_FLAGS += --hipsycl-gpu-arch=sm_35
 endif
 else
 ifeq ($(NV_ARCH),Maxwell)
@@ -659,7 +665,7 @@ $(OBJ_DIR)/mgcfd_omp4_kernels.o: $(SRC_DIR)/../openmp4/_omp4kernels.cpp $(OMP4_K
 $(BIN_DIR)/mgcfd_openmp4: $(OP2_OMP4_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(CPP) $(CPPFLAGS) $(OMPOFFLOAD) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-	    $(OP2_LIB) -lop2_openmp4 $(CUDA_LIB) -lcudart \
+	    $(OP2_LIB) -lop2_openmp4 $(CUDA_LIB)  \
 		$(HDF5_LIB) -lop2_hdf5 \
 	    -o $@
 
