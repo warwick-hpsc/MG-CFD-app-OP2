@@ -293,8 +293,8 @@ local data */
    if (kl < 0)
       kl = kl + nvp;
 /* this segment is used for mpi computers */
-   ierr = MPI_Irecv(&f[nxv*nyp],nxv,mreal,kr,moff,lgrp,&msid);
-   ierr = MPI_Send(f,nxv,mreal,kl,moff,lgrp);
+   ierr = MPI_Irecv(&f[nxv*nyp],nxv,mreal,kr,MPI_ANY_TAG,lgrp,&msid);
+   ierr = MPI_Send(f,nxv,mreal,kl,1,lgrp);
    ierr = MPI_Wait(&msid,&istatus);
    return;
 }
@@ -338,8 +338,8 @@ local data */
    if (kl < 0)
       kl = kl + nvp;
 /* this segment is used for mpi computers */
-   ierr = MPI_Irecv(scr,nxv,mreal,kl,moff,lgrp,&msid);
-   ierr = MPI_Send(&f[nxv*nyp],nxv,mreal,kr,moff,lgrp);
+   ierr = MPI_Irecv(scr,nxv,mreal,kl,MPI_ANY_TAG,lgrp,&msid);
+   ierr = MPI_Send(&f[nxv*nyp],nxv,mreal,kr,2,lgrp);
    ierr = MPI_Wait(&msid,&istatus);
 /* add up the guard cells */
    for (j = 0; j < nx1; j++) {
@@ -393,8 +393,8 @@ local data */
    if (kl < 0)
       kl = kl + nvp;
 /* this segment is used for mpi computers */
-   ierr = MPI_Irecv(scr,nnxv,mreal,kl,moff,lgrp,&msid);
-   ierr = MPI_Send(&f[nnxv*nyp],nnxv,mreal,kr,moff,lgrp);
+   ierr = MPI_Irecv(scr,nnxv,mreal,kl,MPI_ANY_TAG,lgrp,&msid);
+   ierr = MPI_Send(&f[nnxv*nyp],nnxv,mreal,kr,3,lgrp);
    ierr = MPI_Wait(&msid,&istatus);
 /* add up the guard cells */
    for (j = 0; j < nx1; j++) {

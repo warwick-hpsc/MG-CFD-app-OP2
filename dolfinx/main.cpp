@@ -190,7 +190,7 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
   FILE *fp = fopen(default_name, "w");
 
   //set up the command line arguments for FENICSX
-  FILE *input = fopen("Fenics_input", "r");
+  FILE *input = fopen("fenics_input", "r");
   int max_bufsize = 200;
   int numinputs = 20;
   char buff[max_bufsize];
@@ -200,7 +200,7 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
   }
   int argc_fenics = 0; //first variable should be file name
   if(input == NULL){
-    fprintf(stderr, "Can't open input file Fenics_input\n");
+    fprintf(stderr, "Can't open input file fenics_input\n");
     exit(1);
   }else{
     while(fgets(buff, max_bufsize, input) != NULL){
@@ -235,7 +235,8 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
         arg_str.find("Thermal_outer_its") == std::string::npos and
         arg_str.find("Structural_outer_its") == std::string::npos and
         arg_str.find("Thermomech_simulation") == std::string::npos and
-        arg_str.find("num_vertices") == std::string::npos)
+        arg_str.find("num_vertices") == std::string::npos and 
+		arg_str.find("output") == std::string::npos)
       argv_petsc.push_back(argv_fenics[i]);
   }
   int argc_ = argv_petsc.size();
@@ -258,7 +259,9 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
                      "num_vertices", po::value<std::string>(),
                      "The target number of vertices in the mesh")(
                      "Thermomech_simulation", po::value<std::string>(),
-                     "Set to 1 for a Thermomech simulation and 0 for a Thermal");
+                     "Set to 1 for a Thermomech simulation and 0 for a Thermal")(
+					 "output", po::value<std::string>(),
+					 "Set to 1 or 0 to control if the mini-app simulates data output");
 
   po::variables_map vm;
   po::store(po::command_line_parser(argc_fenics, argv_fenics)
@@ -282,7 +285,9 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
     const std::string st_structural_outer_its = vm["Structural_outer_its"].as<std::string>();
     const std::string st_num_vertices = vm["num_vertices"].as<std::string>();
     const std::string st_thermomech = vm["Thermomech_simulation"].as<std::string>();
+	const std::string st_output = vm["output"].as<std::string>();
 
+	const int output_flag = std::stoi(st_output);
 	const int strut_flag = std::stoi(st_thermomech);
 	const int num_vertices = std::stoi(st_num_vertices);
 	int thermal_its;
@@ -425,10 +430,12 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
 		la::petsc::options::set(prefix_t + "ksp_view", "");
 	}
     kspsolver.set_from_options();
+   
 
-    dolfinx::io::XDMFFile xdmf_file_th(fenics_comm, "Temperatures.xdmf",
-                                       "w");
-    xdmf_file_th.write_mesh(*mesh);
+	dolfinx::io::XDMFFile xdmf_file_th(fenics_comm, "Temperatures.xdmf", "w"); 
+	if(output_flag == 1){
+		xdmf_file_th.write_mesh(*mesh);
+	}
 
     t_11th.stop();
 
@@ -518,9 +525,10 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
     la::petsc::options::set(prefix + "pc_gamg_esteig_ksp_type", "cg");
     kspsolver2.set_from_options();
 
-    dolfinx::io::XDMFFile xdmf_file_st(fenics_comm, "Displacements.xdmf",
-                                       "w");
-    xdmf_file_st.write_mesh(*mesh);
+	dolfinx::io::XDMFFile xdmf_file_st(fenics_comm, "Displacements.xdmf", "w");
+	if(output_flag == 1){
+		xdmf_file_st.write_mesh(*mesh);
+	}
 
     t_12th.stop();
 
@@ -604,7 +612,9 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
 	  nlth_solver.set_form(problem_th.form());
       nlth_solver.solve(_u_th.vec());
 
-      xdmf_file_th.write_function(*u_th, t->value[0]);
+	  if(output_flag == 1){
+		xdmf_file_th.write_function(*u_th, t->value[0]);
+	  }
 
       // Copy solution from this time step to previous time step
       std::copy(uth_span.begin(), uth_span.end(), u0th_span.begin());
@@ -619,23 +629,25 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
         nlst_solver.setJ(problem_st.J(), problem_st.matrix());
         nlst_solver.set_form(problem_st.form());
         nlst_solver.solve(_u_st.vec());
-        xdmf_file_st.write_function(*u_st, t->value[0]);
+		if(output_flag == 1){
+			xdmf_file_st.write_function(*u_st, t->value[0]);
+		}
       }
       t_15th.stop();
       //Send data
       if((i % fenics_conversion_factor == 0) || (hide_search == true && ((i % fenics_conversion_factor) == fenics_conversion_factor - 1))){
-        VecScatterBegin(scat, _u_th.vec(), send, INSERT_VALUES, SCATTER_FORWARD);
+		if(internal_rank == 0){
+        }
+		VecScatterBegin(scat, _u_th.vec(), send, INSERT_VALUES, SCATTER_FORWARD);
         VecScatterEnd(scat, _u_th.vec(), send, INSERT_VALUES, SCATTER_FORWARD);
         if(internal_rank == 0){
           PetscScalar *send_array;
           VecGetArray(send, &send_array);
-          for(int k = 0; k < NVAR; k++){
-            for(int j = 0; j < nodes_size; j++){
-              p_variables_data[(int) (nodes_size*k)+j] = send_array[j];
-            }
+          for(int j = 0; j < nodes_size; j++){
+            p_variables_data[j] = send_array[j];
           }
           VecRestoreArray(send, &send_array);
-          printf("FEniCS X cycle %d comms starting\n", i+1);
+          fprintf(fp, "FEniCS X coupler cycle %d of %d comms starting\n", (i/fenics_conversion_factor)+1, coupler_cycles);
           for(int j = 0; j < total_coupler_unit_count; j++){
             int coupler_rank = units[unit_count].coupler_ranks[j][0];
             int coupler_position = relative_positions[coupler_rank].placelocator;
@@ -653,48 +665,40 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
               }
             }
             int coupler_vars = 0;
-            if(units[unit_count_2].coupling_type == 'S'){
-              coupler_vars = 5;
-            }else if(units[unit_count_2].coupling_type == 'C'){
+            if(units[unit_count_2].coupling_type == 'C'){
               coupler_vars = 1;
 			}
-			common::Timer t_16th("06 waiting");
-            if(hide_search == true){
+            if(hide_search == true && fenics_conversion_factor != 1){
               if((i % (search_freq*fenics_conversion_factor)) == 0){
                 MPI_Send(p_variables_data, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-				t_16th.stop();
               }else if((i % fenics_conversion_factor) == fenics_conversion_factor - 1){
-				common::Timer t_14th("06 Coupling");
                 MPI_Recv(p_variables_recv, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				t_14th.stop();
               }else{
                 MPI_Send(p_variables_data, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-				t_16th.stop();
-				common::Timer t_14th("06 Coupling");
                 MPI_Recv(p_variables_recv, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                t_14th.stop();
 			  }
             }else{
               MPI_Send(p_variables_data, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-			  t_16th.stop();
-			  common::Timer t_14th("06 Coupling");
               MPI_Recv(p_variables_recv, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-              t_14th.stop();
             }
           }
         }
+		if(internal_rank == 0){
+			fprintf(fp, "FEniCS X coupler cycle %d of %d comms ending\n", (i/fenics_conversion_factor)+1, coupler_cycles);
+		}
       }
       if(internal_rank == 0){
-        printf("FEniCS X cycle %d comms ending\n", i+1);
         fprintf(fp, "Ending FEniCS X cycle %d of %d\n", i+1, fenics_cycles);
       }
     }
     t_13th.stop();
 
-    if(strut_flag == 1){
+	if(output_flag == 1){
+      if(strut_flag == 1){
+        xdmf_file_st.close();
+      }
       xdmf_file_th.close();
-    }
-    xdmf_file_th.close();
+	}
     Table times = timings({TimingType::wall});
 	times.set("PETSc Krylov solver", "wall tot",
 				(std::get<double>(times.get("PETSc Krylov solver", "wall tot"))

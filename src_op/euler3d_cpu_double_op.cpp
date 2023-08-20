@@ -806,9 +806,9 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 						coupler_vars = 1;
 						boundary_nodes_size = round(nodes_size * 0.05);	
 					}
-                    if(hide_search == true){
+                    if(hide_search == true && mg_conversion_factor != 1){
                         if((i % (search_freq*mg_conversion_factor)) == 0){
-                            op_printf("Cycle %d - search taking place\n", (i+1) % mg_conversion_factor);
+                            //op_printf("Cycle %d - search taking place\n", (i+1) % mg_conversion_factor);
                             MPI_Send(p_variables_data, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
                         }else if((i % mg_conversion_factor) == mg_conversion_factor - 1){
                             MPI_Recv(p_variables_recv, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);

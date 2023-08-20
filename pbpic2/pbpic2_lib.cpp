@@ -17,11 +17,10 @@
 
 void dtimer(double *time, struct timeval *itime, int icntrl);
 
-void output_pic(int ntime, int relativity, int nvp, float we, float wf, float wm,
-                float wt, float tdpost, float tdjpost, float tguard, float tfield,
-                float tfft[], float tpush, float tmov, float tsort, float time,
-                int kstrt, FILE *fp, float wke, int nloop, double np, double wat,
-				double comp_sec, double tot_sec);
+void output_pic(int ntime, int nvp, float wt, float tdpost, 
+				float tdjpost, float tguard, float tfield, float tfft[], 
+				float tpush, float tmov, float tsort, float time,
+                int kstrt, FILE *fp, double comp_sec, double tot_sec);
 
 int main_pbpic(int argc, char *argv[], MPI_Fint custom, int instance_number, 
 			 struct unit units[], struct locators relative_positions[]){
@@ -243,7 +242,6 @@ int main_pbpic(int argc, char *argv[], MPI_Fint custom, int instance_number,
 
 /* * * * start main iteration loop * * * */
    int number_loops = coupler_cycles * pic_conversion_factor;
-   double wait_time = 0;
    std::chrono::duration<double> comp_seconds;
    std::chrono::duration<double> total_seconds;
    std::chrono::steady_clock::time_point start_comp;
@@ -296,7 +294,7 @@ int main_pbpic(int argc, char *argv[], MPI_Fint custom, int instance_number,
       }
 
 /* deposit charge with standard procedure: updates qe */
-      for(int i = 0; i < 12; i++){
+      for(int i = 0; i < 12; i++){ //12
 	     dtimer(&dtime,&itime,-1);
          for (j = 0; j < nxe*nypmx; j++) {
             qe[j] = 0.0;
@@ -420,7 +418,7 @@ int main_pbpic(int argc, char *argv[], MPI_Fint custom, int instance_number,
       tguard += time;
 
 /* push particles: updates part, wke, and ihole */
-	  for(int i = 0; i < 30; i++){ //10
+	  for(int i = 0; i < 30; i++){ //30
          dtimer(&dtime,&itime,-1);
          wke = 0.0;
          if (relativity==1) {
@@ -488,79 +486,45 @@ int main_pbpic(int argc, char *argv[], MPI_Fint custom, int instance_number,
       we = wtot[4];
       wf = wtot[5];
       wm = wtot[6];
-      if (ntime==0) {
-         if (kstrt==1) {
-            wt = we + wf + wm;
-			fprintf(fp, "Initial Total Field, Kinetic and Total Energies:\n");
-			fprintf(fp, "%e %e %e\n",wt,wke,wke+wt);
-			fprintf(fp, "Initial Electrostatic, Transverse Electric and \
-Magnetic Field Energies:\n");
-			fprintf(fp, "%e %e %e\n",we,wf,wm);
-         }
-      }
+
+      end_comp = std::chrono::steady_clock::now();
+      comp_seconds += (end_comp - start_comp);
       if(kstrt==1){
 		 if((ntime % pic_conversion_factor == 0) || 
 			(hide_search == true && 
 			((ntime % pic_conversion_factor) == pic_conversion_factor - 1))){
-			wait_time += send_recv_data(units, relative_positions, grid_size, 
-					       ntime, number_loops, p_variables_data, 
-						   p_variables_recv);
+			send_recv_data(units, relative_positions, grid_size, 
+					       ntime, coupler_cycles, p_variables_data, 
+						   p_variables_recv, fp);
 		 }
       }
-	  end_comp = std::chrono::steady_clock::now();
-	  comp_seconds += (end_comp - start_comp);
    }
    end_total = std::chrono::steady_clock::now();
    total_seconds = end_total - start_total;
-   output_pic(ntime, relativity, nvp, we, wf, wm, wt, tdpost,
-			  tdjpost, tguard, tfield, tfft, tpush, tmov, tsort,
-			  time, kstrt, fp, wke, number_loops, np, wait_time,
-			  comp_seconds.count(), total_seconds.count());
+   output_pic(ntime, nvp, wt, tdpost, tdjpost, tguard, 
+			  tfield, tfft, tpush, tmov, tsort, time, 
+			  kstrt, fp, comp_seconds.count(), 
+			  total_seconds.count());
    return 0;
 }
 /* * * * end main iteration loop * * * */
-void output_pic(int ntime, int relativity, int nvp, float we, float wf, float wm,
-				float wt, float tdpost, float tdjpost, float tguard, float tfield,
-				float tfft[], float tpush, float tmov, float tsort, float time,
-				int kstrt, FILE *fp, float wke, int nloop, double np, double wat,
-				double comp_sec, double tot_sec){
+void output_pic(int ntime, int nvp, float wt, float tdpost, 
+				float tdjpost, float tguard, float tfield, float tfft[], 
+				float tpush, float tmov, float tsort, float time,
+				int kstrt, FILE *fp, double comp_sec, double tot_sec){
    if (kstrt==1) {
-	 fprintf(fp, "ntime, relativity = %i,%i\n",ntime,relativity);
-	 fprintf(fp, "MPI nodes nvp = %i\n",nvp);
-	 wt = we + wf + wm;
-	 fprintf(fp, "Final Total Field, Kinetic and Total Energies:\n");
-	 fprintf(fp, "%e %e %e\n",wt,wke,wke+wt);
-	 fprintf(fp, "Final Electrostatic, Transverse Electric and Magnetic \
-Field Energies:\n");
-	 fprintf(fp, "%e %e %e\n",we,wf,wm);
-
-	 fprintf(fp, "\n");
-	 fprintf(fp, "deposit time = %f\n",tdpost);
-	 fprintf(fp, "current deposit time = %f\n",tdjpost);
+	 fprintf(fp, "\n\n\n-----------------------------\n");
+	 fprintf(fp, "Number of cycles = %i \n", ntime);
+	 fprintf(fp, "MPI nodes = %i\n", nvp);
+	
 	 tdpost += tdjpost;
-	 fprintf(fp, "total deposit time = %f\n",tdpost);
-	 fprintf(fp, "guard time = %f\n",tguard);
-	 fprintf(fp, "solver time = %f\n",tfield);
-	 fprintf(fp, "fft and transpose time = %f,%f\n",tfft[0],tfft[1]);
-	 fprintf(fp, "push time = %f\n",tpush);
-	 fprintf(fp, "particle move time = %f\n",tmov);
-	 fprintf(fp, "sort time = %f\n",tsort);
 	 tfield += tguard + tfft[0];
-	 fprintf(fp, "total solver time = %f\n",tfield);
 	 tsort += tmov;
 	 time = tdpost + tpush + tsort;
-	 fprintf(fp, "total particle time = %f\n",time);
 	 wt = time + tfield;
-	 fprintf(fp, "total time waiting between send and recv = %f\n",wat);
 	 fprintf(fp, "total time = %f\n",wt);
 	 fprintf(fp, "total time in loop = %f\n", tot_sec);
 	 fprintf(fp, "total comp time in loop = %f\n", comp_sec);
-	 fprintf(fp, "\n");
 
-	 wt = 1.0e+09/(((float) nloop)*((float) np));
-	 fprintf(fp, "Push Time (nsec) = %f\n",tpush*wt);
-	 fprintf(fp, "Deposit Time (nsec) = %f\n",tdpost*wt);
-	 fprintf(fp, "Sort Time (nsec) = %f\n",tsort*wt);
-	 fprintf(fp, "Total Particle Time (nsec) = %f\n",time*wt);
    }
 }

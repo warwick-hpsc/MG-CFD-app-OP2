@@ -177,6 +177,33 @@ int main(int argc, char** argv){
 			temp_marker += units[i].processes;
 		}       
 		if(units[i].type == 'C'){
+			if(units[i].coupling_type == 'O'){
+				if((units[units[i].mgcfd_units[0] - 1].type == 'F') or (units[units[i].mgcfd_units[1] - 1].type == 'F')){
+					if(rank == 0){
+						fprintf(stderr, "Error: OVERSET boundaries cannot contain FEniCS units.\n");
+					}
+					exit(1);
+				} 
+			}else if(units[i].coupling_type == 'S'){
+				if((units[units[i].mgcfd_units[0] - 1].type == 'F') or 
+				   (units[units[i].mgcfd_units[1] - 1].type == 'F') or 
+				   (units[units[i].mgcfd_units[0] - 1].type == 'P') or
+                   (units[units[i].mgcfd_units[1] - 1].type == 'P') or
+				   (units[units[i].mgcfd_units[0] - 1].type == 'B') or
+				   (units[units[i].mgcfd_units[1] - 1].type == 'B')){
+					if(rank == 0){
+						fprintf(stderr, "Error: SLINGING plane boundaries can only contain MG-CFD units.\n");
+					}
+					exit(1);
+				}
+			}else if (units[i].coupling_type == 'C'){
+				if((units[units[i].mgcfd_units[0] - 1].type != 'F') and (units[units[i].mgcfd_units[1] - 1].type != 'F')){
+					if(rank == 0){
+						fprintf(stderr, "Error: CHT boundaries must contain at least one FENICS units.\n");
+					}
+					exit(1);
+				}
+			}
 			temp_coupler++;
 			temp_coupler_position.push_back(temp_coupler);
 			for(int j=temp_marker; j < temp_marker + units[i].processes; j++){
@@ -380,18 +407,12 @@ int main(int argc, char** argv){
 			//set the scaling for the search and interpolation routines
 			double left_search_scaling = 0;
 			double right_search_scaling = 0;
-			double search_repeats;
-            double interp_scaling;
-			if(ultrafastsearch){
-				search_repeats = 0.25;
-				interp_scaling = 90;
-			}else{
-				search_repeats = 10;
-				interp_scaling = 3500;
-			}
-			
+			double search_repeats = 10;
+            double interp_scaling = 90;
             int coupler_vars = 0;
             if(units[unit_count].coupling_type == 'S'){
+				if(ultrafastsearch)
+					search_repeats = 0.25;
                 left_search_scaling = search_repeats * adjusted_sizes_left;
                 right_search_scaling = search_repeats * adjusted_sizes_right;
                 coupler_vars = 5;
@@ -435,17 +456,21 @@ int main(int argc, char** argv){
 			std::vector<double> node_state_vars_left;
 			std::vector<double> node_state_vars_right;
 			std::vector<double> node_state_vars_temp;
-
+		
 			//set up some random data for cht interpolation
+			double **data_ran;
 			int ar_size_max = left_right_size*0.9;
-			if(rank == root_rank && debug == true){
-				fprintf(fp, "size is %d\n", ar_size_max);
-			}
-			srand((unsigned)time(NULL));
-			double data_ran[ar_size_max][4];
-			for(int i = 0; i < ar_size_max; i++){
-				for(int k = 0; k < 4; k++){
-					data_ran[i][k] = rand()/1000;
+			if(units[unit_count].coupling_type == 'C'){
+				if(rank == root_rank && debug == true){
+					fprintf(fp, "size is %d\n", ar_size_max);
+				}
+				srand((unsigned)time(NULL));
+				data_ran = new double*[ar_size_max];
+				for(int i = 0; i < ar_size_max; i++){
+					data_ran[i] = new double[4];
+					for(int k = 0; k < 4; k++){
+						data_ran[i][k] = rand()/1000;
+					}
 				}
 			}
 			
@@ -459,6 +484,9 @@ int main(int argc, char** argv){
 				int local_size;
 				MPI_Comm_size(coupler_comm, &local_size);
 				if(rank == root_rank){
+					if(instance_number == 1){
+						printf("Coupler cycle %d starting\n", cycle_counter+1);
+					}
 					fprintf(fp, "Coupler cycle %d starting\n", cycle_counter+1);
 					MPI_Recv(left_p_variables_recv, left_nodes_size * coupler_vars, MPI_DOUBLE, left_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 					MPI_Recv(right_p_variables_recv, right_nodes_size * coupler_vars, MPI_DOUBLE, right_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -672,6 +700,9 @@ int main(int argc, char** argv){
 		            MPI_Send(right_p_variables_recv, right_nodes_size * coupler_vars, MPI_DOUBLE, right_rank, 0, MPI_COMM_WORLD);
 		            MPI_Send(left_p_variables_recv, left_nodes_size * coupler_vars, MPI_DOUBLE, left_rank, 0, MPI_COMM_WORLD);
 					fprintf(fp, "Coupler cycle %d ending\n", cycle_counter+1);
+					if(instance_number == 1){
+						printf("Coupler cycle %d ending\n", cycle_counter+1);
+					}
 		        }
 			}
 			MPI_Barrier(coupler_comm);

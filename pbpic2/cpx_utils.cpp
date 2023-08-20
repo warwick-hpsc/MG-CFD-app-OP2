@@ -108,18 +108,15 @@ void send_num_data(struct unit units[], struct locators relative_positions[],
     }
 }
 
-double send_recv_data(struct unit units[], struct locators relative_positions[], 
+void send_recv_data(struct unit units[], struct locators relative_positions[], 
 					long long grid_size, int cycle_num, int total_cycles, 
-					double *p_variables_data, double *p_variables_recv){
+					double *p_variables_data, double *p_variables_recv, FILE *fp){
 	int world_rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 	int unit_count = find_unit(units, relative_positions, world_rank, 'B');
 	int total_coupler_unit_count = units[unit_count].coupler_ranks.size();
-	//set-up timing variables
-	std::chrono::duration<double> wait_seconds;
-	std::chrono::steady_clock::time_point start;
-	std::chrono::steady_clock::time_point end;
-    printf("PIC cycle %d of %d comms starting\n", cycle_num+1, total_cycles);
+    fprintf(fp, "PIC cycle %d of %d comms starting\n", (cycle_num/pic_conversion_factor)+1, 
+				total_cycles);
     for(int j = 0; j < total_coupler_unit_count; j++){
 		//find the coupler unit index
 		int coupler_rank = units[unit_count].coupler_ranks[j][0];
@@ -132,26 +129,21 @@ double send_recv_data(struct unit units[], struct locators relative_positions[],
 			send_size = std::round(0.05 * (double) grid_size/8);
         }
 		//send all the data to the couplers
-        if(hide_search == true){
+        if(hide_search == true && pic_conversion_factor != 1){
 			if((cycle_num % (search_freq*pic_conversion_factor)) == 0){
 				MPI_Send(p_variables_data, send_size, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-				
 			}else if((cycle_num % pic_conversion_factor) == pic_conversion_factor - 1){
 				MPI_Recv(p_variables_recv, send_size, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			}else{
-				start = std::chrono::steady_clock::now();
 				MPI_Send(p_variables_data, send_size, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-				end = std::chrono::steady_clock::now();
 				MPI_Recv(p_variables_recv, send_size, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			}
 		}else{
-			start = std::chrono::steady_clock::now();
 			MPI_Send(p_variables_data, send_size, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-			end = std::chrono::steady_clock::now();
 			MPI_Recv(p_variables_recv, send_size, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
     }
-	wait_seconds = end - start;
-	return wait_seconds.count();
+	fprintf(fp, "PIC cycle %d of %d comms ending\n", (cycle_num/pic_conversion_factor)+1, 
+				total_cycles);
 }
 
