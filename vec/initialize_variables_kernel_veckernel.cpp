@@ -83,9 +83,9 @@ inline void calculate_cell_volumes(
 inline void dampen_ewt(
     double* ewt)
 {
-    ewt[0] *= 1e-9;
-    ewt[1] *= 1e-9;
-    ewt[2] *= 1e-9;
+    ewt[0] *= 1e-11;
+    ewt[1] *= 1e-11;
+    ewt[2] *= 1e-11;
 }
 
 #endif

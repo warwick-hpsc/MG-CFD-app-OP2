@@ -176,7 +176,6 @@ void op_par_loop_count_non_zeros(char const *, op_set,
 #endif
 #endif
 
-
 #include  "op_mpi_core.h"
 
 #include "op_hdf5.h"
@@ -240,13 +239,13 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
         input_file_name = strdup((std::string(input_directory) + "/" + input_file_name).c_str());
     }
 
-    /* If the user wants to load different MG-CFD input files for different instances */
+	/* If the user wants to load different MG-CFD input files for different instances */
     if(strcmp(input_file_name, "file")==0){
-        
+         
         /* The input flag must be set to 'file' and input file names */
-		if(debug == true && internal_rank == 0){
-			printf("Reading input from file\n");
-		}
+        if(debug == true && internal_rank == 0){
+            printf("Reading input from file\n");
+        }
         FILE *mg_files = fopen("mg_files.input", "r");
         size_t line_buf_size = 0;
         ssize_t line_size;
@@ -258,7 +257,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             fprintf(stderr, "Can't open input file mg_files.input\n");
             return 1;
         }
-        
+     
         line_size = getline(&line_buf, &line_buf_size, mg_files);
 
         while (line_size >= 0){
@@ -272,8 +271,8 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
         free(line_buf);
         line_buf = NULL;
-        
-        
+     
+     
         fclose(mg_files);
         temp_string.erase(std::remove(temp_string.begin(), temp_string.end(), '\n'), temp_string.cend());
         /* Required filename is found at vector index of the instance number */
@@ -325,10 +324,10 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     
     op_printf("MG-CFD Instance %s running!\n", filename);
     op_printf("MG-CFD Instance %s output is saved in file %s\n", filename, default_name);
-
+   
 	//Set number of cycles
-	conf.num_cycles = mg_conversion_factor * coupler_cycles;
-    
+    conf.num_cycles = mg_conversion_factor * coupler_cycles;
+ 
     // timer
     double cpu_t1, cpu_t2, wall_t1, wall_t2;
 
@@ -676,15 +675,10 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 
     null_check = op_get_size(op_nodes[0]);
     nodes_size = null_check;
-	
+
     boundary_nodes_size = 0;//initialise the boundary size
 
-    
-    
-
-                    
-
-    int ranks_per_coupler;
+	int ranks_per_coupler;
     if (internal_rank == MPI_ROOT) {
         for(int z = 0; z < total_coupler_unit_count; z++){
             ranks_per_coupler = units[unit_count].coupler_ranks[z].size();
@@ -705,8 +699,8 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             }
 
             if(units[unit_count_2].coupling_type == 'S'){
-				boundary_nodes_size = round(nodes_size * 0.0042);
-			}else if( units[unit_count_2].coupling_type == 'C'){
+                boundary_nodes_size = round(nodes_size * 0.0042);
+            }else if( units[unit_count_2].coupling_type == 'C'){
                 boundary_nodes_size = round(nodes_size * 0.018);
             }else if(units[unit_count_2].coupling_type == 'O'){
                 //OVERSET boundary is much larger to emulate the larger interface needed due to stability issues with CFD-Combustion interaction
@@ -716,24 +710,24 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                 MPI_Send(&boundary_nodes_size, 1, MPI_DOUBLE, units[unit_count].coupler_ranks[z][z2], 0, MPI_COMM_WORLD);//this sends the node sizes to each of the coupler ranks of each of the coupler units
             }
         }
-    }
+    }    
 
     double *p_variables_data = (double*) malloc(nodes_size * NVAR * sizeof(double));
     double *p_variables_recv = (double*) malloc(nodes_size * NVAR * sizeof(double));
 
 	std::chrono::duration<double> comp_seconds;
     std::chrono::duration<double> total_seconds;
-	int z;
-	int coupler_position;
-	int unit_count_2;
-	int coupler_unit_count;
-	int coupler_vars;
-	int rkCycle;
-	std::chrono::steady_clock::time_point total_start;
-	std::chrono::steady_clock::time_point total_end;
-	std::chrono::steady_clock::time_point start_comp;
+    int z;
+    int coupler_position;
+    int unit_count_2;
+    int coupler_unit_count;
+    int coupler_vars;
+    int rkCycle;
+    std::chrono::steady_clock::time_point total_start;
+    std::chrono::steady_clock::time_point total_end;
+    std::chrono::steady_clock::time_point start_comp;
     std::chrono::steady_clock::time_point end_comp;
-	total_start = std::chrono::steady_clock::now();
+    total_start = std::chrono::steady_clock::now();
     while(i < conf.num_cycles)
     {
         #ifdef LOG_PROGRESS
@@ -746,7 +740,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             }
         #endif
 
-        if((i != prev_cycle && ((i+1) % mg_conversion_factor) == 0) || (hide_search == true && i != prev_cycle && (((i+1) % mg_conversion_factor) == mg_conversion_factor - 1))){
+		if((i != prev_cycle && ((i+1) % mg_conversion_factor) == 0) || (hide_search == true && i != prev_cycle && (((i+1) % mg_conversion_factor) == mg_conversion_factor - 1))){
             prev_cycle=i;
 
             op_dat temp_dat_l0 = (op_dat) malloc(sizeof(op_dat_core));
@@ -771,12 +765,12 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             op_fetch_data(temp_dat_l0, p_variables_data);
             
             if(internal_rank == MPI_ROOT){
-                if(hide_search == true){
+				if(hide_search == true){
                     sprintf(buffer, "MG-CFD cycle %d comms starting\n", ((int) (i+1) / mg_conversion_factor));
-					op_print_file(buffer, fp);
+                    op_print_file(buffer, fp);
                 } else if (hide_search == false && ((i+1 % mg_conversion_factor) != mg_conversion_factor - 1)){
                     sprintf(buffer, "MG-CFD cycle %d comms starting\n", ((int) (i+1) / mg_conversion_factor));
-					op_print_file(buffer, fp);
+                    op_print_file(buffer, fp);
                 }
 
                 for(z = 0; z < total_coupler_unit_count; z++){
@@ -797,18 +791,17 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
 					}
 					coupler_vars = 0;
 					if(units[unit_count_2].coupling_type == 'S'){
-						coupler_vars = 5;
-						boundary_nodes_size = round(nodes_size * 0.0042);
-					}else if(units[unit_count_2].coupling_type == 'C'){
-						coupler_vars = 1;
-						boundary_nodes_size = round(nodes_size * 0.018);
-					}else if(units[unit_count_2].coupling_type == 'O'){
-						coupler_vars = 1;
-						boundary_nodes_size = round(nodes_size * 0.05);	
-					}
-                    if(hide_search == true && mg_conversion_factor != 1){
+                        coupler_vars = 5;
+                        boundary_nodes_size = round(nodes_size * 0.0042);
+                    }else if(units[unit_count_2].coupling_type == 'C'){
+                        coupler_vars = 1;
+                        boundary_nodes_size = round(nodes_size * 0.018);
+                    }else if(units[unit_count_2].coupling_type == 'O'){
+                        coupler_vars = 1;
+                        boundary_nodes_size = round(nodes_size * 0.05);
+                    }
+					if(hide_search == true && mg_conversion_factor != 1){
                         if((i % (search_freq*mg_conversion_factor)) == 0){
-                            //op_printf("Cycle %d - search taking place\n", (i+1) % mg_conversion_factor);
                             MPI_Send(p_variables_data, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
                         }else if((i % mg_conversion_factor) == mg_conversion_factor - 1){
                             MPI_Recv(p_variables_recv, boundary_nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -824,13 +817,13 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             }
 			
 			sprintf(buffer, "MG-CFD cycle %d comms ending\n", ((int) (i+1) / mg_conversion_factor));
-			op_print_file(buffer, fp);
+            op_print_file(buffer, fp);
 
-			free(temp_dat_l0->data);
+            free(temp_dat_l0->data);
             free(temp_dat_l0->set);
             free(temp_dat_l0);
         }
-        start_comp = std::chrono::steady_clock::now();
+        start_comp = std::chrono::steady_clock::now(); 
 
 
         op_par_loop_copy_double_kernel("copy_double_kernel",op_nodes[level],
@@ -857,7 +850,7 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
                     op_arg_dat(p_volumes[level],-1,OP_ID,1,"double",OP_READ),
                     op_arg_gbl(&min_dt,1,"double",OP_READ),
                     op_arg_dat(p_step_factors[level],-1,OP_ID,1,"double",OP_WRITE));
-		
+
         for (rkCycle=0; rkCycle<RK; rkCycle++)
         {
             #ifdef LOG_PROGRESS
@@ -991,11 +984,10 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
             }
         }
 		end_comp = std::chrono::steady_clock::now();
-        comp_seconds += (end_comp - start_comp);;
-		
+        comp_seconds += (end_comp - start_comp);
     }
 	total_end = std::chrono::steady_clock::now();
-	total_seconds = total_end - total_start;
+    total_seconds = total_end - total_start;
 
     op_print_file("\n", fp);
     op_print_file("Compute complete\n", fp);
@@ -1005,14 +997,14 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     sprintf(buffer,"Max total runtime = %f\n", wall_t2 - wall_t1);
     op_print_file(buffer, fp);
 
-    sprintf(buffer,"Total loop time = %f\n", total_seconds.count());
+	sprintf(buffer,"Total loop time = %f\n", total_seconds.count());
+    op_print_file(buffer, fp); 
+
+    sprintf(buffer,"Time computing in the loop = %f\n", comp_seconds.count());
     op_print_file(buffer, fp);
 
-	sprintf(buffer,"Time computing in the loop = %f\n", comp_seconds.count());
-	op_print_file(buffer, fp);
-
-	sprintf(buffer, "MG-CFD Instance %s has finished!\n", filename);
-	op_print_file(buffer, fp);
+    sprintf(buffer,"MG-CFD Instance %s has finished!\n", filename);
+	op_print_file(buffer, fp);	
 
     // Write summary performance data to stdout:
     op_printf("MG-CFD Instance %s performance summary:\n", filename);
