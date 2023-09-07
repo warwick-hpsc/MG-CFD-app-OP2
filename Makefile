@@ -82,13 +82,18 @@ endif
 
 ifdef SIMPIC
     SIMPIC_DEF = -Ddefsimpic
-	SIMPIC_LIB = $(SIMPIC_INSTALL_PATH)/libsimpic.a
+    SIMPIC_LIB = $(SIMPIC_INSTALL_PATH)/libsimpic.a
 endif
 
 ifdef PBPIC
     PBPIC_DEF = -Ddefpbpic
     PBPIC_LIB = $(PBPIC_INSTALL_PATH)/libpbpic.a
 endif
+
+ifdef GPUPB
+    GPUPB_DEF = -Ddefgpupbpic
+    GPUPB_LIB = $(GPUPB_INSTALL_PATH)/libgpupbpic.a
+endif 
 
 ifdef DEBUG
   OPTIMISE := -g -O0
@@ -140,7 +145,7 @@ ifeq ($(COMPILER),gnu)
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -fopenmp
   MPIFLAGS 	= $(CPPFLAGS)
-  MPICPP = CC
+  MPICPP = CC  
 else
 ifeq ($(COMPILER),intel)
   CPP = icpc
@@ -416,8 +421,8 @@ $(BIN_DIR)/mgcfd_cpx_runtime: $(OP2_MPI_CPX_MAIN) $(BIN_DIR)/mgcfd_cpx.a $(FENIC
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(BIN_DIR)/mgcfd_cpx.a $(SIMPIC_LIB) $(MGCFD_LIBS) \
         -lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(DOLFINX_LIB) $(PETSC_LIB) $(BOOST_LIB)\
-		$(PBPIC_LIB) $(SQLITE_LIB) $(TREETIMER_INC) $(TREETIMER_LIB) \
-        $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) $(SIMPIC_DEF) $(PBPIC_DEF) -o $@ 
+		$(PBPIC_LIB) $(GPUPB_LIB) $(SQLITE_LIB) $(TREETIMER_INC) $(TREETIMER_LIB) -L${MPI_HOME}/lib -lmpi\
+        $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) $(SIMPIC_DEF) $(PBPIC_DEF) $(GPUPB_DEF) -o $@ 
 
 
 ## MPI_CPX CUDA

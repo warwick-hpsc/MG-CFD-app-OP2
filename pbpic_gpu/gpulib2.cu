@@ -3,6 +3,8 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+/*#include <complex.h>*/
+#include <cuda/std/complex>
 #include "cuda.h"
 
 int nblock_size = 64;
@@ -16,33 +18,23 @@ static cudaError_t crc;
 #define MAXSTREAMS             4
 static cudaStream_t streams[MAXSTREAMS] = {NULL,NULL,NULL,NULL};
 
-/* Prototypes for Fortran function called by C */
-extern "C" void getfcptr_(unsigned long *carrayref, float *carray,
-                          int *nx);
-
-extern "C" void getf2cptr_(unsigned long *carrayref, float *carray,
-                           int *nx, int *ny);
-
-extern "C" void getc2cptr_(unsigned long *carrayref, float2 *carray,
-                           int *nx, int *ny);
-
 __global__ void emptyKernel() {}
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_setgbsize(int nblock) {
+void gpu_setgbsize(int nblock) {
 /* set blocksize */
    nblock_size = nblock;
    return;
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" int getmmcc() {
+int getmmcc() {
 /* get major and minor computer capability */
    return mmcc;
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_fallocate(float **g_f, int nsize, int *irc) {
+void gpu_fallocate(float **g_f, int nsize, int *irc) {
 /* allocate global float memory on GPU, return pointer to C */
    void *gptr;
    crc = cudaMalloc(&gptr,sizeof(float)*nsize);
@@ -56,7 +48,7 @@ extern "C" void gpu_fallocate(float **g_f, int nsize, int *irc) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_iallocate(int **g_i, int nsize, int *irc) {
+void gpu_iallocate(int **g_i, int nsize, int *irc) {
 /* allocate global integer memory on GPU, return pointer to C */
    void *gptr;
    crc = cudaMalloc(&gptr,sizeof(int)*nsize);
@@ -70,21 +62,21 @@ extern "C" void gpu_iallocate(int **g_i, int nsize, int *irc) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_callocate(float2 **g_c, int nsize, int *irc) {
-/* allocate global float2 memory on GPU, return pointer to C */
+void gpu_callocate(cuda::std::complex<float> **g_c, int nsize, int *irc) {
+/* allocate global float memory on GPU, return pointer to C */
    void *gptr;
-   crc = cudaMalloc(&gptr,sizeof(float2)*nsize);
+   crc = cudaMalloc(&gptr,sizeof(cuda::std::complex<float>)*nsize);
    if (crc) {
-      printf("cudaMalloc float2 Error=%d:%s,l=%d\n",crc,
+      printf("cudaMalloc cuda::std::complex<float> Error=%d:%s,l=%d\n",crc,
               cudaGetErrorString(crc),nsize);
       *irc = 1;
    }
-   *g_c = (float2 *)gptr;
+   *g_c = (cuda::std::complex<float> *)gptr;
    return;
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_deallocate(void *g_d, int *irc) {
+void gpu_deallocate(void *g_d, int *irc) {
 /* deallocate global memory on GPU */
    crc = cudaFree(g_d);
    if (crc) {
@@ -95,7 +87,7 @@ extern "C" void gpu_deallocate(void *g_d, int *irc) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void hpl_fallocate(float **h_f, int nsize, int *irc) {
+void hpl_fallocate(float **h_f, int nsize, int *irc) {
 /* allocate page-locked float memory on host, return pointer to C */
    void *hptr = NULL;
    crc = cudaMallocHost(&hptr,sizeof(float)*nsize);
@@ -109,21 +101,21 @@ extern "C" void hpl_fallocate(float **h_f, int nsize, int *irc) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void hpl_callocate(float2 **h_c, int nsize, int *irc) {
-/* allocate page-locked float2 memory on host, return pointer to C */
+void hpl_callocate(cuda::std::complex<float> **h_c, int nsize, int *irc) {
+/* allocate page-locked float memory on host, return pointer to C */
    void *hptr = NULL;
-   crc = cudaMallocHost(&hptr,sizeof(float2)*nsize);
+   crc = cudaMallocHost(&hptr,sizeof(cuda::std::complex<float>)*nsize);
    if (crc) {
-      printf("cudaMallocHost float2 Error=%d:%s,l=%d\n",crc,
+      printf("cudaMallocHost cuda::std::complex<float> Error=%d:%s,l=%d\n",crc,
               cudaGetErrorString(crc),nsize);
       *irc = 1;
    }
-   *h_c = (float2 *)hptr;
+   *h_c = (cuda::std::complex<float> *)hptr;
    return;
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void hpl_deallocate(void *h_d, int *irc) {
+void hpl_deallocate(void *h_d, int *irc) {
 /* deallocate page-locked on host */
    crc = cudaFreeHost(h_d);
    if (crc) {
@@ -134,7 +126,7 @@ extern "C" void hpl_deallocate(void *h_d, int *irc) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_fcopyin(float *f, float *g_f, int nsize) {
+void gpu_fcopyin(float *f, float *g_f, int nsize) {
 /* copy float array from host memory to global GPU memory */
    crc = cudaMemcpy((void *)g_f,f,sizeof(float)*nsize,
                     cudaMemcpyHostToDevice);
@@ -147,7 +139,7 @@ extern "C" void gpu_fcopyin(float *f, float *g_f, int nsize) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_fcopyout(float *f, float *g_f, int nsize) {
+void gpu_fcopyout(float *f, float *g_f, int nsize) {
 /* copy float array from global GPU memory to host memory */
    crc = cudaMemcpy(f,(void *)g_f,sizeof(float)*nsize,
                     cudaMemcpyDeviceToHost);
@@ -160,7 +152,7 @@ extern "C" void gpu_fcopyout(float *f, float *g_f, int nsize) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_icopyin(int *f, int *g_f, int nsize) {
+void gpu_icopyin(int *f, int *g_f, int nsize) {
 /* copy int array from host memory to global GPU memory */
    crc = cudaMemcpy((void *)g_f,f,sizeof(int)*nsize,
                     cudaMemcpyHostToDevice);
@@ -173,7 +165,7 @@ extern "C" void gpu_icopyin(int *f, int *g_f, int nsize) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_icopyout(int *f, int *g_f, int nsize) {
+void gpu_icopyout(int *f, int *g_f, int nsize) {
 /* copy int array from global GPU memory to host memory */
    crc = cudaMemcpy(f,(void *)g_f,sizeof(int)*nsize,
                     cudaMemcpyDeviceToHost);
@@ -186,12 +178,12 @@ extern "C" void gpu_icopyout(int *f, int *g_f, int nsize) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_ccopyin(float2 *f, float2 *g_f, int nsize) {
-/* copy float2 array from host memory to global GPU memory */
-   crc = cudaMemcpy((void *)g_f,f,sizeof(float2)*nsize,
+void gpu_ccopyin(cuda::std::complex<float> *f, cuda::std::complex<float> *g_f, int nsize) {
+/* copy float array from host memory to global GPU memory */
+   crc = cudaMemcpy((void *)g_f,f,sizeof(cuda::std::complex<float>)*nsize,
                     cudaMemcpyHostToDevice);
    if (crc) {
-      printf("cudaMemcpyHostToDevice float2 Error=%d:%s\n",crc,
+      printf("cudaMemcpyHostToDevice cuda::std::complex<float> Error=%d:%s\n",crc,
               cudaGetErrorString(crc));
       exit(1);
    }
@@ -199,12 +191,12 @@ extern "C" void gpu_ccopyin(float2 *f, float2 *g_f, int nsize) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_ccopyout(float2 *f, float2 *g_f, int nsize) {
-/* copy float2 array from global GPU memory to host memory */
-   crc = cudaMemcpy(f,(void *)g_f,sizeof(float2)*nsize,
+void gpu_ccopyout(cuda::std::complex<float> *f, cuda::std::complex<float> *g_f, int nsize) {
+/* copy cuda::std::complex<float> array from global GPU memory to host memory */
+   crc = cudaMemcpy(f,(void *)g_f,sizeof(cuda::std::complex<float>)*nsize,
                     cudaMemcpyDeviceToHost);
    if (crc) {
-      printf("cudaMemcpyDeviceToHost float2 Error=%d:%s\n",crc,
+      printf("cudaMemcpyDeviceToHost cuda::std::complex<float> Error=%d:%s\n",crc,
               cudaGetErrorString(crc));
       exit(1);
    }
@@ -212,7 +204,7 @@ extern "C" void gpu_ccopyout(float2 *f, float2 *g_f, int nsize) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_initstream(int nstream) {
+void gpu_initstream(int nstream) {
 /* Create Stream for requested identifier nstream       */
 /* nstream should be between 1 and MAXSTREAMS inclusive */
    if ((nstream < 1) || (nstream > MAXSTREAMS)) {
@@ -233,7 +225,7 @@ extern "C" void gpu_initstream(int nstream) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_delstream(int nstream) {
+void gpu_delstream(int nstream) {
 /* Destroy Stream for requested identifier nstream      */
 /* nstream should be between 1 and MAXSTREAMS inclusive */
    if ((nstream < 1) || (nstream > MAXSTREAMS)) {
@@ -252,7 +244,7 @@ extern "C" void gpu_delstream(int nstream) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_waitstream(int nstream) {
+void gpu_waitstream(int nstream) {
 /* Synchronize Stream for requested identifier nstream  */
 /* nstream should be between 0 and MAXSTREAMS inclusive */
    cudaStream_t stream = NULL;
@@ -273,11 +265,11 @@ extern "C" void gpu_waitstream(int nstream) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_cascopyin(float2 *f, float2 *g_f, int noff, 
+void gpu_cascopyin(cuda::std::complex<float> *f, cuda::std::complex<float> *g_f, int noff, 
                               int nsize, int nstream) {
-/* copy float2 array segment from host memory to global GPU memory */
+/* copy cuda::std::complex<float> array segment from host memory to global GPU memory */
 /* asynchronous copy */
-   float2 *cptr;
+   cuda::std::complex<float> *cptr;
    cudaStream_t stream = NULL;
    cptr = &g_f[noff];
    if ((nstream >= 0) || (nstream <= MAXSTREAMS)) {
@@ -287,10 +279,10 @@ extern "C" void gpu_cascopyin(float2 *f, float2 *g_f, int noff,
       printf("gpu_cascopyin: nstream undefined = %d\n",nstream);
       exit(1);
    }
-   crc = cudaMemcpyAsync((void *)cptr,f,sizeof(float2)*nsize,
+   crc = cudaMemcpyAsync((void *)cptr,f,sizeof(cuda::std::complex<float>)*nsize,
                          cudaMemcpyHostToDevice,stream);
    if (crc) {
-      printf("Async cudaMemcpyHostToDevice float2 Error=%d:%s\n",crc,
+      printf("Async cudaMemcpyHostToDevice cuda::std::complex<float> Error=%d:%s\n",crc,
               cudaGetErrorString(crc));
       exit(1);
    }
@@ -298,11 +290,11 @@ extern "C" void gpu_cascopyin(float2 *f, float2 *g_f, int noff,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_cascopyout(float2 *f, float2 *g_f, int noff,
+void gpu_cascopyout(cuda::std::complex<float> *f, cuda::std::complex<float> *g_f, int noff,
                                int nsize, int nstream) {
-/* copy float2 array segment from global GPU memory to host memory */
+/* copy cuda::std::complex<float> array segment from global GPU memory to host memory */
 /* asynchronous copy */
-   float2 *cptr;
+   cuda::std::complex<float> *cptr;
    cudaStream_t stream = NULL;
    cptr = &g_f[noff];
    if ((nstream >= 0) || (nstream <= MAXSTREAMS)) {
@@ -312,10 +304,10 @@ extern "C" void gpu_cascopyout(float2 *f, float2 *g_f, int noff,
       printf("gpu_cascopyout: nstream undefined = %d\n",nstream);
       exit(1);
    }
-   crc = cudaMemcpyAsync(f,(void *)cptr,sizeof(float2)*nsize,
+   crc = cudaMemcpyAsync(f,(void *)cptr,sizeof(cuda::std::complex<float>)*nsize,
                          cudaMemcpyDeviceToHost,stream);
    if (crc) {
-      printf("Async cudaMemcpyDeviceToHost float2 Error=%d:%s\n",crc,
+      printf("Async cudaMemcpyDeviceToHost cuda::std::complex<float> Error=%d:%s\n",crc,
               cudaGetErrorString(crc));
       exit(1);
    }
@@ -323,7 +315,7 @@ extern "C" void gpu_cascopyout(float2 *f, float2 *g_f, int noff,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_zfmem(float *g_f, int nsize) {
+void gpu_zfmem(float *g_f, int nsize) {
 /* initialize float array in global GPU memory to zero */
    crc = cudaMemset((void *)g_f,0,sizeof(float)*nsize);
    if (crc) {
@@ -334,9 +326,9 @@ extern "C" void gpu_zfmem(float *g_f, int nsize) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_zcmem(float2 *g_f, int nsize) {
-/* initialize float2 array in global GPU memory to zero */
-   crc = cudaMemset((void *)g_f,0,sizeof(float2)*nsize);
+void gpu_zcmem(cuda::std::complex<float> *g_f, int nsize) {
+/* initialize cuda::std::complex<float> array in global GPU memory to zero */
+   crc = cudaMemset((void *)g_f,0,sizeof(cuda::std::complex<float>)*nsize);
    if (crc) {
       printf("cudaMemset Error=%d:%s\n",crc,cudaGetErrorString(crc));
       exit(1);
@@ -345,7 +337,7 @@ extern "C" void gpu_zcmem(float2 *g_f, int nsize) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpu_set_cache_size(int nscache) {
+void gpu_set_cache_size(int nscache) {
 /* request preferred cache size, requires CUDA 3.2 or higher */
 /* nscache = (0,1,2) = (no,small,big) cache size */
    cudaFuncCache cpref;
@@ -367,7 +359,7 @@ extern "C" void gpu_set_cache_size(int nscache) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void emptykernel() {
+void emptykernel() {
    int ngx, ngy;
    ngx  = nblock_size < 32768 ? nblock_size : 32768;
    ngy = (ngrid_size - 1)/ngx + 1;
@@ -385,7 +377,7 @@ extern "C" void emptykernel() {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void init_cu(int dev, int *irc) {
+void init_cu(int dev, int *irc, int proc, FILE *fp) {
 /* initialize CUDA with device dev or selects best GPU available       */
 /* searches throughs devices, selects the device with the most compute */
 /* units, and saves the device id devid                                */
@@ -415,12 +407,12 @@ extern "C" void init_cu(int dev, int *irc) {
       }
       maxunits = prop.multiProcessorCount;
       if (dev <= 0) {
-         printf("j=%i:CUDA_DEVICE_NAME=%s,CUDA_MULTIPROCESSOR_COUNT=%i\n",
+         fprintf(fp,"j=%i:CUDA_DEVICE_NAME=%s,CUDA_MULTIPROCESSOR_COUNT=%i\n",
                 j,prop.name,maxunits);
          msize = prop.totalGlobalMem;
          z = ((double) msize)/1073741824.0;
          mmcc = 10*prop.major + prop.minor;
-         printf("    CUDA_GLOBAL_MEM_SIZE=%lu(%f GB),Capability=%d\n",
+         fprintf(fp,"    CUDA_GLOBAL_MEM_SIZE=%lu(%f GB),Capability=%d\n",
                 msize,(float) z,mmcc);
          if (maxunits > maxcpus) {
             maxcpus = maxunits;
@@ -431,7 +423,7 @@ extern "C" void init_cu(int dev, int *irc) {
    devid = jm;
    if (dev >= 0)
       devid = dev % ndevs;
-   printf("using device j=%i\n",devid);
+   fprintf(fp, "proc %i using device j=%i\n",proc, devid);
 /* get properties for this device */
    crc = cudaGetDeviceProperties(&prop,devid);
    maxgsx = prop.maxGridSize[0];
@@ -449,275 +441,11 @@ extern "C" void init_cu(int dev, int *irc) {
    return;
 }
 
-extern "C" void end_cu() {
+void end_cu() {
 /* terminate CUDA */
    crc = cudaThreadExit();
    if (crc) {
       printf("cudaThreadExit Error=%d:%s\n",crc,cudaGetErrorString(crc));
    }
-   return;
-}
-
-/* Interfaces to Fortran */
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_setgbsize_(int *nblock) {
-   gpu_setgbsize(*nblock);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" int getmmcc_() {
-/* get major and minor computer capability */
-   return getmmcc();
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_fallocate_(unsigned long *gp_f, int *nsize,
-                               int *irc) {
-/* allocate global float memory on GPU, return pointer to Fortran */
-   float *fptr;
-   gpu_fallocate(&fptr,*nsize,irc);
-   *gp_f = (long )fptr;
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_iallocate_(unsigned long *gp_i, int *nsize,
-                               int *irc) {
-/* allocate global integer memory on GPU, return pointer to Fortran */
-   int *iptr;
-   gpu_iallocate(&iptr,*nsize,irc);
-   *gp_i = (long )iptr;
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_callocate_(unsigned long *gp_f, int *nsize,
-                               int *irc) {
-/* allocate global float2 memory on GPU, return pointer */
-/* to Fortran */
-   float2 *fptr;
-   gpu_callocate(&fptr,*nsize,irc);
-   *gp_f = (long )fptr;
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_deallocate_(unsigned long *gp_d, int *irc) {
-/* deallocate global memory on GPU, return pointer to Fortran */
-   void *d;
-   d = (void *)*gp_d;
-   gpu_deallocate(d,irc);
-   *gp_d = 0;
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void hpl_f1allocate_(unsigned long *hp_f, int *nx,
-                                int *irc) {
-/* allocate page-locked 1d real memory on host, assign */
-/* data pointer to Fortran pointer object hp_f         */ 
-/* This procedure needs an interface in Fortran90      */
-/* interface                                 */
-/*    subroutine hpl_f1allocate(hp_f,nx,irc) */
-/*    implicit none                          */
-/*    integer :: nx, irc                     */
-/*    real, dimension(:), pointer :: hp_f    */
-/*    end subroutine                         */
-/* end interface                             */
-   int nsize;
-   float *fptr;
-   nsize = *nx;
-/* allocate data on host */
-   hpl_fallocate(&fptr,nsize,irc);
-/* set reference to C data in real Fortran pointer object */
-   getfcptr_(hp_f,fptr,nx);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void hpl_f2allocate_(unsigned long *hp_f, int *nx, int *ny,
-                                int *irc) {
-/* allocate page-locked 2d real memory on host, assign */
-/* data pointer to Fortran pointer object hp_f         */ 
-/* This procedure needs an interface in Fortran90      */
-/* interface                                    */
-/*    subroutine hpl_f2allocate(hp_f,nx,ny,irc) */
-/*    implicit none                             */
-/*    integer :: nx, ny, irc                    */
-/*    real, dimension(:,:), pointer :: hp_f     */
-/*    end subroutine                            */
-/* end interface                                */
-   int nsize;
-   float *fptr;
-   nsize = (*nx)*(*ny);
-/* allocate data on host */
-   hpl_fallocate(&fptr,nsize,irc);
-/* set reference to C data in real Fortran pointer object */
-   getf2cptr_(hp_f,fptr,nx,ny);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void hpl_c2allocate_(unsigned long *hp_f, int *nx, int *ny,
-                                int *irc) {
-/* allocate page-locked 2d complex memory on host, assign */
-/* data pointer to Fortran pointer object hp_f            */ 
-/* This procedure needs an interface in Fortran90         */
-/* interface                                    */
-/*    subroutine hpl_c2allocate(hp_f,nx,ny,irc) */
-/*    implicit none                             */
-/*    integer :: nx, ny, irc                    */
-/*    complex, dimension(:,:), pointer :: hp_f  */
-/*    end subroutine                            */
-/* end interface                                */
-   int nsize;
-   float2 *cptr;
-   nsize = (*nx)*(*ny);
-/* allocate data on host */
-   hpl_callocate(&cptr,nsize,irc);
-/* set reference to C data in complex Fortran pointer object */
-   getc2cptr_(hp_f,cptr,nx,ny);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void hpl_deallocate_(void *h_d, int *irc) {
-/* deallocate page-locked memory on host                  */
-/* pointer in Fortran should also be nullified            */
-   hpl_deallocate(h_d,irc);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_fcopyin_(float *f, unsigned long *gp_f,
-                             int *nsize) {
-/* copy float array from main memory to global GPU memory */
-   float *g_f;
-   g_f = (float *)*gp_f;
-   gpu_fcopyin(f,g_f,*nsize);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_fcopyout_(float *f, unsigned long *gp_f,
-                              int *nsize) {
-/* copy float array from global GPU memory to main memory */
-   float *g_f;
-   g_f = (float *)*gp_f;
-   gpu_fcopyout(f,g_f,*nsize);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_icopyin_(int *f, unsigned long *gp_f, int *nsize) {
-/* copy int array from main memory to global GPU memory */
-   int *g_f;
-   g_f = (int *)*gp_f;
-   gpu_icopyin(f,g_f,*nsize);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_icopyout_(int *f, unsigned long *gp_f, int *nsize) {
-/* copy int array from global GPU memory to main memory */
-   int *g_f;
-   g_f = (int *)*gp_f;
-   gpu_icopyout(f,g_f,*nsize);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_ccopyin_(float2 *f, unsigned long *gp_f,
-                             int *nsize) {
-/* copy float2 array from main memory to global GPU memory */
-   float2 *g_f;
-   g_f = (float2 *)*gp_f;
-   gpu_ccopyin(f,g_f,*nsize);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_ccopyout_(float2 *f, unsigned long *gp_f,
-                              int *nsize) {
-/* copy float2 array from global GPU memory to main memory */
-   float2 *g_f;
-   g_f = (float2 *)*gp_f;
-   gpu_ccopyout(f,g_f,*nsize);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_initstream_(int *nstream) {
-   gpu_initstream(*nstream);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_delstream_(int *nstream) {
-   gpu_delstream(*nstream);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_waitstream_(int *nstream) {
-   gpu_waitstream(*nstream);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_cascopyin_(float2 *f, unsigned long *gp_f,
-                               int *noff, int *nsize, int *nstream) {
-/* copy float2 array segment from main memory to global GPU memory */
-/* asynchronous copy */
-   float2 *g_f;
-   g_f = (float2 *)*gp_f;
-   gpu_cascopyin(f,g_f,*noff,*nsize,*nstream);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_cascopyout_(float2 *f, unsigned long *gp_f,
-                                int *noff, int *nsize, int *nstream) {
-/* copy float2 array segment from global GPU memory to main memory */
-/* asynchronous copy */
-   float2 *g_f;
-   g_f = (float2 *)*gp_f;
-   gpu_cascopyout(f,g_f,*noff,*nsize,*nstream);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_zfmem_(unsigned long *gp_f, int *nsize) {
-   float *g_f;
-   g_f = (float *)*gp_f;
-   gpu_zfmem(g_f,*nsize);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_zcmem_(unsigned long *gp_f, int *nsize) {
-   float2 *g_f;
-   g_f = (float2 *)*gp_f;
-   gpu_zcmem(g_f,*nsize);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpu_set_cache_size_(int *nscache) {
-   gpu_set_cache_size(*nscache);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void init_cu_(int *dev, int *irc) {
-   init_cu(*dev,irc);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void end_cu_() {
-   end_cu();
    return;
 }

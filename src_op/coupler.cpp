@@ -8,6 +8,9 @@
 #ifdef defpbpic
 	#include "pbpic_lib.h"
 #endif
+#ifdef defgpupbpic
+	#include "gpupbpic_lib.h"
+#endif
 #include <stdio.h>
 #include <mpi.h>
 #include <cmath>
@@ -37,6 +40,7 @@ int main(int argc, char** argv){
 	char fenics[] = "FENICS";
 	char simpic[] = "SIMPIC";
 	char pbpic[] = "PBPIC";
+	char gpupb[] = "GPUPBPIC";
 	char unit_1[] = "UNIT_1";
 	char unit_2[] = "UNIT_2";
 	char total[] = "TOTAL";
@@ -52,6 +56,7 @@ int main(int argc, char** argv){
 	int fenics_count = 0;//used to count the number of FENICS units
 	int simpic_count = 0;//used to count the number of SIMPIC units
 	int pbpic_count = 0;//used to count the number of PBPIC units
+	int gpupbpic_count = 0;//used to count the number of GPUPBPIC units
 
 	fscanf(ifp, "%s %d", keyword, &temp_unit);
 	if(strcmp(keyword, total) == 0){
@@ -118,6 +123,16 @@ int main(int argc, char** argv){
 			temp_count++;
 			pbpic_count++;
 			mpi_ranks += temp_unit;
+		}else if(strcmp(keyword, gpupb) == 0){ 
+            #ifndef defgpupbpic
+                fprintf(stderr, "Error: CPX has not been compiled with GPUPBPIC support.\n");
+                exit(1);
+            #endif
+            units[temp_count].type = 'G';
+            units[temp_count].processes = temp_unit;
+            temp_count++;
+            gpupbpic_count++;
+            mpi_ranks += temp_unit;
 		}else if(strcmp(keyword, unit_1) == 0 || strcmp(keyword, unit_2) == 0){
 			units[temp_count-1].mgcfd_units.push_back(temp_unit);
 		}
@@ -138,7 +153,7 @@ int main(int argc, char** argv){
 
   if(rank == 0){
     printf("It's coupler time ;)");
-	printf("\n Total number of units: %d\n No of MG-CFD units: %d\n No of FENICS units: %d\n No of SIMPIC units: %d\n No of PBPIC units: %d\n No of Coupler units: %d\n\n Unit list:\n", num_of_units, mgcfd_count, fenics_count, simpic_count, pbpic_count, coupler_count);
+	printf("\n Total number of units: %d\n No of MG-CFD units: %d\n No of FENICS units: %d\n No of SIMPIC units: %d\n No of PBPIC units: %d\n No of GPU PBPIC units: %d\nNo of Coupler units: %d\n\n Unit list:\n", num_of_units, mgcfd_count, fenics_count, simpic_count, pbpic_count, gpupbpic_count, coupler_count);
 	int coupler_count_temp = 0;
 	int work_count_temp = 0;
 	for(int i = 0; i < num_of_units; i++){
@@ -185,12 +200,8 @@ int main(int argc, char** argv){
 					exit(1);
 				} 
 			}else if(units[i].coupling_type == 'S'){
-				if((units[units[i].mgcfd_units[0] - 1].type == 'F') or 
-				   (units[units[i].mgcfd_units[1] - 1].type == 'F') or 
-				   (units[units[i].mgcfd_units[0] - 1].type == 'P') or
-                   (units[units[i].mgcfd_units[1] - 1].type == 'P') or
-				   (units[units[i].mgcfd_units[0] - 1].type == 'B') or
-				   (units[units[i].mgcfd_units[1] - 1].type == 'B')){
+				if((units[units[i].mgcfd_units[0] - 1].type != 'M') or 
+				   (units[units[i].mgcfd_units[1] - 1].type != 'M')){
 					if(rank == 0){
 						fprintf(stderr, "Error: SLINGING plane boundaries can only contain MG-CFD units.\n");
 					}
@@ -290,6 +301,7 @@ int main(int argc, char** argv){
 	bool is_fenics = false;
 	bool is_simpic = false;
 	bool is_pbpic = false;
+	bool is_gpupb = false;
 	int instance_number = 0;
 
 	for(int i=0; i<num_of_units;i++){
@@ -322,6 +334,8 @@ int main(int argc, char** argv){
 						is_simpic = true;
 					} else if(units[i].type == 'B'){
 						is_pbpic = true;
+					} else if(units[i].type == 'G'){
+						is_gpupb = true;
 					}
 					instance_number = relative_positions[rank].placelocator;
 				}
@@ -346,6 +360,11 @@ int main(int argc, char** argv){
 		}else if(is_pbpic){
 			#ifdef defpbpic
 				main_pbpic(argc, argv, comms_shell, instance_number, units, relative_positions);
+			#endif
+			MPI_Finalize();
+		}else if(is_gpupb){
+			#ifdef defgpupbpic
+				main_gpupbpic(argc, argv, comms_shell, instance_number, units, relative_positions);
 			#endif
 			MPI_Finalize();
 		}

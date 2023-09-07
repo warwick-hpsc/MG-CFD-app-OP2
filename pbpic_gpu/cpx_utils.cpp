@@ -81,7 +81,7 @@ void send_num_data(struct unit units[], struct locators relative_positions[],
 	
 	int world_rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-	int unit_count = find_unit(units, relative_positions, world_rank, 'B');
+	int unit_count = find_unit(units, relative_positions, world_rank, 'G');
 	int total_coupler_unit_count = units[unit_count].coupler_ranks.size();
     int ranks_per_coupler;
 	double nodes_size;
@@ -113,7 +113,7 @@ void send_recv_data(struct unit units[], struct locators relative_positions[],
 					double *p_variables_data, double *p_variables_recv, FILE *fp){
 	int world_rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-	int unit_count = find_unit(units, relative_positions, world_rank, 'B');
+	int unit_count = find_unit(units, relative_positions, world_rank, 'G');
 	int total_coupler_unit_count = units[unit_count].coupler_ranks.size();
     fprintf(fp, "PIC cycle %d of %d comms starting\n", (cycle_num/pic_conversion_factor)+1, 
 				total_cycles);

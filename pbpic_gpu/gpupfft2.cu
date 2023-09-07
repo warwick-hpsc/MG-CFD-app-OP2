@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "cuda.h"
+#include <cuda/std/complex>
 #include <cufft.h>
 
 extern int nblock_size;
@@ -15,31 +16,31 @@ static cufftHandle planrx = 0, planxr = 0, planrxn = 0, planxrn = 0;
 static cufftHandle plany = 0, planyn = 0;
 
 
-__global__ void gpuppmtposes(float2 f[], float2 sm[], int nx, int kxp,
+__global__ void gpuppmtposes(cuda::std::complex<float> f[], cuda::std::complex<float> sm[], int nx, int kxp,
                              int kyps, int kstrt, int nvp, int kxyp,
                              int nxv, int kypd);
 
-__global__ void gpuppmtposer(float2 g[], float2 tm[], int ny, int kyp,
+__global__ void gpuppmtposer(cuda::std::complex<float> g[], cuda::std::complex<float> tm[], int ny, int kyp,
                              int kxps, int kstrt, int nvp, int kxyp,
                              int nyv, int kxpd);
                              
-__global__ void gpuppmtposesn(float2 fn[], float2 sm[], int nx, int kxp,
+__global__ void gpuppmtposesn(cuda::std::complex<float> fn[], cuda::std::complex<float> sm[], int nx, int kxp,
                               int kyps, int kstrt, int nvp, int ndim,
                               int kxyp, int nxv, int kypd);
 
-__global__ void gpuppmtposern(float2 gn[], float2 tm[], int ny, int kyp,
+__global__ void gpuppmtposern(cuda::std::complex<float> gn[], cuda::std::complex<float> tm[], int ny, int kyp,
                               int kxps, int kstrt, int nvp, int ndim,
                               int kxyp, int nyv, int kxpd);
 
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppsmtposes(float2 f[], float2 sm[], float ani,
+__global__ void gpuppsmtposes(cuda::std::complex<float> f[], cuda::std::complex<float> sm[], float ani,
                               int nx, int kxp, int kyps, int kstrt,
                               int nvp, int kxyp, int nxv, int kypd) {
 /* extract data to send and normalize */
 /* local data */
    int ks, j, k, n, nn, id, joff, ld;
-   float2 a;
+   cuda::std::complex<float> a;
    ks = kstrt - 1;
 /* for (n = 0; n < nvp; n++) { */
    n = blockIdx.y;
@@ -67,8 +68,8 @@ __global__ void gpuppsmtposes(float2 f[], float2 sm[], float ani,
             j = threadIdx.x;
             while (j < ld) {
                a = f[j+joff+nxv*k];
-               a.x = ani*a.x;
-               a.y = ani*a.y;
+               a.real(ani*a.real());
+               a.imag(ani*a.imag());
                sm[j+ld*k+kxyp*n] = a;
                j += blockDim.x;
             }
@@ -79,14 +80,14 @@ __global__ void gpuppsmtposes(float2 f[], float2 sm[], float ani,
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppsmtposesn(float2 fn[], float2 sm[], float ani,
+__global__ void gpuppsmtposesn(cuda::std::complex<float> fn[], cuda::std::complex<float> sm[], float ani,
                                int nx, int kxp, int kyps, int kstrt,
                                int nvp, int ndim, int kxyp, int nxv,
                                int kypd) {
 /* extract vector data to send and normalize */
 /* local data */
    int ks, i, j, k, n, nn, id, joff, ld, nnxv, nkxyp;
-   float2 a;
+   cuda::std::complex<float> a;
    ks = kstrt - 1;
    nnxv = ndim*nxv;
    nkxyp = ndim*kxyp;
@@ -117,8 +118,8 @@ __global__ void gpuppsmtposesn(float2 fn[], float2 sm[], float ani,
             while (j < ld) {
                for (i = 0; i < ndim; i++) {
                   a = fn[j+joff+nxv*i+nnxv*k];
-                  a.x = ani*a.x;
-                  a.y = ani*a.y;
+                  a.real(ani*a.real());
+                  a.imag(ani*a.imag());
                   sm[j+ld*(i+ndim*k)+nkxyp*n] = a;
                }
                j += blockDim.x;
@@ -130,16 +131,16 @@ __global__ void gpuppsmtposesn(float2 fn[], float2 sm[], float ani,
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppsltpose(float2 f[], float2 g[], float ani, int nx,
+__global__ void gpuppsltpose(cuda::std::complex<float> f[], cuda::std::complex<float> g[], float ani, int nx,
                              int ny, int kxp, int kyp, int kstrt,
                              int nxv, int nyv) {
 /* transpose local data with scaling */
 /* local data */
    int mxv, j, k, ks, kxps, kyps, joff, koff, js, jj, kk;
-   float2 a;
+   cuda::std::complex<float> a;
 /* The size of the shared memory array is as follows: */
-/* float2 s2[(mx + 1)*mx];                            */
-   extern __shared__ float2 s2[];
+/* cuda::std::complex<float> s2[(mx + 1)*mx];                            */
+   extern __shared__ cuda::std::complex<float> s2[];
    mxv = blockDim.x + 1;
    ks = kstrt - 1;
    joff = kxp*ks;
@@ -165,25 +166,25 @@ __global__ void gpuppsltpose(float2 f[], float2 g[], float ani, int nx,
    k = js + kk;
    if ((j < kxps) && (k < kyps)) {
       a = s2[ks+mxv*js];
-      a.x = ani*a.x;
-      a.y = ani*a.y;
+      a.real(ani*a.real());
+      a.imag(ani*a.imag());
       g[k+koff+nyv*j] = a;
    }
    return;
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppsltposen(float2 fn[], float2 gn[], float ani,
+__global__ void gpuppsltposen(cuda::std::complex<float> fn[], cuda::std::complex<float> gn[], float ani,
                               int nx, int ny, int kxp, int kyp,
                               int kstrt, int ndim, int nxv, int nyv) {
 /* transpose local vector data with scaling */
 /* local data */
    int mxv, i, j, k, ks, kxps, kyps, joff, koff, js, jj, kk;
    int nnxv, nnyv;
-   float2 a;
+   cuda::std::complex<float> a;
 /* The size of the shared memory array is as follows: */
-/* float2 s2n[ndim*(mx + 1)*mx];                      */
-   extern __shared__ float2 s2n[];
+/* cuda::std::complex<float> s2n[ndim*(mx + 1)*mx];                      */
+   extern __shared__ cuda::std::complex<float> s2n[];
    mxv = blockDim.x + 1;
    ks = kstrt - 1;
    nnxv = ndim*nxv;
@@ -214,8 +215,8 @@ __global__ void gpuppsltposen(float2 fn[], float2 gn[], float ani,
    if ((j < kxps) && (k < kyps)) {
       for (i = 0; i < ndim; i++) {
          a = s2n[ks+mxv*(i+ndim*js)];
-         a.x = ani*a.x;
-         a.y = ani*a.y;
+         a.real(ani*a.real());
+         a.imag(ani*a.imag());
          gn[k+koff+nyv*i+nnyv*j] = a;
       }
    }
@@ -223,7 +224,7 @@ __global__ void gpuppsltposen(float2 fn[], float2 gn[], float ani,
 }
 
 /*--------------------------------------------------------------------*/	
-extern "C" void gpupfft2rrcuinit(int nx, int kypp, int ndim) {
+void gpupfft2rrcuinit(int nx, int kypp, int ndim) {
    if (kypp <= 0)
       return;
    cfrc = cufftPlan1d(&planrx,nx,CUFFT_R2C,kypp);
@@ -250,7 +251,7 @@ extern "C" void gpupfft2rrcuinit(int nx, int kypp, int ndim) {
 }
 
 /*--------------------------------------------------------------------*/	
-extern "C" void gpupfft2cuinit(int kxpp, int ny, int ndim) {
+void gpupfft2cuinit(int kxpp, int ny, int ndim) {
    if (kxpp <= 0)
       return;
    cfrc = cufftPlan1d(&plany,ny,CUFFT_C2C,kxpp);
@@ -267,7 +268,7 @@ extern "C" void gpupfft2cuinit(int kxpp, int ny, int ndim) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpupfft2rrcudel() {
+void gpupfft2rrcudel() {
    if (planrx != 0)
       cfrc = cufftDestroy(planrx);
    if (cfrc) {
@@ -296,7 +297,7 @@ extern "C" void gpupfft2rrcudel() {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpupfft2cudel() {
+void gpupfft2cudel() {
    if (plany != 0)
       cfrc = cufftDestroy(plany);
    if (cfrc) {
@@ -313,7 +314,7 @@ extern "C" void gpupfft2cudel() {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpupfft2rrcux(float2 *f, float2 *bsm, int isign, 
+void gpupfft2rrcux(cuda::std::complex<float> *f, cuda::std::complex<float> *bsm, int isign, 
                               int indx, int indy, int kstrt, int nvp,
                               int kxp1, int kyp, int nxh1d, int kypd) {
 /* wrapper function for real to complex fft in x,                */
@@ -339,7 +340,7 @@ extern "C" void gpupfft2rrcux(float2 *f, float2 *bsm, int isign,
    kxyp = kxp1*kyp;
    dim3 dimGrids(kypp,nvp);
    dim3 dimGridty((kyp-1)/mx+1,(kxp1-1)/mx+1,nvp);
-   ns = (mx+1)*mx*sizeof(float2);
+   ns = (mx+1)*mx*sizeof(cuda::std::complex<float>);
 /* inverse fourier transform */
    if (isign < 0) {
 /* perform x fft */
@@ -388,7 +389,7 @@ extern "C" void gpupfft2rrcux(float2 *f, float2 *bsm, int isign,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpupfft2rrcuy(float2 *g, float2 *brm, int isign,
+void gpupfft2rrcuy(cuda::std::complex<float> *g, cuda::std::complex<float> *brm, int isign,
                               int indx, int indy, int kstrt, int nvp, 
                               int kxp1, int kyp, int nyd) {
 /* wrapper function for real to complex fft in y,                */
@@ -412,7 +413,7 @@ extern "C" void gpupfft2rrcuy(float2 *g, float2 *brm, int isign,
    kxyp = kxp1*kyp;
    dim3 dimGrids(kxpp,nvp);
    dim3 dimGridtx((kxp1-1)/mx+1,(kyp-1)/mx+1,nvp);
-   ns = (mx+1)*mx*sizeof(float2);
+   ns = (mx+1)*mx*sizeof(cuda::std::complex<float>);
 /* inverse fourier transform */
    if (isign < 0) {
 /* transpose data received */
@@ -461,7 +462,7 @@ extern "C" void gpupfft2rrcuy(float2 *g, float2 *brm, int isign,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpupfft2rrcuxn(float2 *fn, float2 *bsm, int isign, 
+void gpupfft2rrcuxn(cuda::std::complex<float> *fn, cuda::std::complex<float> *bsm, int isign, 
                                int indx, int indy, int ndim, int kstrt,
                                int nvp, int kxp1, int kyp, int nxh1d,
                                int kypd) {
@@ -489,7 +490,7 @@ extern "C" void gpupfft2rrcuxn(float2 *fn, float2 *bsm, int isign,
    kxyp = kxp1*kyp;
    dim3 dimGrids(kypp,nvp);
    dim3 dimGridty((kyp-1)/mx+1,(kxp1-1)/mx+1,nvp);
-   ns = ndim*(mx+1)*mx*sizeof(float2);
+   ns = ndim*(mx+1)*mx*sizeof(cuda::std::complex<float>);
 /* inverse fourier transform */
    if (isign < 0) {
 /* perform x fft */
@@ -539,7 +540,7 @@ extern "C" void gpupfft2rrcuxn(float2 *fn, float2 *bsm, int isign,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void gpupfft2rrcuyn(float2 *gn, float2 *brm, int isign,
+void gpupfft2rrcuyn(cuda::std::complex<float> *gn, cuda::std::complex<float> *brm, int isign,
                                int indx, int indy, int ndim, int kstrt,
                                int nvp, int kxp1, int kyp, int nyd) {
 /* wrapper function for real to complex fft in y,                */
@@ -564,7 +565,7 @@ extern "C" void gpupfft2rrcuyn(float2 *gn, float2 *brm, int isign,
    kxyp = kxp1*kyp;
    dim3 dimGrids(kxpp,nvp);
    dim3 dimGridtx((kxp1-1)/mx+1,(kyp-1)/mx+1,nvp);
-   ns = ndim*(mx+1)*mx*sizeof(float2);
+   ns = ndim*(mx+1)*mx*sizeof(cuda::std::complex<float>);
 /* inverse fourier transform */
    if (isign < 0) {
 /* transpose data received */
@@ -613,7 +614,7 @@ extern "C" void gpupfft2rrcuyn(float2 *gn, float2 *brm, int isign,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuppsltpose(float2 *f, float2 *g, float ani, int nx,
+void cgpuppsltpose(cuda::std::complex<float> *f, cuda::std::complex<float> *g, float ani, int nx,
                               int ny, int kxp, int kyp, int kstrt,
                               int nxv, int nyv) {
 /* local complex transpose with scaling */
@@ -624,7 +625,7 @@ extern "C" void cgpuppsltpose(float2 *f, float2 *g, float ani, int nx,
    dim3 dimBlockt(mx,mx);
 /* calculate range of indices */
    dim3 dimGridtx((kxp-1)/mx+1,(kyp-1)/mx+1);
-   ns = (mx+1)*mx*sizeof(float2);
+   ns = (mx+1)*mx*sizeof(cuda::std::complex<float>);
 /* local transpose f to g */
    crc = cudaGetLastError();
    gpuppsltpose<<<dimGridtx,dimBlockt,ns>>>(f,g,ani,nx,ny,kxp,kyp,kstrt,
@@ -639,7 +640,7 @@ extern "C" void cgpuppsltpose(float2 *f, float2 *g, float ani, int nx,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuppsltposen(float2 *fn, float2 *gn, float ani,
+void cgpuppsltposen(cuda::std::complex<float> *fn, cuda::std::complex<float> *gn, float ani,
                                int nx, int ny, int kxp, int kyp,
                                int kstrt, int ndim, int nxv, int nyv) {
 /* local complex vector transpose with scaling */
@@ -650,7 +651,7 @@ extern "C" void cgpuppsltposen(float2 *fn, float2 *gn, float ani,
    dim3 dimBlockt(mx,mx);
 /* calculate range of indices */
    dim3 dimGridtx((kxp-1)/mx+1,(kyp-1)/mx+1);
-   ns = ndim*(mx+1)*mx*sizeof(float2);
+   ns = ndim*(mx+1)*mx*sizeof(cuda::std::complex<float>);
 /* local transpose f to g */
    crc = cudaGetLastError();
    gpuppsltposen<<<dimGridtx,dimBlockt,ns>>>(fn,gn,ani,nx,ny,kxp,kyp,
@@ -661,113 +662,5 @@ extern "C" void cgpuppsltposen(float2 *fn, float2 *gn, float ani,
       printf("gpuppsltposen error=%d:%s\n",crc,cudaGetErrorString(crc));
       exit(1);
    }
-   return;
-}
-
-/* Interfaces to Fortran */
-
-/*--------------------------------------------------------------------*/	
-extern "C" void gpupfft2rrcuinit_(int *nx, int *kypp, int *ndim) {
-   gpupfft2rrcuinit(*nx,*kypp,*ndim);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpupfft2cuinit_(int *nx, int *ny, int *ndim) {
-   gpupfft2cuinit(*nx,*ny,*ndim);
-   return;
-}
-
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpupfft2rrcudel_() {
-   gpupfft2rrcudel();
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpupfft2cudel_() {
-   gpupfft2cudel();
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpupfft2rrcux_(unsigned long *gp_f, 
-                               unsigned long *gp_bsm, int *isign,
-                               int *indx, int *indy, int *kstrt,
-                               int *nvp, int *kxp1, int *kyp,
-                               int *nxh1d, int *kypd) {
-   float2 *f, *bsm;
-   f = (float2 *)*gp_f;
-   bsm = (float2 *)*gp_bsm;
-   gpupfft2rrcux(f,bsm,*isign,*indx,*indy,*kstrt,*nvp,*kxp1,*kyp,*nxh1d,
-                *kypd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpupfft2rrcuy_(unsigned long *gp_g, 
-                               unsigned long *gp_brm, int *isign,
-                               int *indx, int *indy, int *kstrt,
-                               int *nvp, int *kxp1, int *kyp,
-                               int *nyd) {
-   float2 *g, *brm;
-   g = (float2 *)*gp_g;
-   brm = (float2 *)*gp_brm;
-   gpupfft2rrcuy(g,brm,*isign,*indx,*indy,*kstrt,*nvp, *kxp1,*kyp,*nyd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpupfft2rrcuxn_(unsigned long *gp_fn, 
-                                unsigned long *gp_bsm, int *isign,
-
-                               int *indx, int *indy, int *ndim, int *kstrt,
-                               int *nvp, int *kxp1, int *kyp, int *nxh1d,
-                               int *kypd) {
-   float2 *fn, *bsm;
-   fn = (float2 *)*gp_fn;
-   bsm = (float2 *)*gp_bsm;
-   gpupfft2rrcuxn(fn,bsm,*isign,*indx,*indy,*ndim,*kstrt,*nvp,*kxp1,
-                  *kyp,*nxh1d,*kypd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void gpupfft2rrcuyn_(unsigned long *gp_gn, 
-                                unsigned long *gp_brm, int *isign,
-                                int *indx, int *indy, int *ndim,
-                                int *kstrt, int *nvp, int *kxp1,
-                                int *kyp, int *nyd) {
-   float2 *gn, *brm;
-   gn = (float2 *)*gp_gn;
-   brm = (float2 *)*gp_brm;
-   gpupfft2rrcuyn(gn,brm,*isign,*indx,*indy,*ndim,*kstrt,*nvp,*kxp1,
-                  *kyp,*nyd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppsltpose_(unsigned long *gp_f, unsigned long *gp_g,
-                               float *ani, int *nx, int *ny, int *kxp,
-                               int *kyp, int *kstrt, int *nxv,
-                               int *nyv) {
-   float2 *f, *g;
-   f = (float2 *)*gp_f;
-   g = (float2 *)*gp_g;
-   cgpuppsltpose(f,g,*ani,*nx,*ny,*kxp,*kyp,*kstrt,*nxv,*nyv);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppsltposen_(unsigned long *gp_fn,
-                                unsigned long *gp_gn, float *ani,
-                                int *nx, int *ny, int *kxp, int *kyp,
-                                int *kstrt, int *ndim, int *nxv,
-                                int *nyv) {
-   float2 *fn, *gn;
-   fn = (float2 *)*gp_fn;
-   gn = (float2 *)*gp_gn;
-   cgpuppsltposen(fn,gn,*ani,*nx,*ny,*kxp,*kyp,*kstrt,*ndim,*nxv,*nyv);
    return;
 }

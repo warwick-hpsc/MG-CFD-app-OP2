@@ -3,7 +3,9 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <complex.h>
+/*#include <complex.h>*/
+#include <algorithm>
+#include <cuda/std/complex>
 #include <math.h>
 #include "pbpush2.h"
 #include "pplib2.h"
@@ -426,8 +428,8 @@ local data                                                            */
 }
 
 /*--------------------------------------------------------------------*/
-void cppois23t(std::complex<float> qt[], std::complex<float> fxyt[], int isign,
-               std::complex<float> ffct[], float ax, float ay, float affp,
+void cppois23t(cuda::std::complex<float> qt[], cuda::std::complex<float> fxyt[], int isign,
+               cuda::std::complex<float> ffct[], float ax, float ay, float affp,
                float *we, int nx, int ny, int kstrt, int nyv, int kxp1,
                int nyhd) {
 /* this subroutine solves 2d poisson's equation in fourier space for
@@ -471,7 +473,7 @@ void cppois23t(std::complex<float> qt[], std::complex<float> fxyt[], int isign,
 local data                                                 */
    int nxh, nyh, ks, joff, kxps, j, jj, jk, k, j0, j1, k1;
    float dnx, dny, dkx, dky, at1, at2, at3, at4;
-   std::complex<float> zero, zt1, zt2;
+   cuda::std::complex<float> zero, zt1, zt2;
    double wp;
    nxh = nx/2;
    nyh = 1 > ny/2 ? 1 : ny/2;
@@ -483,7 +485,7 @@ local data                                                 */
    kxps = kxp1 < kxps ? kxp1 : kxps;
    dnx = 6.28318530717959/(float) nx;
    dny = 6.28318530717959/(float) ny;
-   zero = std::complex<float>(0.0, 0.0);
+   zero = cuda::std::complex<float>(0.0, 0.0);
    if (isign != 0)
       goto L30;
    if (kstrt > j1) return;
@@ -500,10 +502,10 @@ local data                                                 */
             at3 = dky*dky + at1;
             at4 = exp(-.5*(pow((dky*ay),2) + at2));
             if (at3==0.0) {
-               ffct[k+jj] = affp + std::complex<float>(0.0 ,1.0);
+               ffct[k+jj] = affp + cuda::std::complex<float>(0.0 ,1.0);
             }
             else {
-               ffct[k+jj] = (affp*at4/at3) + at4*std::complex<float>(0.0 ,1.0);
+               ffct[k+jj] = (affp*at4/at3) + at4*cuda::std::complex<float>(0.0 ,1.0);
             }
          }
       }
@@ -525,29 +527,29 @@ L30: wp = 0.0;
             at1 = (ffct[k+jj].real())*(ffct[k+jj].imag());
             at2 = dkx*at1;
             at3 = dny*at1*(float) k;
-            zt1 = std::complex<float>((qt[k+jk].imag()), 0.0) - std::complex<float>(0.0, (qt[k+jk].real()));
-            zt2 = std::complex<float>((qt[k1+jk].imag()), 0.0) - std::complex<float>(0.0, (qt[k1+jk].real()));
+            zt1 = cuda::std::complex<float>((qt[k+jk].imag()), 0.0) - cuda::std::complex<float>(0.0, (qt[k+jk].real()));
+            zt2 = cuda::std::complex<float>((qt[k1+jk].imag()), 0.0) - cuda::std::complex<float>(0.0, (qt[k1+jk].real()));
             fxyt[k+3*jk] = at2*zt1;
             fxyt[k1+3*jk] = at2*zt2;
             fxyt[k+nyv+3*jk] = at3*zt1;
             fxyt[k1+nyv+3*jk] = -at3*zt2;
             fxyt[k+2*nyv+3*jk] = zero;
             fxyt[k1+2*nyv+3*jk] = zero;
-            wp += (at1*(qt[k+jk]*std::conj(qt[k+jk])
-                  + qt[k1+jk]*std::conj(qt[k1+jk]))).real();
+            wp += (at1*(qt[k+jk]*cuda::std::conj(qt[k+jk])
+                  + qt[k1+jk]*cuda::std::conj(qt[k1+jk]))).real();
          }
 /* mode numbers ky = 0, ny/2 */
          k1 = nyh;
          at1 = (ffct[jj].real())*(ffct[jj].imag());
          at3 = dkx*at1;
-         zt1 = std::complex<float>((qt[jk].imag()), 0.0) - std::complex<float>(0.0, (qt[jk].real()));
+         zt1 = cuda::std::complex<float>((qt[jk].imag()), 0.0) - cuda::std::complex<float>(0.0, (qt[jk].real()));
          fxyt[3*jk] = at3*zt1;
          fxyt[k1+3*jk] = zero;
          fxyt[nyv+3*jk] = zero;
          fxyt[k1+nyv+3*jk] = zero;
          fxyt[2*nyv+3*jk] = zero;
          fxyt[k1+2*nyv+3*jk] = zero;
-         wp += (at1*(qt[jk]*std::conj(qt[jk]))).real();
+         wp += (at1*(qt[jk]*cuda::std::conj(qt[jk]))).real();
       }
    }
 /* mode numbers kx = 0 */
@@ -556,14 +558,14 @@ L30: wp = 0.0;
          k1 = ny - k;
          at1 = (ffct[k].real())*(ffct[k].imag());
          at2 = dny*at1*(float) k;
-         zt1 = std::complex<float>((qt[k].imag()), 0.0) - std::complex<float>(0.0, (qt[k].real()));
+         zt1 = cuda::std::complex<float>((qt[k].imag()), 0.0) - cuda::std::complex<float>(0.0, (qt[k].real()));
          fxyt[k] = zero;
          fxyt[k1] = zero;
          fxyt[k+nyv] = at2*zt1;
-         fxyt[k1+nyv] = at2*std::conj(zt1);
+         fxyt[k1+nyv] = at2*cuda::std::conj(zt1);
          fxyt[k+2*nyv] = zero;
          fxyt[k1+2*nyv] = zero;
-         wp += (at1*(qt[k]*std::conj(qt[k]))).real();
+         wp += (at1*(qt[k]*cuda::std::conj(qt[k]))).real();
       }
       k1 = nyh;
       fxyt[0] = zero;
@@ -588,7 +590,7 @@ L80:
 }
 
 /*--------------------------------------------------------------------*/
-void cwpfft2rinit(int mixup[], std::complex<float> sct[], int indx, int indy,
+void cwpfft2rinit(int mixup[], cuda::std::complex<float> sct[], int indx, int indy,
                   int nxhyd, int nxyhd) {
 /* this subroutine calculates tables needed by a two dimensional
    real to complex fast fourier transform and its inverse.
@@ -628,71 +630,7 @@ local data                                                            */
    dnxy = 6.28318530717959/(float) nxy;
    for (j = 0; j < nxyh; j++) {
       arg = dnxy*(float) j;
-      sct[j] = std::complex<float>(cosf(arg), 0.0) - std::complex<float>(0.0, sinf(arg));
+      sct[j] = cuda::std::complex<float>(cosf(arg), 0.0) - cuda::std::complex<float>(0.0, sinf(arg));
    }
-   return;
-}
-
-/* Interfaces to Fortran */
-
-/*--------------------------------------------------------------------*/
-void cpdicomp2l_(float *edges, int *nyp, int *noff, int *nypmx,
-                 int *nypmn, int *ny, int *kstrt, int *nvp, int *idps) {
-   cpdicomp2l(edges,nyp,noff,nypmx,nypmn,*ny,*kstrt,*nvp,*idps);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cpdistr2h_(float *part, float *edges, int *npp, int *nps,
-                float *vtx, float *vty, float *vtz, float *vdx,
-                float *vdy, float *vdz, int *npx, int *npy, int *nx,
-                int *ny, int *idimp, int *npmax, int *idps, int *ipbc,
-                int *ierr) {
-   cpdistr2h(part,edges,npp,*nps,*vtx,*vty,*vtz,*vdx,*vdy,*vdz,*npx,
-             *npy,*nx,*ny,*idimp,*npmax,*idps,*ipbc,ierr);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cppdblkp2l_(float *part, int *kpic, int *npp, int *noff, 
-                 int *nppmx, int *idimp, int *npmax, int *mx, int *my,
-                 int *mx1,int *mxyp1, int *irc) {
-   cppdblkp2l(part,kpic,*npp,*noff,nppmx,*idimp,*npmax,*mx,*my,*mx1,
-              *mxyp1,irc);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cpppmovin2lt_(float *part, float *ppart, int *kpic, int *npp,
-                   int *noff, int *nppmx, int *idimp, int *npmax,
-                   int *mx, int *my, int *mx1, int *mxyp1, int *irc) {
-   cpppmovin2lt(part,ppart,kpic,*npp,*noff,*nppmx,*idimp,*npmax,*mx,*my,
-                *mx1,*mxyp1,irc);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cpppcheck2lt_(float *ppart, int *kpic, int *noff, int *nyp,
-                   int *idimp, int *nppmx, int *nx, int *mx, int *my,
-                   int *mx1, int *myp1, int *irc) {
-   cpppcheck2lt(ppart,kpic,*noff,*nyp,*idimp,*nppmx,*nx,*mx,*my,*mx1,
-                *myp1,irc);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cppois23t_(std::complex<float> *qt, std::complex<float> *fxyt, int *isign,
-                std::complex<float> *ffct, float *ax, float *ay, float *affp,
-                float *we, int *nx, int *ny, int *kstrt, int *nyv,
-                int *kxp1, int *nyhd) {
-   cppois23t(qt,fxyt,*isign,ffct,*ax,*ay,*affp,we,*nx,*ny,*kstrt,*nyv,
-             *kxp1,*nyhd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cwpfft2rinit_(int *mixup, std::complex<float> *sct, int *indx, int *indy,
-                   int *nxhyd, int *nxyhd) {
-   cwpfft2rinit(mixup,sct,*indx,*indy,*nxhyd,*nxyhd);
    return;
 }

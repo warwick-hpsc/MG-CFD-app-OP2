@@ -22,10 +22,10 @@ void cpppcheck2lt(float ppart[], int kpic[], int noff, int nyp,
                   int idimp, int nppmx, int nx, int mx, int my, int mx1,
                   int myp1, int *irc);
 
-void cppois23t(std::complex<float> qt[], std::complex<float> fxyt[], int isign,
-               std::complex<float> ffct[], float ax, float ay, float affp,
+void cppois23t(cuda::std::complex<float> qt[], cuda::std::complex<float> fxyt[], int isign,
+               cuda::std::complex<float> ffct[], float ax, float ay, float affp,
                float *we, int nx, int ny, int kstrt, int nyv, int kxp1,
                int nyhd);
 
-void cwpfft2rinit(int mixup[], std::complex<float> sct[], int indx, int indy,
+void cwpfft2rinit(int mixup[], cuda::std::complex<float> sct[], int indx, int indy,
                   int nxhyd, int nxyhd);

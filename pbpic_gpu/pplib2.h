@@ -24,13 +24,13 @@ void cpppncguard2l(float scs[], float scr[], int kstrt, int nvp,
 void cpppnaguard2l(float scs[], float scr[], int kstrt, int nvp,
                    int nxv);
 
-void cppptpose(std::complex<float> sm[], std::complex<float> tm[], int nx, int ny,
+void cppptpose(cuda::std::complex<float> sm[], cuda::std::complex<float> tm[], int nx, int ny,
                int kxp, int kyp, int kstrt, int nvp);
 
-void cppptposen(std::complex<float> sm[], std::complex<float> tm[], int nx, int ny,
+void cppptposen(cuda::std::complex<float> sm[], cuda::std::complex<float> tm[], int nx, int ny,
                 int kxp, int kyp, int kstrt, int nvp, int ndim);
 
-void cacsndrec(std::complex<float> stm[], int idproc, int nsize, int ntag,
+void cacsndrec(cuda::std::complex<float> stm[], int idproc, int nsize, int ntag,
                int mode);
 
 void cpppmove2(float sbufr[], float sbufl[], float rbufr[], 

@@ -3,16 +3,18 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <complex.h>
 #include "cuda.h"
+#include <cuda/std/complex>
 
 extern int nblock_size;
 extern int maxgsx;
 
 static cudaError_t crc;
 
-extern "C" void gpu_deallocate(void *g_d, int *irc);
+void gpu_deallocate(void *g_d, int *irc);
 
-extern "C" void gpu_iallocate(int **g_i, int nsize, int *irc);
+void gpu_iallocate(int **g_i, int nsize, int *irc);
 
 /*--------------------------------------------------------------------*/
 __device__ void liscan2(int *isdata, int nths) {
@@ -1125,7 +1127,7 @@ local data                                                            */
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppcaguard2xl(float2 qc[], float2 scs[], float q[],
+__global__ void gpuppcaguard2xl(cuda::std::complex<float> qc[], float scs[], float q[],
                                 int nyp, int nx, int nxe, int nypmx,
                                 int nxvh, int kypd) {
 /* copy and accumulate extended periodic scalar field q in x direction
@@ -1141,7 +1143,7 @@ __global__ void gpuppcaguard2xl(float2 qc[], float2 scs[], float q[],
 /* local data */
    int j, k, nxh;
    float at1;
-   float2 a;
+   cuda::std::complex<float> a;
    nxh = nx/2;
    k = blockIdx.x;
 /* copy interior points */
@@ -1152,8 +1154,7 @@ __global__ void gpuppcaguard2xl(float2 qc[], float2 scs[], float q[],
          if (j==0) {
             at1 = q[nx+nxe*k];
          }
-         a.x = q[2*j+nxe*k] + at1;
-         a.y = q[2*j+1+nxe*k];
+         a = cuda::std::complex<float>(q[2*j+nxe*k] + at1, q[2*j+1+nxe*k]);
          qc[j+nxvh*k] = a;
          j += blockDim.x;
       }
@@ -1166,9 +1167,8 @@ __global__ void gpuppcaguard2xl(float2 qc[], float2 scs[], float q[],
          if (j==0) {
             at1 = q[nx+nxe*nyp];
          }
-         a.x = q[2*j+nxe*nyp] + at1;
-         a.y = q[2*j+1+nxe*nyp];
-         scs[j] = a;
+         a = cuda::std::complex<float>(q[2*j+nxe*nyp] + at1, q[2*j+1+nxe*nyp]);
+         scs[j] = a.real();
          j += blockDim.x;
       }
    }
@@ -1176,7 +1176,7 @@ __global__ void gpuppcaguard2xl(float2 qc[], float2 scs[], float q[],
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppcaguard2yl(float2 fc[], float2 scr[], int nx,
+__global__ void gpuppcaguard2yl(cuda::std::complex<float> fc[], float scr[], int nx,
                                 int nxvh, int kypd) {
 /* this subroutine adds data from guard cells from remote processors
    fc[k][j] = complex data for grid j,k in particle partition.
@@ -1188,22 +1188,22 @@ __global__ void gpuppcaguard2yl(float2 fc[], float2 scr[], int nx,
    linear interpolation, for distributed data
 local data */
    int j, nxh;
-   float2 a, b;
+   cuda::std::complex<float> a, b;
    nxh = nx/2;
    j = threadIdx.x+blockDim.x*blockIdx.x;
 /* add up the guard cells from remote processors */
    if (j < nxh) {
       a = fc[j];
       b = scr[j];
-      a.x += b.x;
-      a.y += b.y;
+      a += cuda::std::complex<float>(b.real(),0.0);
+      a += cuda::std::complex<float>(0.0,b.imag());
       fc[j] = a;
    }
    return;
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppcacguard2xl(float2 cuc[], float2 scs[], float cu[],
+__global__ void gpuppcacguard2xl(cuda::std::complex<float> cuc[], float scs[], float cu[],
                                  int nyp, int nx, int nxe, int nypmx,
                                  int nxvh, int kypd) {
 /* copy and accumulate extended periodic vector field cu in x direction
@@ -1217,9 +1217,9 @@ __global__ void gpuppcacguard2xl(float2 cuc[], float2 scs[], float cu[],
    nxvh = first dimension of output field array cuc, must be >= nx/2+1
    kypd = third dimension of output field array cuc, must be >= nyp */
 /* local data */
-   int j, k, nxh;
-   float at1, at2, at3;
-   float2 a;
+   int j, k, nxh; 
+   float at1, at2, at3; 
+   cuda::std::complex<float> a;
    nxh = nx/2;
    k = blockIdx.x;
 /* copy interior points */
@@ -1234,17 +1234,14 @@ __global__ void gpuppcacguard2xl(float2 cuc[], float2 scs[], float cu[],
             at2 = cu[1+3*(nx+nxe*k)];
             at3 = cu[2+3*(nx+nxe*k)];
          }
-         a.x = cu[3*(2*j+nxe*k)] + at1;
-         a.y = cu[3*(2*j+1+nxe*k)];
-         cuc[j+nxvh*3*k] = a;
-         a.x = cu[1+3*(2*j+nxe*k)] + at2;
-         a.y = cu[1+3*(2*j+1+nxe*k)];
-         cuc[j+nxvh*(1+3*k)] = a;
-         a.x = cu[2+3*(2*j+nxe*k)] + at3;
-         a.y = cu[2+3*(2*j+1+nxe*k)];
-         cuc[j+nxvh*(2+3*k)] = a;
+         a = cuda::std::complex<float>(cu[3*(2*j+nxe*k)] + at1, cu[3*(2*j+1+nxe*k)]);
+         cuc[j+nxvh*3*k] = a; 
+         a = cuda::std::complex<float>(cu[1+3*(2*j+nxe*k)] + at2, cu[1+3*(2*j+1+nxe*k)]);
+         cuc[j+nxvh*(1+3*k)] = a; 
+         a = cuda::std::complex<float>(cu[2+3*(2*j+nxe*k)] + at3, cu[2+3*(2*j+1+nxe*k)]);
+         cuc[j+nxvh*(2+3*k)] = a; 
          j += blockDim.x;
-      }
+      }    
    }
 /* copy exterior points */
    if (k==0) {
@@ -1258,23 +1255,19 @@ __global__ void gpuppcacguard2xl(float2 cuc[], float2 scs[], float cu[],
             at2 = cu[1+3*(nx+nxe*nyp)];
             at3 = cu[2+3*(nx+nxe*nyp)];
          }
-         a.x = cu[3*(2*j+nxe*nyp)] + at1;
-         a.y = cu[3*(2*j+1+nxe*nyp)];
-         scs[j] = a;
-         a.x = cu[1+3*(2*j+nxe*nyp)] + at2;
-         a.y = cu[1+3*(2*j+1+nxe*nyp)];
-         scs[j+nxvh] = a;
-         a.x = cu[2+3*(2*j+nxe*nyp)] + at3;
-         a.y = cu[2+3*(2*j+1+nxe*nyp)];
-         scs[j+2*nxvh] = a;
+         a = cuda::std::complex<float>(cu[3*(2*j+nxe*nyp)] + at1, cu[3*(2*j+1+nxe*nyp)]);
+         scs[j] = a.real(); 
+         a = cuda::std::complex<float>(cu[1+3*(2*j+nxe*nyp)] + at2, cu[1+3*(2*j+1+nxe*nyp)]);
+         scs[j+nxvh] = a.real(); 
+         a = cuda::std::complex<float>(cu[2+3*(2*j+nxe*nyp)] + at3, cu[2+3*(2*j+1+nxe*nyp)]);
+         scs[j+2*nxvh] = a.real(); 
          j += blockDim.x;
-      }
+      }    
    }
    return;
 }
-
 /*--------------------------------------------------------------------*/
-__global__ void gpuppcacguard2yl(float2 fvc[], float2 scr[], int nx,
+__global__ void gpuppcacguard2yl(cuda::std::complex<float> fvc[], float scr[], int nx,
                                  int nxvh, int kypd) {
 /* this subroutine adds data from guard cells from remote processors
    fvc[k][3][j] = complex data for grid j,k in particle partition.
@@ -1286,7 +1279,7 @@ __global__ void gpuppcacguard2yl(float2 fvc[], float2 scr[], int nx,
    linear interpolation, for distributed data
 local data */
    int i, j, nxh;
-   float2 a, b;
+   cuda::std::complex<float> a, b;
    nxh = nx/2;
    j = threadIdx.x+blockDim.x*blockIdx.x;
 /* add up the guard cells from remote processors */
@@ -1294,8 +1287,8 @@ local data */
       for (i = 0; i < 3; i++) {
          a = fvc[j+nxvh*i];
          b = scr[j+nxvh*i];
-         a.x += b.x;
-         a.y += b.y;
+         a += cuda::std::complex<float>(b.real(),0.0);
+         a += cuda::std::complex<float>(0.0,b.imag());
          fvc[j+nxvh*i] = a;
       }
    }
@@ -1303,7 +1296,7 @@ local data */
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppcbguard2xl(float2 fxyc[], float2 scs[],
+__global__ void gpuppcbguard2xl(cuda::std::complex<float> fxyc[], float scs[],
                                 float fxy[], int nyp, int nx, int nxe,
                                 int nypmx, int nxvh, int kypd) {
 /* copy and replicate complex input 2d vector field fxyc in x direction
@@ -1318,7 +1311,7 @@ __global__ void gpuppcbguard2xl(float2 fxyc[], float2 scs[],
    kypd = third dimension of input field array fxyc, must be >= nyp+1 */
 /* local data */
    int j, k, nxh;
-   float2 a, b, c;
+   cuda::std::complex<float> a, b, c;
    nxh = nx/2;
    k = blockIdx.x;
 /* copy interior points */
@@ -1328,12 +1321,12 @@ __global__ void gpuppcbguard2xl(float2 fxyc[], float2 scs[],
          a = fxyc[j+nxvh*3*k];
          b = fxyc[j+nxvh*(1+3*k)];
          c = fxyc[j+nxvh*(2+3*k)];
-         fxy[3*(2*j+nxe*k)] = a.x;
-         fxy[1+3*(2*j+nxe*k)] = b.x;
-         fxy[2+3*(2*j+nxe*k)] = c.x;
-         fxy[3*(2*j+1+nxe*k)] = a.y;
-         fxy[1+3*(2*j+1+nxe*k)] = b.y;
-         fxy[2+3*(2*j+1+nxe*k)] = c.y;
+         fxy[3*(2*j+nxe*k)] = a.real();
+         fxy[1+3*(2*j+nxe*k)] = b.real();
+         fxy[2+3*(2*j+nxe*k)] = c.real();
+         fxy[3*(2*j+1+nxe*k)] = a.imag();
+         fxy[1+3*(2*j+1+nxe*k)] = b.imag();
+         fxy[2+3*(2*j+1+nxe*k)] = c.imag();
          j += blockDim.x;
       }
    }
@@ -1344,17 +1337,17 @@ __global__ void gpuppcbguard2xl(float2 fxyc[], float2 scs[],
          a = fxyc[nxvh*3*k];
          b = fxyc[nxvh*(1+3*k)];
          c = fxyc[nxvh*(2+3*k)];
-         fxy[3*(nx+nxe*k)] = a.x;
-         fxy[1+3*(nx+nxe*k)] = b.x;
-         fxy[2+3*(nx+nxe*k)] = c.x;
+         fxy[3*(nx+nxe*k)] = a.real();
+         fxy[1+3*(nx+nxe*k)] = b.real();
+         fxy[2+3*(nx+nxe*k)] = c.real();
          k += blockDim.x;
       }
 /* copy exterior points */
       j = threadIdx.x;
       while (j < nxh) {
-         scs[j] = fxyc[j];
-         scs[j+nxvh] = fxyc[j+nxvh];
-         scs[j+2*nxvh] = fxyc[j+2*nxvh];
+         scs[j] = fxyc[j].real();
+         scs[j+nxvh] = fxyc[j+nxvh].real();
+         scs[j+2*nxvh] = fxyc[j+2*nxvh].real();
          j += blockDim.x;
       }
 /* copy edges of extended field */
@@ -1362,19 +1355,19 @@ __global__ void gpuppcbguard2xl(float2 fxyc[], float2 scs[],
          a = fxyc[0];
          b = fxyc[nxvh];
          c = fxyc[2*nxvh];
-         a.y = 0.0f;
-         b.y = 0.0f;
-         c.y = 0.0f;
-         scs[nxh] = a;
-         scs[nxh+nxvh] = b;
-         scs[nxh+2*nxvh] = c;
+         a.imag(0.0f);
+         b.imag(0.0f);
+         c.imag(0.0f);
+         scs[nxh] = a.real();
+         scs[nxh+nxvh] = b.real();
+         scs[nxh+2*nxvh] = c.real();
       }
    }
    return;
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppcbguard2yl(float fxy[], float2 scr[], int nyp,
+__global__ void gpuppcbguard2yl(float fxy[], float scr[], int nyp, 
                                 int nx, int nxe, int nxvh, int nypmx) {
 /* this subroutine copies data to guard cells from remote processors
    fxy[k][j][3] = real data for grid j,k in particle partition.
@@ -1389,8 +1382,8 @@ __global__ void gpuppcbguard2yl(float fxy[], float2 scr[], int nyp,
    nypmx = maximum size of field partition, including guard cell.
    linear interpolation, for distributed data
 local data */
-   int j, nxh;
-   float2 a, b, c;
+   int j, nxh; 
+   cuda::std::complex<float> a, b, c;
    nxh = nx/2;
    j = threadIdx.x+blockDim.x*blockIdx.x;
 /* copy to guard cells */
@@ -1398,24 +1391,24 @@ local data */
       a = scr[j];
       b = scr[j+nxvh];
       c = scr[j+2*nxvh];
-      fxy[3*(2*j+nxe*nyp)] = a.x;
-      fxy[1+3*(2*j+nxe*nyp)] = b.x;
-      fxy[2+3*(2*j+nxe*nyp)] = c.x;
-      fxy[3*(2*j+1+nxe*nyp)] = a.y;
-      fxy[1+3*(2*j+1+nxe*nyp)] = b.y;
-      fxy[2+3*(2*j+1+nxe*nyp)] = c.y;
+      fxy[3*(2*j+nxe*nyp)] = a.real(); 
+      fxy[1+3*(2*j+nxe*nyp)] = b.real(); 
+      fxy[2+3*(2*j+nxe*nyp)] = c.real(); 
+      fxy[3*(2*j+1+nxe*nyp)] = a.imag(); 
+      fxy[1+3*(2*j+1+nxe*nyp)] = b.imag(); 
+      fxy[2+3*(2*j+1+nxe*nyp)] = c.imag(); 
    }
    if (j==0) {
       a = scr[nxh];
       b = scr[nxh+nxvh];
       c = scr[nxh+2*nxvh];
-      fxy[3*(nx+nxe*nyp)] = a.x;
-      fxy[1+3*(nx+nxe*nyp)] = b.x;
-      fxy[2+3*(nx+nxe*nyp)] = c.x;
+      fxy[3*(nx+nxe*nyp)] = a.real(); 
+      fxy[1+3*(nx+nxe*nyp)] = b.real(); 
+      fxy[2+3*(nx+nxe*nyp)] = c.real(); 
    }
    return;
 }
-
+ 
 /*--------------------------------------------------------------------*/
 __global__ void gpupppfnd2l(float ppart[], int kpic[], int ncl[],
                             int ihole[], int noff, int nyp, int idimp,
@@ -2160,984 +2153,8 @@ local data                                                            */
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppois23t(float2 qt[], float2 fxyt[], float2 ffct[],
-                            float *we, int nx, int ny, int kstrt,
-                            int nyv, int kxp1, int nyhd) {
-/* this subroutine solves 2d poisson's equation in fourier space for
-   force/charge (or convolution of electric field over particle shape)
-   with periodic boundary conditions, for distributed data.
-   vector length is second dimension.  Zeros out z component.
-   input: qt,ffct,nx,ny,nyv,kxp1,nyhd, output: fxyt,we
-   approximate flop count is: 33*nxc*nyc + 15*(nxc + nyc)
-   where nxc = (nx/2-1)/nvp, nyc = ny/2 - 1, and nvp = number of procs
-   the equation used is:
-   fx[ky][kx] = -sqrt(-1)*kx*g[ky][kx]*s[ky][kx]*q[ky][kx],
-   fy[ky][kx] = -sqrt(-1)*ky*g[ky][kx]*s[ky][kx]*q[ky][kx],
-   where kx = 2pi*j/nx, ky = 2pi*k/ny, and j,k = fourier mode numbers,
-   g[ky][kx] = (affp/(kx**2+ky**2))*s[ky][kx],
-   s[ky][kx] = exp(-((kx*ax)**2+(ky*ay)**2)/2), except for
-   fx(kx=pi) = fy(kx=pi) = fx(ky=pi) = fy(ky=pi) = 0, and
-   fx(kx=0,ky=0) = fy(kx=0,ky=0) = 0.
-   qt[j][k] = complex charge density for fourier mode (jj,k)
-   fxyt[j][0][k] = x component of complex force/charge,
-   fxyt[j][1][k] = y component of complex force/charge,
-   for fourier mode (jj,k), where jj = j + kxp1*(kstrt - 1)
-   kxp1 = number of data values per block for unpacked field data
-   kstrt = starting data block number
-   aimag(ffct[j][k]) = finite-size particle shape factor s
-   real(ffct[j][k])) = potential green's function g
-   for fourier mode (jj,k), where jj = j + kxp1*(kstrt - 1)
-   electric field energy is also calculated, using
-   we = nx*ny*sum((affp/(kx**2+ky**2))*|q[ky][kx]*s[ky][kx]|**2)
-   where affp = nx*ny/np, where np=number of particles
-   nx/ny = system length in x/y direction
-   nyv = first dimension of field arrays, must be >= ny
-   nyhd = first dimension of form factor array, must be >= nyh
-local data                                                 */
-   int nxh, nyh, ks, joff, kxps, j, jj, jk, k, j0, j1, k1, jk3;
-   float dnx, dny, dkx, at1, at2, at3, at4;
-   float2 zero, zt1, zt2, zt3;
-/* The size of the shared memory array is as follows: */
-/* float ss[blockDim.x];                              */
-   extern __shared__ float ss[];
-   double wp;
-   nxh = nx/2;
-   nyh = 1 > ny/2 ? 1 : ny/2;
-   ks = kstrt - 1;
-   joff = kxp1*ks;
-   j1 = nxh + 1;
-   kxps = j1 - joff;
-   kxps = 0 > kxps ? 0 : kxps;
-   kxps = kxp1 < kxps ? kxp1 : kxps;
-   dnx = 6.28318530717959f/(float) nx;
-   dny = 6.28318530717959f/(float) ny;
-   zero.x = 0.0f;
-   zero.y = 0.0f;
-/* calculate force/charge and sum field energy */
-   wp = 0.0;
-   if (kstrt <= j1) {
-/* mode numbers 0 < kx < nx/2 and 0 < ky < ny/2 */
-/*    for (j = 0; j < kxps; j++) { */
-      j = blockIdx.x;
-      j0 = j + joff;
-      dkx = dnx*(float) j0;
-      jj = nyhd*j;
-      jk = nyv*j;
-      jk3 = 3*jk;
-      if ((j0 > 0) && (j0 < nxh)) {
-/*       for (k = 1; k < nyh; k++) { */
-         k = threadIdx.x;
-         while (k < nyh) {
-            if (k > 0) {
-               k1 = ny - k;
-               zt1 = ffct[k+jj];
-               at1 = zt1.x*zt1.y;
-               at2 = at1*dkx;
-               at3 = at1*dny*(float) k;
-               zt1 = qt[k+jk];
-               at4 = zt1.x;
-               zt1.x = zt1.y;
-               zt1.y = -at4;
-               zt2 = qt[k1+jk];
-               at4 = zt2.x;
-               zt2.x = zt2.y;
-               zt2.y = -at4;
-               zt3.x = at2*zt1.x;
-               zt3.y = at2*zt1.y;
-               fxyt[k+jk3] = zt3;
-               zt3.x = at2*zt2.x;
-               zt3.y = at2*zt2.y;
-               fxyt[k1+jk3] = zt3;
-               zt3.x = at3*zt1.x;
-               zt3.y = at3*zt1.y;
-               fxyt[k+nyv+jk3] = zt3;
-               zt3.x = -at3*zt2.x;
-               zt3.y = -at3*zt2.y;
-               fxyt[k1+nyv+jk3] = zt3;
-               fxyt[k+2*nyv+jk3] = zero;
-               fxyt[k1+2*nyv+jk3] = zero;
-               wp += (double) (at1*(zt1.x*zt1.x + zt1.y*zt1.y
-                   + zt2.x*zt2.x + zt2.y*zt2.y));
-            }
-            k += blockDim.x;
-         }
-      }
-/* mode numbers ky = 0, ny/2 */
-      if (blockIdx.x==0) {
-         k1 = nyh;
-/*       for (j = 0; j < kxps; j++) { */
-         j = threadIdx.x;
-         while (j < kxps) {
-            j0 = j + joff;
-            dkx = dnx*(float) j0;
-            jj = nyhd*j;
-            jk = nyv*j;
-            jk3 = 3*jk;
-            if ((j0 > 0) && (j0 < nxh)) {
-               zt1 = ffct[jj];
-               at1 = zt1.x*zt1.y;
-               at2 = dkx*at1;
-               zt1 = qt[jk];
-               at4 = zt1.x;
-               zt3.x = at2*zt1.y;
-               zt3.y = -at2*at4;
-               fxyt[jk3] = zt3;
-               fxyt[k1+jk3] = zero;
-               fxyt[nyv+jk3] = zero;
-               fxyt[k1+nyv+jk3] = zero;
-               fxyt[2*nyv+jk3] = zero;
-               fxyt[k1+2*nyv+jk3] = zero;
-               wp += (double) (at1*(zt1.x*zt1.x + zt1.y*zt1.y));
-            }
-            j += blockDim.x;
-         }
-/* mode numbers kx = 0 */
-         if (ks==0) {
-/*          for (k = 1; k < nyh; k++) { */
-            k = threadIdx.x;
-            while (k < nyh) {
-               if (k > 0) {
-                  k1 = ny - k;
-                  zt1 = ffct[k];
-                  at1 = zt1.x*zt1.y;
-                  at3 = at1*dny*(float) k;
-                  zt1 = qt[k];
-                  at4 = zt1.x;
-                  zt3.x = at3*zt1.y;
-                  zt3.y = -at3*at4;
-                  fxyt[k] = zero;
-                  fxyt[k1] = zero;
-                  fxyt[k+nyv] = zt3;
-                  zt3.y = -zt3.y;
-                  fxyt[k1+nyv] = zt3;
-                  fxyt[k+2*nyv] = zero;
-                  fxyt[k1+2*nyv] = zero;
-                  wp += (double) (at1*(zt1.x*zt1.x + zt1.y*zt1.y));
-               }
-               k += blockDim.x;
-            }
-            if (threadIdx.x==0) {
-               k1 = nyh;
-               fxyt[0] = zero;
-               fxyt[k1] = zero;
-               fxyt[nyv] = zero;
-               fxyt[k1+nyv] = zero;
-               fxyt[2*nyv] = zero;
-               fxyt[k1+2*nyv] = zero;
-            }
-         }
-/* mode numbers kx = nx/2 */
-         if (ks==(nxh/kxp1)) {
-            jk = 3*nyv*(kxps-1);
-/*          for (k = 0; k < ny; k++) { */
-            k = threadIdx.x;
-            while (k < ny) {
-               fxyt[k+jk] = zero;
-               fxyt[k+nyv+jk] = zero;
-               fxyt[k+2*nyv+jk] = zero;
-               k += blockDim.x;
-            }
-         }
-      }
-   }
-   j = blockIdx.x;
-   if (j < kxps) {
-/* sum potential energies for each x co-ordinate */
-      ss[threadIdx.x] = (float) wp;
-/* synchronize threads */
-      __syncthreads();
-      lsum2(ss,blockDim.x);
-/* normalize potential energy for each x co-ordinate */
-      if (threadIdx.x==0)
-         we[j] = ss[0]*((float) nx)*((float) ny);
-   }
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-__global__ void gpuppcuperp2t(float2 cut[], int nx, int ny, int kstrt,
-                              int nyv, int kxp1) {
-/* this subroutine calculates the transverse current in fourier space
-   vector length is second dimension.
-   input: all, output: cut
-   approximate flop count is: 36*nxc*nyc
-   and nxc*nyc divides
-   where nxc = (nx/2-1)/nvp, nyc = ny/2 - 1, and nvp = number of procs
-   the transverse current is calculated using the equation:
-   cux[ky][kx] = cux(kx,ky)-kx*(kx*cux(kx,ky)+ky*cuy(kx,ky))/(kx*kx+ky*ky)
-   cuy[ky][kx] = cuy(kx,ky)-ky*(kx*cux(kx,ky)+ky*cuy(kx,ky))/(kx*kx+ky*ky)
-   where kx = 2pi*j/nx, ky = 2pi*k/ny, and j,k = fourier mode numbers,
-   except for cux(kx=pi) = cuy(kx=pi) = 0, cux(ky=pi) = cuy(ky=pi) = 0,
-   and cux(kx=0,ky=0) = cuy(kx=0,ky=0) = 0.
-   cut[j][i][k] = i-th component of complex current density and
-   for fourier mode (jj-1,k-1), where jj = j + kxp1*(kstrt - 1)
-   nx/ny = system length in x/y direction
-   kstrt = starting data block number
-   nyv = first dimension of field arrays, must be >= ny
-   kxp1 = number of data values per block for unpacked field data
-local data                                                          */
-   int nxh, nyh, ks, joff, kxps, j, jk3, k, j0, j1, k1;
-   float dnx, dny, dkx, dky, dkx2, at1;
-   float2 zero, zt1, zt2, zt3;
-   nxh = nx/2;
-   nyh = 1 > ny/2 ? 1 : ny/2;
-   ks = kstrt - 1;
-   joff = kxp1*ks;
-   j1 = nxh + 1;
-   kxps = j1 - joff;
-   kxps = 0 > kxps ? 0 : kxps;
-   kxps = kxp1 < kxps ? kxp1 : kxps;
-   dnx = 6.28318530717959f/(float) nx;
-   dny = 6.28318530717959f/(float) ny;
-   zero.x = 0.0f;
-   zero.y = 0.0f;
-/* calculate transverse part of current */
-   if (kstrt <= j1) {
-/* mode numbers 0 < kx < nx/2 and 0 < ky < ny/2 */
-/*    for (j = 0; j < kxps; j++) { */
-      j = blockIdx.x;
-      j0 = j + joff;
-      dkx = dnx*(float) j0;
-      dkx2 = dkx*dkx;
-      jk3 = 3*nyv*j;
-      if ((j0 > 0) && (j0 < nxh)) {
-/*       for (k = 1; k < nyh; k++) { */
-         k = threadIdx.x;
-         while (k < nyh) {
-            if (k > 0) {
-               k1 = ny - k;
-               dky = dny*(float) k;
-               at1 = 1.0f/(dky*dky + dkx2);
-               zt1 = cut[k+jk3];
-               zt2.x = dkx*zt1.x;
-               zt2.y = dkx*zt1.y;
-               zt3 = cut[k+nyv+jk3];
-               zt2.x = at1*(zt2.x + dky*zt3.x);
-               zt2.y = at1*(zt2.y + dky*zt3.y);
-               zt1.x -= dkx*zt2.x;
-               zt1.y -= dkx*zt2.y;
-               zt3.x -= dky*zt2.x;
-               zt3.y -= dky*zt2.y;
-               cut[k+jk3] = zt1;
-               cut[k+nyv+jk3] = zt3;
-               zt1 = cut[k1+jk3];
-               zt2.x = dkx*zt1.x;
-               zt2.y = dkx*zt1.y;
-               zt3 = cut[k1+nyv+jk3];
-               zt2.x = at1*(zt2.x - dky*zt3.x);
-               zt2.y = at1*(zt2.y - dky*zt3.y);
-               zt1.x -= dkx*zt2.x;
-               zt1.y -= dkx*zt2.y;
-               zt3.x += dky*zt2.x;
-               zt3.y += dky*zt2.y;
-               cut[k1+jk3] = zt1;
-               cut[k1+nyv+jk3] = zt3;
-            }
-            k += blockDim.x;
-         }
-      }
-/* mode numbers ky = 0, ny/2 */
-      if (blockIdx.x==0) {
-         k1 = nyh;
-/*       for (j = 0; j < kxps; j++) { */
-         j = threadIdx.x;
-         while (j < kxps) {
-            j0 = j + joff;
-            jk3 = 3*nyv*j;
-            if ((j0 > 0) && (j0 < nxh)) {
-               cut[jk3] = zero;
-               cut[k1+jk3] = zero;
-               cut[k1+nyv+jk3] = zero;
-            }
-            j += blockDim.x;
-         }
-/* mode numbers kx = 0 */
-         if (ks==0) {
-/*          for (k = 1; k < nyh; k++) { */
-            k = threadIdx.x;
-            while (k < nyh) {
-               if (k > 0) {
-                  k1 = ny - k;
-                  zt1 = cut[k];
-                  zt1.y = -zt1.y;
-                  cut[k1] = zt1;
-                  cut[k+nyv] = zero;
-                  cut[k1+nyv] = zero;
-               }
-               k += blockDim.x;
-            }
-            if (threadIdx.x==0) {
-               k1 = nyh;
-               cut[0] = zero;
-               cut[k1] = zero;
-               cut[nyv] = zero;
-               cut[k1+nyv] = zero;
-            }
-         }
-/* mode numbers kx = nx/2 */
-         if (ks==(nxh/kxp1)) {
-            jk3 = 3*nyv*(kxps-1);
-/*          for (k = 0; k < ny; k++) { */
-            k = threadIdx.x;
-            while (k < ny) {
-               cut[k+jk3] = zero;
-               cut[k+nyv+jk3] = zero;
-               k += blockDim.x;
-            }
-         }
-      }
-   }
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-__global__ void gpuippbpoisp23t(float2 cut[], float2 bxyt[],
-                                float2 ffct[], float ci, float *wm,
-                                int nx, int ny, int kstrt, int nyv,
-                                int kxp1, int nyhd) {
-/* this subroutine solves 2-1/2d poisson's equation in fourier space for
-   magnetic field with periodic boundary conditions for distributed data.
-   input: cut,ffct,ci,nx,ny,kstrt,nyv,kxp1,nyhd, output: bxyt,wm
-   approximate flop count is: 85*nxc*nyc + 36*(nxc + nyc)
-   where nxc = (nx/2-1)/nvp, nyc = ny/2 - 1, and nvp = number of procs
-   magnetic field is calculated using the equations:
-   bx[ky][kx] = ci*ci*sqrt(-1)*g(kx,ky)*ky*cuz(kx,ky),
-   by[ky][kx] = -ci*ci*sqrt(-1)*g(kx,ky)*kx*cuz(kx,ky),
-   bz[ky][kx] = ci*ci*sqrt(-1)*g(kx,ky)*(kx*cuy(kx,ky)-ky*cux(kx,ky)),
-   where kx = 2pi*j/nx, ky = 2pi*k/ny, and j,k = fourier mode numbers,
-   g[ky][kx] = (affp/(kx**2+ky**2))*s(kx,ky),
-   s[ky][kx] = exp(-((kx*ax)**2+(ky*ay)**2)/2), except for
-   bx(kx=pi) = by(kx=pi) = bz(kx=pi) = 0,
-   bx(ky=pi) = by(ky=pi) = bz(ky=pi) = 0,
-   bx(kx=0,ky=0) = by(kx=0,ky=0) = bz(kx=0,ky=0) = 0.
-   cut[j][i][k] = i-th component of complex current density and
-   bxyt[j][i][k] = i-th component of complex magnetic field,
-   for fourier mode (jj-1,k-1), where jj = j + kxp1*(kstrt - 1)
-   kxp1 = number of data values per block for unpacked field data
-   kstrt = starting data block number
-   aimag(ffct[j][k]) = finite-size particle shape factor s
-   real(ffct[j][k])) = potential green's function g
-   for fourier mode (jj-1,k-1), where jj = j + kxp1*(l - 1)
-   ci = reciprical of velocity of light
-   magnetic field energy is also calculated, using
-   wm = nx*ny*nz*sum((affp/(kx**2+ky**2+kz**2))*ci*ci
-      |cu(kx,ky,kz)*s(kx,ky,kz)|**2), where
-   affp = normalization constant = nx*ny/np, where np=number of particles
-   this expression is valid only if the current is divergence-free
-   nx/ny = system length in x/y direction
-   nyv = first dimension of field arrays, must be >= ny
-   nyhd = first dimension of form factor array, must be >= nyh
-local data                                                 */
-   int nxh, nyh, ks, joff, kxps, j, jj, jk3, k, j0, j1, k1;
-   float ci2, dnx, dny, dkx, at1, at2, at3, at4;
-   float2 zero, zt1, zt2, zt3;
-/* The size of the shared memory array is as follows: */
-/* float ss[blockDim.x];                              */
-   extern __shared__ float ss[];
-   double wp;
-   nxh = nx/2;
-   nyh = 1 > ny/2 ? 1 : ny/2;
-   ks = kstrt - 1;
-   joff = kxp1*ks;
-   j1 = nxh + 1;
-   kxps = j1 - joff;
-   kxps = 0 > kxps ? 0 : kxps;
-   kxps = kxp1 < kxps ? kxp1 : kxps;
-   dnx = 6.28318530717959f/(float) nx;
-   dny = 6.28318530717959f/(float) ny;
-   zero.x = 0.0f;
-   zero.y = 0.0f;
-   ci2 = ci*ci;
-/* calculate magnetic field and sum field energy */
-   wp = 0.0;
-   if (kstrt <= j1) {
-/* mode numbers 0 < kx < nx/2 and 0 < ky < ny/2 */
-/*    for (j = 0; j < kxps; j++) { */
-      j = blockIdx.x;
-      j0 = j + joff;
-      dkx = dnx*(float) j0;
-      jj = nyhd*j;
-      jk3 = 3*nyv*j;
-      if ((j0 > 0) && (j0 < nxh)) {
-/*       for (k = 1; k < nyh; k++) { */
-         k = threadIdx.x;
-         while (k < nyh) {
-            if (k > 0) {
-               k1 = ny - k;
-               zt1 = ffct[k+jj];
-               at1 = ci2*zt1.x;
-               at2 = dkx*at1;
-               at3 = at1*dny*(float) k;
-               at1 = at1*zt1.y;
-               zt1 = cut[k+2*nyv+jk3];
-               at4 = zt1.x;
-               zt1.x = -zt1.y;
-               zt1.y = at4;
-               zt2 = cut[k+nyv+jk3];
-               at4 = zt2.x;
-               zt2.x = -zt2.y;
-               zt2.y = at4;
-               zt3 = cut[k+jk3];
-               at4 = zt3.x;
-               zt3.x = -zt3.y;
-               zt3.y = at4;
-               wp += (double) (at1*(zt1.x*zt1.x + zt1.y*zt1.y
-                  + zt2.x*zt2.x + zt2.y*zt2.y + zt3.x*zt3.x + zt3.y*zt3.y));
-               zt3.x = at2*zt2.x - at3*zt3.x;
-               zt3.y = at2*zt2.y - at3*zt3.y;
-               zt2.x = -at2*zt1.x;
-               zt2.y = -at2*zt1.y;
-               zt1.x = at3*zt1.x;
-               zt1.y = at3*zt1.y;
-               bxyt[k+jk3] = zt1;
-               bxyt[k+nyv+jk3] = zt2;
-               bxyt[k+2*nyv+jk3] = zt3;
-               zt1 = cut[k1+2*nyv+jk3];
-               at4 = zt1.x;
-               zt1.x = -zt1.y;
-               zt1.y = at4;
-               zt2 = cut[k1+nyv+jk3];
-               at4 = zt2.x;
-               zt2.x = -zt2.y;
-               zt2.y = at4;
-               zt3 = cut[k1+jk3];
-               at4 = zt3.x;
-               zt3.x = -zt3.y;
-               zt3.y = at4;
-               wp += (double) (at1*(zt1.x*zt1.x + zt1.y*zt1.y
-                  + zt2.x*zt2.x + zt2.y*zt2.y + zt3.x*zt3.x + zt3.y*zt3.y));
-               zt3.x = at2*zt2.x + at3*zt3.x;
-               zt3.y = at2*zt2.y + at3*zt3.y;
-               zt2.x = -at2*zt1.x;
-               zt2.y = -at2*zt1.y;
-               zt1.x = -at3*zt1.x;
-               zt1.y = -at3*zt1.y;
-               bxyt[k1+jk3] = zt1;
-               bxyt[k1+nyv+jk3] = zt2;
-               bxyt[k1+2*nyv+jk3] = zt3;
-            }
-            k += blockDim.x;
-         }
-      }
-/* mode numbers ky = 0, ny/2 */
-      if (blockIdx.x==0) {
-         k1 = nyh;
-/*       for (j = 0; j < kxps; j++) { */
-         j = threadIdx.x;
-         while (j < kxps) {
-            j0 = j + joff;
-            dkx = dnx*(float) j0;
-            if ((j0 > 0) && (j0 < nxh)) {
-               jj = nyhd*j;
-               jk3 = 3*nyv*j;
-               zt1 = ffct[jj];
-               at1 = ci2*zt1.x;
-               at2 = at1*dkx;
-               at1 = at1*zt1.y;
-               zt1 = cut[2*nyv+jk3];
-               at4 = zt1.x;
-               zt1.x = -zt1.y;
-               zt1.y = at4;
-               zt2 = cut[nyv+jk3];
-               at4 = zt2.x;
-               zt2.x = -zt2.y;
-               zt2.y = at4;
-               wp += (double) (at1*(zt1.x*zt1.x + zt1.y*zt1.y
-                  + zt2.x*zt2.x + zt2.y*zt2.y));
-               zt3.x = at2*zt2.x;
-               zt3.y = at2*zt2.y;
-               zt2.x = -at2*zt1.x;
-               zt2.y = -at2*zt1.y;
-               bxyt[jk3] = zero;
-               bxyt[k1+jk3] = zero;
-               bxyt[nyv+jk3] = zt2;
-               bxyt[k1+nyv+jk3] = zero;
-               bxyt[2*nyv+jk3] = zt3;
-               bxyt[k1+2*nyv+jk3] = zero;
-            }
-            j += blockDim.x;
-         }
-/* mode numbers kx = 0 */
-         if (ks==0) {
-/*          for (k = 1; k < nyh; k++) { */
-            k = threadIdx.x;
-            while (k < nyh) {
-               if (k > 0) {
-                  k1 = ny - k;
-                  zt1 = ffct[k];
-                  at1 = ci2*zt1.x;
-                  at3 = at1*dny*(float) k;
-                  at1 = at1*zt1.y;
-                  zt1 = cut[k+2*nyv];
-                  at4 = zt1.x;
-                  zt1.x = -zt1.y;
-                  zt1.y = at4;
-                  zt3 = cut[k];
-                  at4 = zt3.x;
-                  zt3.x = -zt3.y;
-                  zt3.y = at4;
-                  wp += (double) (at1*(zt1.x*zt1.x + zt1.y*zt1.y
-                     + zt3.x*zt3.x + zt3.y*zt3.y));
-                  zt3.x = -at3*zt3.x;
-                  zt3.y = -at3*zt3.y;
-                  zt1.x = at3*zt1.x;
-                  zt1.y = at3*zt1.y;
-                  bxyt[k] = zt1;
-                  bxyt[k+nyv] = zero;
-                  bxyt[k+2*nyv] = zt3;
-                  zt1.y = -zt1.y;
-                  zt3.y = -zt3.y;
-                  bxyt[k1] = zt1;
-                  bxyt[k1+nyv] = zero;
-                  bxyt[k1+2*nyv] = zt3;
-               }
-               k += blockDim.x;
-            }
-            if (threadIdx.x==0) {
-               k1 = nyh;
-               bxyt[0] = zero;
-               bxyt[k1] = zero;
-               bxyt[nyv] = zero;
-               bxyt[k1+nyv] = zero;
-               bxyt[2*nyv] = zero;
-               bxyt[k1+2*nyv] = zero;
-            }
-         }
-/* mode numbers kx = nx/2 */
-         if (ks==(nxh/kxp1)) {
-            jk3 = 3*nyv*(kxps-1);
-/*          for (k = 0; k < ny; k++) { */
-            k = threadIdx.x;
-            while (k < ny) {
-               bxyt[k+jk3] = zero;
-               bxyt[k+nyv+jk3] = zero;
-               bxyt[k+2*nyv+jk3] = zero;
-               k += blockDim.x;
-            }
-         }
-      }
-   }
-   j = blockIdx.x;
-   if (j < kxps) {
-/* sum magnetic energies for each x co-ordinate */
-      ss[threadIdx.x] = (float) wp;
-/* synchronize threads */
-      __syncthreads();
-      lsum2(ss,blockDim.x);
-/* normalize magnetic energy for each x co-ordinate */
-      if (threadIdx.x==0)
-         wm[j] = ss[0]*((float) (nx*ny));
-   }
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-__global__ void gpuppmaxwel2t(float2 exyt[], float2 bxyt[],
-                              float2 cut[], float2 ffct[], float affp,
-                              float ci, float dt, float *wf, float *wm,
-                              int nx, int ny, int kstrt, int nyv,
-                              int kxp1, int nyhd) {
-/* this subroutine solves 2d maxwell's equation in fourier space for
-   transverse electric and magnetic fields with periodic boundary
-   conditions. vector length is second dimension.
-   input: all, output: wf, wm, exyt, bxyt
-   approximate flop count is: 286*nxc*nyc + 84*(nxc + nyc)
-   where nxc = (nx/2-1)/nvp, nyc = ny/2 - 1, and nvp = number of procs
-   the magnetic field is first updated half a step using the equations:
-   bx[ky][kx] = bx[ky][kx] - .5*dt*sqrt(-1)*ky*ez(kx,ky)
-   by[ky][kx] = by[ky][kx] + .5*dt*sqrt(-1)*kx*ez(kx,ky)
-   bz[ky][kx] = bz[ky][kx] - .5*dt*sqrt(-1)*(kx*ey(kx,ky)-ky*ex(kx,ky))
-   the electric field is then updated a whole step using the equations:
-   ex[ky][kx] = ex[ky][kx] + c2*dt*sqrt(-1)*ky*bz(kx,ky)
-                           - affp*dt*cux(kx,ky)*s(kx,ky)
-   ey[ky][kx] = ey[ky][kx] - c2*dt*sqrt(-1)*kx*bz(kx,ky)
-                           - affp*dt*cuy(kx,ky)*s(kx,ky)
-   ez[ky][kx] = ez[ky][kx] + c2*dt*sqrt(-1)*(kx*by(kx,ky)-ky*bx(kx,ky))
-                           - affp*dt*cuz(kx,ky)*s(kx,ky)
-   the magnetic field is finally updated the remaining half step with
-   the new electric field and the previous magnetic field equations.
-   where kx = 2pi*j/nx, ky = 2pi*k/ny, c2 = 1./(ci*ci)
-   and s(kx,ky) = exp(-((kx*ax)**2+(ky*ay)**2)
-   j,k = fourier mode numbers, except for
-   ex(kx=pi) = ey(kx=pi) = ez(kx=pi) = 0,
-   ex(ky=pi) = ey(ky=pi) = ez(ky=pi) = 0,
-   ex(kx=0,ky=0) = ey(kx=0,ky=0) = ez(kx=0,ky=0) = 0.
-   and similarly for bx, by, bz.
-   cut[j][i][k] = i-th component of complex current density and
-   exyt[j][i][k] = i-th component of complex electric field,
-   bxyt[j][i][k] = i-th component of complex magnetic field,
-   for fourier mode (jj-1,k-1), where jj = j + kxp1*(kstrt - 1)
-   aimag(ffct[j][k]) = finite-size particle shape factor s
-   s[ky][kx] = exp(-((kx*ax)**2+(ky*ay)**2)
-   for fourier mode (jj-1,k-1), where jj = j + kxp1*(kstrt - 1)
-   affp = normalization constant = nx*ny/np, where np=number of particles
-   ci = reciprical of velocity of light
-   dt = time interval between successive calculations
-   transverse electric field energy is also calculated, using
-   wf = nx*ny*nz**sum((1/affp)*|exyz(kx,ky,kz)|**2)
-   magnetic field energy is also calculated, using
-   wm = nx*ny*nz**sum((c2/affp)*|bxyz(kx,ky,kz)|**2)
-   nx/ny = system length in x/y direction
-   kxp1 = number of data values per block for unpacked field data
-   kstrt = starting data block number
-   nyv = first dimension of field arrays, must be >= ny
-   nyhd = first dimension of form factor array, must be >= nyh
-local data                                                 */
-   int nxh, nyh, ks, joff, kxps, j, jj, jk3, k, j0, j1, k1;
-   float dnx, dny, dth, c2, cdt, adt, anorm, dkx, dky, afdt;
-   float2 zero, zt1, zt2, zt3, zt4, zt5, zt6, zt7, zt8, zt9;
-   float2 ct1, ct2, ct3;
-/* The size of the shared memory array is as follows: */
-/* float ss[blockDim.x];                              */
-   extern __shared__ float ss[];
-   double wp, ws;
-   nxh = nx/2;
-   nyh = 1 > ny/2 ? 1 : ny/2;
-   ks = kstrt - 1;
-   joff = kxp1*ks;
-   j1 = nxh + 1;
-   kxps = j1 - joff;
-   kxps = 0 > kxps ? 0 : kxps;
-   kxps = kxp1 < kxps ? kxp1 : kxps;
-   dnx = 6.28318530717959f/(float) nx;
-   dny = 6.28318530717959f/(float) ny;
-   dth = 0.5f*dt;
-   c2 = 1.0f/(ci*ci);
-   cdt = c2*dt;
-   adt = affp*dt;
-   zero.x = 0.0f;
-   zero.y = 0.0f;
-   anorm = 1.0f/affp;
-/* calculate magnetic field and sum field energy */
-   ws = 0.0;
-   wp = 0.0;
-   if (kstrt <= j1) {
-/* calculate the electromagnetic fields */
-/* mode numbers 0 < kx < nx/2 and 0 < ky < ny/2 */
-/*    for (j = 0; j < kxps; j++) { */
-      j = blockIdx.x;
-      j0 = j + joff;
-      dkx = dnx*(float) j0;
-      jj = nyhd*j;
-      jk3 = 3*nyv*j;
-      if ((j0 > 0) && (j0 < nxh)) {
-/*       for (k = 1; k < nyh; k++) { */
-         k = threadIdx.x;
-         while (k < nyh) {
-            if (k > 0) {
-               k1 = ny - k;
-               dky = dny*(float) k;
-               zt1 = ffct[k+jj];
-               afdt = adt*zt1.y;
-/* update magnetic field half time step, ky > 0 */
-               ct3 = exyt[k+2*nyv+jk3];
-               zt1.x = -ct3.y;
-               zt1.y = ct3.x;;
-               ct2 = exyt[k+nyv+jk3];
-               zt2.x = -ct2.y;
-               zt2.y = ct2.x;
-               ct1 = exyt[k+jk3];
-               zt3.x = -ct1.y;
-               zt3.y = ct1.x;
-               zt4 = bxyt[k+jk3];
-               zt5 = bxyt[k+nyv+jk3];
-               zt6 = bxyt[k+2*nyv+jk3];
-               zt4.x -= dth*(dky*zt1.x);
-               zt4.y -= dth*(dky*zt1.y);
-               zt5.x += dth*(dkx*zt1.x);
-               zt5.y += dth*(dkx*zt1.y);
-               zt6.x -= dth*(dkx*zt2.x - dky*zt3.x);
-               zt6.y -= dth*(dkx*zt2.y - dky*zt3.y);
-/* update electric field whole time step */
-               zt1.x = -zt6.y;
-               zt1.y = zt6.x;
-               zt2.x = -zt5.y;
-               zt2.y = zt5.x;
-               zt3.x = -zt4.y;
-               zt3.y = zt4.x;
-               zt7 = cut[k+jk3];
-               zt8 = cut[k+nyv+jk3];
-               zt9 = cut[k+2*nyv+jk3];
-               zt7.x = ct1.x + cdt*(dky*zt1.x) - afdt*zt7.x;
-               zt7.y = ct1.y + cdt*(dky*zt1.y) - afdt*zt7.y;
-               zt8.x = ct2.x - cdt*(dkx*zt1.x) - afdt*zt8.x;
-               zt8.y = ct2.y - cdt*(dkx*zt1.y) - afdt*zt8.y;
-               zt9.x = ct3.x + cdt*(dkx*zt2.x - dky*zt3.x) - afdt*zt9.x;
-               zt9.y = ct3.y + cdt*(dkx*zt2.y - dky*zt3.y) - afdt*zt9.y;
-/* update magnetic field half time step and store electric field */
-               zt1.x = -zt9.y;
-               zt1.y = zt9.x;
-               zt2.x = -zt8.y;
-               zt2.y = zt8.x;
-               zt3.x = -zt7.y;
-               zt3.y = zt7.x;
-               exyt[k+jk3] = zt7;
-               exyt[k+nyv+jk3] = zt8;
-               exyt[k+2*nyv+jk3] = zt9;
-               ws += (double) (anorm*(zt7.x*zt7.x + zt7.y*zt7.y
-                  + zt8.x*zt8.x + zt8.y*zt8.y + zt9.x*zt9.x + zt9.y*zt9.y));
-               zt4.x -= dth*(dky*zt1.x);
-               zt4.y -= dth*(dky*zt1.y);
-               zt5.x += dth*(dkx*zt1.x);
-               zt5.y += dth*(dkx*zt1.y);
-               zt6.x -= dth*(dkx*zt2.x - dky*zt3.x);
-               zt6.y -= dth*(dkx*zt2.y - dky*zt3.y);
-               bxyt[k+jk3] = zt4;
-               bxyt[k+nyv+jk3] = zt5;
-               bxyt[k+2*nyv+jk3] = zt6;
-               wp += (double) (anorm*(zt4.x*zt4.x + zt4.y*zt4.y
-                  + zt5.x*zt5.x + zt5.y*zt5.y + zt6.x*zt6.x + zt6.y*zt6.y));
-/* update magnetic field half time step, ky < 0 */
-               ct3 = exyt[k1+2*nyv+jk3];
-               zt1.x = -ct3.y;
-               zt1.y = ct3.x;;
-               ct2 = exyt[k1+nyv+jk3];
-               zt2.x = -ct2.y;
-               zt2.y = ct2.x;
-               ct1 = exyt[k1+jk3];
-               zt3.x = -ct1.y;
-               zt3.y = ct1.x;
-               zt4 = bxyt[k1+jk3];
-               zt5 = bxyt[k1+nyv+jk3];
-               zt6 = bxyt[k1+2*nyv+jk3];
-               zt4.x += dth*(dky*zt1.x);
-               zt4.y += dth*(dky*zt1.y);
-               zt5.x += dth*(dkx*zt1.x);
-               zt5.y += dth*(dkx*zt1.y);
-               zt6.x -= dth*(dkx*zt2.x + dky*zt3.x);
-               zt6.y -= dth*(dkx*zt2.y + dky*zt3.y);
-/* update electric field whole time step */
-               zt1.x = -zt6.y;
-               zt1.y = zt6.x;
-               zt2.x = -zt5.y;
-               zt2.y = zt5.x;
-               zt3.x = -zt4.y;
-               zt3.y = zt4.x;
-               zt7 = cut[k1+jk3];
-               zt8 = cut[k1+nyv+jk3];
-               zt9 = cut[k1+2*nyv+jk3];
-               zt7.x = ct1.x - cdt*(dky*zt1.x) - afdt*zt7.x;
-               zt7.y = ct1.y - cdt*(dky*zt1.y) - afdt*zt7.y;
-               zt8.x = ct2.x - cdt*(dkx*zt1.x) - afdt*zt8.x;
-               zt8.y = ct2.y - cdt*(dkx*zt1.y) - afdt*zt8.y;
-               zt9.x = ct3.x + cdt*(dkx*zt2.x + dky*zt3.x) - afdt*zt9.x;
-               zt9.y = ct3.y + cdt*(dkx*zt2.y + dky*zt3.y) - afdt*zt9.y;
-/* update magnetic field half time step and store electric field */
-               zt1.x = -zt9.y;
-               zt1.y = zt9.x;
-               zt2.x = -zt8.y;
-               zt2.y = zt8.x;
-               zt3.x = -zt7.y;
-               zt3.y = zt7.x;
-               exyt[k1+jk3] = zt7;
-               exyt[k1+nyv+jk3] = zt8;
-               exyt[k1+2*nyv+jk3] = zt9;
-               ws += (double) (anorm*(zt7.x*zt7.x + zt7.y*zt7.y
-                  + zt8.x*zt8.x + zt8.y*zt8.y + zt9.x*zt9.x + zt9.y*zt9.y));
-               zt4.x += dth*(dky*zt1.x);
-               zt4.y += dth*(dky*zt1.y);
-               zt5.x += dth*(dkx*zt1.x);
-               zt5.y += dth*(dkx*zt1.y);
-               zt6.x -= dth*(dkx*zt2.x + dky*zt3.x);
-               zt6.y -= dth*(dkx*zt2.y + dky*zt3.y);
-               bxyt[k1+jk3] = zt4;
-               bxyt[k1+nyv+jk3] = zt5;
-               bxyt[k1+2*nyv+jk3] = zt6;
-               wp += (double) (anorm*(zt4.x*zt4.x + zt4.y*zt4.y
-                  + zt5.x*zt5.x + zt5.y*zt5.y + zt6.x*zt6.x + zt6.y*zt6.y));
-            }
-            k += blockDim.x;
-         }
-      }
-/* mode numbers ky = 0, ny/2 */
-      if (blockIdx.x==0) {
-         k1 = nyh;
-/*       for (j = 0; j < kxps; j++) { */
-         j = threadIdx.x;
-         while (j < kxps) {
-            j0 = j + joff;
-            dkx = dnx*(float) j0;
-            if ((j0 > 0) && (j0 < nxh)) {
-               jj = nyhd*j;
-               jk3 = 3*nyv*j;
-               zt1 = ffct[jj];
-               afdt = adt*zt1.y;
-/* update magnetic field half time step */
-               ct3 = exyt[2*nyv+jk3];
-               zt1.x = -ct3.y;
-               zt1.y = ct3.x;;
-               ct2 = exyt[nyv+jk3];
-               zt2.x = -ct2.y;
-               zt2.y = ct2.x;
-               zt5 = bxyt[nyv+jk3];
-               zt6 = bxyt[2*nyv+jk3];
-               zt5.x += dth*(dkx*zt1.x);
-               zt5.y += dth*(dkx*zt1.y);
-               zt6.x -= dth*(dkx*zt2.x);
-               zt6.y -= dth*(dkx*zt2.y);
-/* update electric field whole time step */
-               zt1.x = -zt6.y;
-               zt1.y = zt6.x;
-               zt2.x = -zt5.y;
-               zt2.y = zt5.x;
-               zt8 = cut[nyv+jk3];
-               zt9 = cut[2*nyv+jk3];
-               zt8.x = ct2.x - cdt*(dkx*zt1.x) - afdt*zt8.x;
-               zt8.y = ct2.y - cdt*(dkx*zt1.y) - afdt*zt8.y;
-               zt9.x = ct3.x + cdt*(dkx*zt2.x) - afdt*zt9.x;
-               zt9.y = ct3.y + cdt*(dkx*zt2.y) - afdt*zt9.y;
-/* update magnetic field half time step and store electric field */
-               zt1.x = -zt9.y;
-               zt1.y = zt9.x;
-               zt2.x = -zt8.y;
-               zt2.y = zt8.x;
-               exyt[jk3] = zero;
-               exyt[nyv+jk3] = zt8;
-               exyt[2*nyv+jk3] = zt9;
-               ws += (double) (anorm*(zt8.x*zt8.x + zt8.y*zt8.y
-                  + zt9.x*zt9.x + zt9.y*zt9.y));
-               zt5.x += dth*(dkx*zt1.x);
-               zt5.y += dth*(dkx*zt1.y);
-               zt6.x -= dth*(dkx*zt2.x);
-               zt6.y -= dth*(dkx*zt2.y);
-               bxyt[jk3] = zero;
-               bxyt[nyv+jk3] = zt5;
-               bxyt[2*nyv+jk3] = zt6;
-               wp += (double) (anorm*(zt5.x*zt5.x + zt5.y*zt5.y
-                  + zt6.x*zt6.x + zt6.y*zt6.y));
-               bxyt[k1+jk3] = zero;
-               bxyt[k1+nyv+jk3] = zero;
-               bxyt[k1+2*nyv+jk3] = zero;
-               exyt[k1+jk3] = zero;
-               exyt[k1+nyv+jk3] = zero;
-               exyt[k1+2*nyv+jk3] = zero;
-            }
-            j += blockDim.x;
-         }
-/* mode numbers kx = 0 */
-         if (ks==0) {
-/*          for (k = 1; k < nyh; k++) { */
-            k = threadIdx.x;
-            while (k < nyh) {
-               if (k > 0) {
-                  k1 = ny - k;
-                  dky = dny*(float) k;
-                  zt1 = ffct[k];
-                  afdt = adt*zt1.y;
-/* update magnetic field half time step */
-                  ct3 = exyt[k+2*nyv];
-                  zt1.x = -ct3.y;
-                  zt1.y = ct3.x;;
-                  ct1 = exyt[k];
-                  zt3.x = -ct1.y;
-                  zt3.y = ct1.x;
-                  zt4 = bxyt[k];
-                  zt6 = bxyt[k+2*nyv];
-                  zt4.x -= dth*(dky*zt1.x);
-                  zt4.y -= dth*(dky*zt1.y);
-                  zt6.x += dth*(dky*zt3.x);
-                  zt6.y += dth*(dky*zt3.y);
-/* update electric field whole time step */
-                  zt1.x = -zt6.y;
-                  zt1.y = zt6.x;
-                  zt3.x = -zt4.y;
-                  zt3.y = zt4.x;
-                  zt7 = cut[k];
-                  zt9 = cut[k+2*nyv];
-                  zt7.x = ct1.x + cdt*(dky*zt1.x) - afdt*zt7.x;
-                  zt7.y = ct1.y + cdt*(dky*zt1.y) - afdt*zt7.y;
-                  zt9.x = ct3.x - cdt*(dky*zt3.x) - afdt*zt9.x;
-                  zt9.y = ct3.y - cdt*(dky*zt3.y) - afdt*zt9.y;
-/* update magnetic field half time step and store electric field */
-                  zt1.x = -zt9.y;
-                  zt1.y = zt9.x;
-                  zt3.x = -zt7.y;
-                  zt3.y = zt7.x;
-                  exyt[k] = zt7;
-                  exyt[k+nyv] = zero;
-                  exyt[k+2*nyv] = zt9;
-                  ws += (double) (anorm*(zt7.x*zt7.x + zt7.y*zt7.y
-                     + zt9.x*zt9.x + zt9.y*zt9.y));
-                  zt4.x -= dth*(dky*zt1.x);
-                  zt4.y -= dth*(dky*zt1.y);
-                  zt6.x += dth*(dky*zt3.x);
-                  zt6.y += dth*(dky*zt3.y);
-                  bxyt[k] = zt4;
-                  bxyt[k+nyv] = zero;
-                  bxyt[k+2*nyv] = zt6;
-                  wp += (double) (anorm*(zt4.x*zt4.x + zt4.y*zt4.y
-                     + zt6.x*zt6.x + zt6.y*zt6.y));
-                  zt4.y = -zt4.y;
-                  zt6.y = -zt6.y;
-                  zt7.y = -zt7.y;
-                  zt9.y = -zt9.y;
-                  bxyt[k1] = zt4;
-                  bxyt[k1+nyv] = zero;
-                  bxyt[k1+2*nyv] = zt6;
-                  exyt[k1] = zt7;
-                  exyt[k1+nyv] = zero;
-                  exyt[k1+2*nyv] = zt9;
-               }
-               k += blockDim.x;
-            }
-            if (threadIdx.x==0) {
-               k1 = nyh;
-               bxyt[0] = zero;
-               bxyt[k1] = zero;
-               bxyt[nyv] = zero;
-               bxyt[k1+nyv] = zero;
-               bxyt[2*nyv] = zero;
-               bxyt[k1+2*nyv] = zero;
-               exyt[0] = zero;
-               exyt[k1] = zero;
-               exyt[nyv] = zero;
-               exyt[k1+nyv] = zero;
-               exyt[2*nyv] = zero;
-               exyt[k1+2*nyv] = zero;
-            }
-         }
-/* mode numbers kx = nx/2 */
-         if (ks==(nxh/kxp1)) {
-            jk3 = 3*nyv*(kxps-1);
-/*          for (k = 0; k < ny; k++) { */
-            k = threadIdx.x;
-            while (k < ny) {
-               bxyt[k+jk3] = zero;
-               bxyt[k+nyv+jk3] = zero;
-               bxyt[k+2*nyv+jk3] = zero;
-               exyt[k+jk3] = zero;
-               exyt[k+nyv+jk3] = zero;
-               exyt[k+2*nyv+jk3] = zero;
-               k += blockDim.x;
-            }
-         }
-      }
-   }
-   j = blockIdx.x;
-   if (j < kxps) {
-/* sum transverse electric field energies for each x co-ordinate */
-      ss[threadIdx.x] = (float) ws;
-/* synchronize threads */
-      __syncthreads();
-      lsum2(ss,blockDim.x);
-/* normalize transverse electric field energy for each x co-ordinate */
-      if (threadIdx.x==0)
-         wf[j] = ss[0]*((float) (nx*ny));
-/* sum magnetic energies for each x co-ordinate */
-      ss[threadIdx.x] = (float) wp;
-/* synchronize threads */
-      __syncthreads();
-      lsum2(ss,blockDim.x);
-/* normalize magnetic energy for each x co-ordinate */
-      if (threadIdx.x==0)
-         wm[j] = c2*ss[0]*((float) (nx*ny));
-   }
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-__global__ void gpuppemfield2t(float2 fxyt[], float2 exyt[],
-                               float2 ffct[], int isign, int nx, int ny,
+__global__ void gpuppemfield2t(cuda::std::complex<float> fxyt[], cuda::std::complex<float> exyt[],
+                               cuda::std::complex<float> ffct[], int isign, int nx, int ny,
                                int kstrt, int nyv, int kxp1, int nyhd) {
 /* this subroutine either adds complex vector fields if isign > 0
    or copies complex vector fields if isign < 0
@@ -3146,7 +2163,7 @@ __global__ void gpuppemfield2t(float2 fxyt[], float2 exyt[],
 local data                                                 */
    int i, nxh, nyh, ks, joff, kxps, j, jj, jk3, k, j0, j1, k1;
    float at1;
-   float2 zero, zt1, zt2;
+   cuda::std::complex<float> zero, zt1, zt2;
    nxh = nx/2;
    nyh = 1 > ny/2 ? 1 : ny/2;
    ks = kstrt - 1;
@@ -3155,8 +2172,8 @@ local data                                                 */
    kxps = j1 - joff;
    kxps = 0 > kxps ? 0 : kxps;
    kxps = kxp1 < kxps ? kxp1 : kxps;
-   zero.x = 0.0f;
-   zero.y = 0.0f;
+   zero.real(0.0f);
+   zero.imag(0.0f);
    if (kstrt <= j1) {
 /* add the fields */
       if (isign > 0) {
@@ -3173,17 +2190,17 @@ local data                                                 */
                if (k > 0) {
                   k1 = ny - k;
                   zt1 = ffct[k+jj];
-                  at1 = zt1.y;
+                  at1 = zt1.imag();
                   for (i = 0; i < 3; i++) {
                      zt1 = exyt[k+nyv*i+jk3];
                      zt2 = fxyt[k+nyv*i+jk3];
-                     zt2.x += at1*zt1.x;
-                     zt2.y += at1*zt1.y;
+                     zt2 += cuda::std::complex<float>(at1*zt1.real(),0.0);
+                     zt2 += cuda::std::complex<float>(0.0, at1*zt1.imag());
                      fxyt[k+nyv*i+jk3] = zt2;
                      zt1 = exyt[k1+nyv*i+jk3];
                      zt2 = fxyt[k1+nyv*i+jk3];
-                     zt2.x += at1*zt1.x;
-                     zt2.y += at1*zt1.y;
+                     zt2 += cuda::std::complex<float>(at1*zt1.real(),0.0);
+                     zt2 += cuda::std::complex<float>(0.0,at1*zt1.imag());
                      fxyt[k1+nyv*i+jk3] = zt2;
                   }
                }
@@ -3201,17 +2218,15 @@ local data                                                 */
                jk3 = 3*nyv*j;
                if (j0 < nxh) {
                   zt1 = ffct[jj];
-                  at1 = zt1.y;
+                  at1 = zt1.imag();
                   for (i = 0; i < 3; i++) {
                      zt1 = exyt[nyv*i+jk3];
                      zt2 = fxyt[nyv*i+jk3];
-                     zt2.x += at1*zt1.x;
-                     zt2.y += at1*zt1.y;
+                     zt2 += at1*zt1;
                      fxyt[nyv*i+jk3] = zt2;
                      zt1 = exyt[k1+nyv*i+jk3];
                      zt2 = fxyt[k1+nyv*i+jk3];
-                     zt2.x += at1*zt1.x;
-                     zt2.y += at1*zt1.y;
+                     zt2 += at1*zt1;
                      fxyt[k1+nyv*i+jk3] = zt2;
                   }
                }
@@ -3246,15 +2261,13 @@ local data                                                 */
                if (k > 0) {
                   k1 = ny - k;
                   zt1 = ffct[k+jj];
-                  at1 = zt1.y;
+                  at1 = zt1.imag();
                   for (i = 0; i < 3; i++) {
                      zt1 = exyt[k+nyv*i+jk3];
-                     zt1.x = at1*zt1.x;
-                     zt1.y = at1*zt1.y;
+                     zt1 = at1*zt1;
                      fxyt[k+nyv*i+jk3] = zt1;
                      zt1 = exyt[k1+nyv*i+jk3];
-                     zt1.x = at1*zt1.x;
-                     zt1.y = at1*zt1.y;
+                     zt1 = at1*zt1;
                      fxyt[k1+nyv*i+jk3] = zt1;
                   }
                }
@@ -3272,15 +2285,13 @@ local data                                                 */
                jk3 = 3*nyv*j;
                if (j0 < nxh) {
                   zt1 = ffct[jj];
-                  at1 = zt1.y;
+                  at1 = zt1.imag();
                   for (i = 0; i < 3; i++) {
                      zt1 = exyt[nyv*i+jk3];
-                     zt1.x = at1*zt1.x;
-                     zt1.y = at1*zt1.y;
+                     zt1 = at1*zt1;
                      fxyt[nyv*i+jk3] = zt1;
                      zt1 = exyt[k1+nyv*i+jk3];
-                     zt1.x = at1*zt1.x;
-                     zt1.y = at1*zt1.y;
+                     zt1 = at1*zt1;
                      fxyt[k1+nyv*i+jk3] = zt1;
                   }
                }
@@ -3305,8 +2316,8 @@ local data                                                 */
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpufft2rcxs(float2 f[], int isign, int mixup[],
-                            float2 sct[], int indx, int indy, int nyi,
+__global__ void gpufft2rcxs(cuda::std::complex<float> f[], int isign, int mixup[],
+                            cuda::std::complex<float> sct[], int indx, int indy, int nyi,
                             int nyp, int nxhd, int nyd, int nxhyd,
                             int nxyhd, int nsize) {
 /* this subroutine performs the x part of a two dimensional real to
@@ -3340,10 +2351,10 @@ local data                                                            */
    int nrx, i, j, k, l, j1, j2, k1, k2, ns, ns2, km, kmr, jj, kk;
    int n, nn, in, nt, nh;
    float ani, at1, at2;
-   float2 t1, t2, t3;
+   cuda::std::complex<float> t1, t2, t3;
 /* The size of the shared memory array is as follows: */
-/* float2 s[nsize];                                   */
-   extern __shared__ float2 s[];
+/* cuda::std::complex<float> s[nsize];                                   */
+   extern __shared__ cuda::std::complex<float> s[];
    indx1 = indx - 1;
    indx1y = indx1 > indy ? indx1 : indy;
    nx = 1L<<indx;
@@ -3419,14 +2430,12 @@ local data                                                            */
                   j2 = j + k2;
                   t1 = sct[kmr*j];
                   t2 = s[j2];
-                  at1 = t1.x*t2.x - t1.y*t2.y;
-                  at2 = t1.x*t2.y + t1.y*t2.x;
+                  at1 = t1.real()*t2.real()-t1.imag()*t2.imag();
+                  at2 = t1.real()*t2.imag() + t1.imag()*t2.real();
                   t2 = s[j1];
-                  t3.x = t2.x - at1;
-                  t3.y = t2.y - at2;
+                  t3 = cuda::std::complex<float>(t2.real() - at1, t2.imag() - at2);
                   s[j2] = t3;
-                  t3.x = t2.x + at1;
-                  t3.y = t2.y + at2;
+                  t3 = cuda::std::complex<float>(t2.real() + at1, t2.imag() + at2);
                   s[j1] = t3;
                   kk += blockDim.x;
                }
@@ -3461,14 +2470,12 @@ local data                                                            */
                j2 = j + k2;
                t1 = sct[kmr*j];
                t2 = f[j2+jj];
-               at1 = t1.x*t2.x - t1.y*t2.y;
-               at2 = t1.x*t2.y + t1.y*t2.x;
+               at1 = t1.real()*t2.real() - t1.imag()*t2.imag();
+               at2 = t1.real()*t2.imag() + t1.imag()*t2.real();
                t2 = f[j1+jj];
-               t3.x = t2.x - at1;
-               t3.y = t2.y - at2;
+               t3 = cuda::std::complex<float>(t2.real() - at1, t2.imag() - at2);
                f[j2+jj] = t3;
-               t3.x = t2.x + at1;
-               t3.y = t2.y + at2;
+               t3 = cuda::std::complex<float>(t2.real() + at1, t2.imag() + at2);
                f[j1+jj] = t3;
                kk += blockDim.x;
             }
@@ -3489,22 +2496,19 @@ local data                                                            */
          while (j < nxhh) {
             if (j > 0) {
                t3 = sct[kmr*j];
-               at1 = t3.y;
-               at2 = -t3.x;
+               at1 = t3.imag();
+               at2 = -t3.real();
                t2 = f[nxh-j+jj];
-               t2.y = -t2.y;
+               t2.imag(-t2.imag());
                t3 = f[j+jj];
-               t1.x = t3.x + t2.x;
-               t1.y = t3.y + t2.y;
-               t3.x -= t2.x;
-               t3.y -= t2.y;
-               t2.x = t3.x*at1 - t3.y*at2;
-               t2.y = t3.x*at2 + t3.y*at1;
-               t3.x = ani*(t1.x + t2.x);
-               t3.y = ani*(t1.y + t2.y);
+               t1 = cuda::std::complex<float>(t3.real() + t2.real(), t3.imag() + t2.imag());
+               t3 -= t2;
+               t2 = cuda::std::complex<float>(t3.real()*at1 - t3.imag()*at2, t3.real()*at2 + t3.imag()*at1);
+               t3.real(ani*(t1.real() + t2.real()));
+               t3.imag(ani*(t1.imag() + t2.imag()));
                f[j+jj] = t3;
-               t3.x = ani*(t1.x - t2.x);
-               t3.y = ani*(t2.y - t1.y);
+               t3.real(ani*(t1.real() - t2.real()));
+               t3.imag(ani*(t2.imag() - t1.imag()));
                f[nxh-j+jj] = t3;
             }
             j += blockDim.x;
@@ -3512,16 +2516,15 @@ local data                                                            */
          if (threadIdx.x==0) {
             ani = 2.0f*ani;
             t3 = f[nxhh+jj];
-            t3.x = ani*t3.x;
-            t3.y = -ani*t3.y;
+            t3 = cuda::std::complex<float>(ani*t3.real(), -ani*t3.imag());
             f[nxhh+jj] = t3;
             t3 = f[jj];
-            at1 = t3.x;
-            at2 = t3.y;
-            t3.x = ani*(at1 - at2);
-            t3.y = 0.0f;
+            at1 = t3.real();
+            at2 = t3.imag();
+            t3.real(ani*(at1 - at2));
+            t3.imag(0.0f);
             f[nxh+jj] = t3;
-            t3.x = ani*(at1 + at2);
+            t3.imag(ani*(at1 + at2));
             f[jj] = t3;
          }
 /* synchronize threads */
@@ -3541,37 +2544,34 @@ local data                                                            */
          while (j < nxhh) {
             if (j > 0) {
                t3 = sct[kmr*j];
-               at1 = t3.y;
-               at2 = t3.x;
+               at1 = t3.imag();
+               at2 = t3.real();
                t2 = f[nxh-j+jj];
-               t2.y = -t2.y;
+               t2.imag(-t2.imag());
                t3 = f[j+jj];
-               t1.x = t3.x + t2.x;
-               t1.y = t3.y + t2.y;
-               t3.x -= t2.x;
-               t3.y -= t2.y;
-               t2.x = t3.x*at1 - t3.y*at2;
-               t2.y = t3.x*at2 + t3.y*at1;
-               t3.x = t1.x + t2.x;
-               t3.y = t1.y + t2.y;
+               t1.real(t3.real() + t2.real());
+               t1.imag(t3.imag() + t2.imag());
+               t3 -= t2;
+               t2.real(t3.real()*at1 - t3.imag()*at2);
+               t2.imag(t3.real()*at2 + t3.imag()*at1);
+               t3 = cuda::std::complex<float>(t1.real() + t2.real(), t1.imag() + t2.imag());
                f[j+jj] = t3;
-               t3.x = t1.x - t2.x;
-               t3.y = t2.y - t1.y;
+               t3 = cuda::std::complex<float>(t1.real() - t2.real(), t2.imag() - t1.imag());
                f[nxh-j+jj] = t3;
             }
             j += blockDim.x;
          }
          if (threadIdx.x==0) {
             t3 = f[nxhh+jj];
-            t3.x = 2.0f*t3.x;
-            t3.y = -2.0f*t3.y;
+            t3.real(2.0f*t3.real());
+            t3.imag(-2.0f*t3.imag());
             f[nxhh+jj] = t3;
             t3 = f[jj];
-            at1 = t3.x;
+            at1 = t3.real();
             t3 = f[nxh+jj];
-            at2 = t3.x;
-            t3.x = at1 + at2;
-            t3.y = at1 - at2;
+            at2 = t3.real();
+            t3.real(at1 + at2);
+            t3.imag(at1 - at2);
             f[jj] = t3;
          }
 /* synchronize threads */
@@ -3628,16 +2628,16 @@ local data                                                            */
                   j1 = j + k1;
                   j2 = j + k2;
                   t1 = sct[kmr*j];
-                  t1.y = -t1.y;
+                  t1.imag(-t1.imag());
                   t2 = s[j2];
-                  at1 = t1.x*t2.x - t1.y*t2.y;
-                  at2 = t1.x*t2.y + t1.y*t2.x;
+                  at1 = t1.real()*t2.real() - t1.imag()*t2.imag();
+                  at2 = t1.real()*t2.imag() + t1.imag()*t2.real();
                   t2 = s[j1];
-                  t3.x = t2.x - at1;
-                  t3.y = t2.y - at2;
+                  t3.real(t2.real() - at1);
+                  t3.imag(t2.imag() - at2);
                   s[j2] = t3;
-                  t3.x = t2.x + at1;
-                  t3.y = t2.y + at2;
+                  t3.real(t2.real() + at1);
+                  t3.imag(t2.imag() + at2);
                   s[j1] = t3;
                   kk += blockDim.x;
                }
@@ -3671,16 +2671,16 @@ local data                                                            */
                j1 = j + k1;
                j2 = j + k2;
                t1 = sct[kmr*j];
-               t1.y = -t1.y;
+               t1.imag(-t1.imag());
                t2 = f[j2+jj];
-               at1 = t1.x*t2.x - t1.y*t2.y;
-               at2 = t1.x*t2.y + t1.y*t2.x;
+               at1 = t1.real()*t2.real() - t1.imag()*t2.imag();
+               at2 = t1.real()*t2.imag() + t1.imag()*t2.real();
                t2 = f[j1+jj];
-               t3.x = t2.x - at1;
-               t3.y = t2.y - at2;
+               t3.real(t2.real() - at1);
+               t3.imag(t2.imag() - at2);
                f[j2+jj] = t3;
-               t3.x = t2.x + at1;
-               t3.y = t2.y + at2;
+               t3.real(t2.real() + at1);
+               t3.imag(t2.imag() + at2);
                f[j1+jj] = t3;
                kk += blockDim.x;
             }
@@ -3694,8 +2694,8 @@ local data                                                            */
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpufft2rcys(float2 g[], int isign, int mixup[],
-                            float2 sct[], int indx, int indy, int nxi,
+__global__ void gpufft2rcys(cuda::std::complex<float> g[], int isign, int mixup[],
+                            cuda::std::complex<float> sct[], int indx, int indy, int nxi,
                             int nxp, int nxhd, int nyd, int nxhyd,
                             int nxyhd, int nsize) {
 /* this subroutine performs the y part of a two dimensional real to
@@ -3729,10 +2729,10 @@ local data                                                            */
    int nry, i, j, k, l, j1, j2, k1, k2, ns, ns2, km, kmr, koff, kk;
    int n, nn, in, nt, nh;
    float at1, at2;
-   float2 t1, t2, t3;
+   cuda::std::complex<float> t1, t2, t3;
 /* The size of the shared memory array is as follows: */
-/* float2 s[nsize];                                   */
-   extern __shared__ float2 s[];
+/* cuda::std::complex<float> s[nsize];                                   */
+   extern __shared__ cuda::std::complex<float> s[];
    indx1 = indx - 1;
    indx1y = indx1 > indy ? indx1 : indy;
    nx = 1L<<indx;
@@ -3807,16 +2807,16 @@ local data                                                            */
                   j2 = j + k2;
                   t1 = sct[kmr*j];
                   t2 = s[j2];
-                  at1 = t1.x*t2.x - t1.y*t2.y;
-                  at2 = t1.x*t2.y + t1.y*t2.x;
-                  t3.x = t2.x - at1;
-                  t3.y = t2.y - at2;
+                  at1 = t1.real()*t2.real() - t1.imag()*t2.imag();
+                  at2 = t1.real()*t2.imag() + t1.imag()*t2.real();
+                  t3.real(t2.real() - at1);
+                  t3.imag(t2.imag() - at2);
                   t2 = s[j1];
-                  t3.x = t2.x - at1;
-                  t3.y = t2.y - at2;
+                  t3.real(t2.real() - at1);
+                  t3.imag(t2.imag() - at2);
                   s[j2] = t3;
-                  t3.x = t2.x + at1;
-                  t3.y = t2.y + at2;
+                  t3.real(t2.real() + at1);
+                  t3.imag(t2.imag() + at2);
                   s[j1] = t3;
                   kk += blockDim.x;
                }
@@ -3851,16 +2851,16 @@ local data                                                            */
                j2 = j + k2;
                t1 = sct[kmr*j];
                t2 = g[j2+koff];
-               at1 = t1.x*t2.x - t1.y*t2.y;
-               at2 = t1.x*t2.y + t1.y*t2.x;
-               t3.x = t2.x - at1;
-               t3.y = t2.y - at2;
+               at1 = t1.real()*t2.real() - t1.imag()*t2.imag();
+               at2 = t1.real()*t2.imag() + t1.imag()*t2.real();
+               t3.real(t2.real() - at1);
+               t3.imag(t2.imag() - at2);
                t2 = g[j1+koff];
-               t3.x = t2.x - at1;
-               t3.y = t2.y - at2;
+               t3.real(t2.real() - at1);
+               t3.imag(t2.imag() - at2);
                g[j2+koff] = t3;
-               t3.x = t2.x + at1;
-               t3.y = t2.y + at2;
+               t3.real(t2.real() + at1);
+               t3.imag(t2.imag() + at2);
                g[j1+koff] = t3;
                kk += blockDim.x;
             }
@@ -3902,18 +2902,18 @@ local data                                                            */
                   j1 = j + k1;
                   j2 = j + k2;
                   t1 = sct[kmr*j];
-                  t1.y = -t1.y;
+                  t1.imag(-t1.imag());
                   t2 = s[j2];
-                  at1 = t1.x*t2.x - t1.y*t2.y;
-                  at2 = t1.x*t2.y + t1.y*t2.x;
-                  t3.x = t2.x - at1;
-                  t3.y = t2.y - at2;
+                  at1 = t1.real()*t2.real() - t1.imag()*t2.imag();
+                  at2 = t1.real()*t2.imag() + t1.imag()*t2.real();
+                  t3.real(t2.real() - at1);
+                  t3.imag(t2.imag() - at2);
                   t2 = s[j1];
-                  t3.x = t2.x - at1;
-                  t3.y = t2.y - at2;
+                  t3.real(t2.real() - at1);
+                  t3.imag(t2.imag() - at2);
                   s[j2] = t3;
-                  t3.x = t2.x + at1;
-                  t3.y = t2.y + at2;
+                  t3.real(t2.real() + at1);
+                  t3.imag(t2.imag() + at2);
                   s[j1] = t3;
                   kk += blockDim.x;
                }
@@ -3947,18 +2947,18 @@ local data                                                            */
                j1 = j + k1;
                j2 = j + k2;
                t1 = sct[kmr*j];
-               t1.y = -t1.y;
+               t1.imag(-t1.imag());
                t2 = g[j2+koff];
-               at1 = t1.x*t2.x - t1.y*t2.y;
-               at2 = t1.x*t2.y + t1.y*t2.x;
-               t3.x = t2.x - at1;
-               t3.y = t2.y - at2;
+               at1 = t1.real()*t2.real() - t1.imag()*t2.imag();
+               at2 = t1.real()*t2.imag() + t1.imag()*t2.real();
+               t3.real(t2.real() - at1);
+               t3.imag(t2.imag() - at2);
                t2 = g[j1+koff];
-               t3.x = t2.x - at1;
-               t3.y = t2.y - at2;
+               t3.real(t2.real() - at1);
+               t3.imag(t2.imag() - at2);
                g[j2+koff] = t3;
-               t3.x = t2.x + at1;
-               t3.y = t2.y + at2;
+               t3.real(t2.real() + at1);
+               t3.imag(t2.imag() + at2);
                g[j1+koff] = t3;
                kk += blockDim.x;
             }
@@ -3972,7 +2972,7 @@ local data                                                            */
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppmtposes(float2 f[], float2 sm[], int nx, int kxp,
+__global__ void gpuppmtposes(cuda::std::complex<float> f[], cuda::std::complex<float> sm[], int nx, int kxp,
                              int kyps, int kstrt, int nvp, int kxyp,
                              int nxv, int kypd) {
 /* extract data to send */
@@ -4014,15 +3014,15 @@ __global__ void gpuppmtposes(float2 f[], float2 sm[], int nx, int kxp,
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppmtposer(float2 g[], float2 tm[], int ny, int kyp,
+__global__ void gpuppmtposer(cuda::std::complex<float> g[], cuda::std::complex<float> tm[], int ny, int kyp,
                              int kxps, int kstrt, int nvp, int kxyp,
                              int nyv, int kxpd) {
 /* transpose data received */
 /* local data */
    int kt, mxv, j, k, n, nn, id, koff, ld, js, ks, jj, kk;
 /* The size of the shared memory array is as follows: */
-/* float2 s2[(mx + 1)*mx];                            */
-   extern __shared__ float2 s2[];
+/* cuda::std::complex<float> s2[(mx + 1)*mx];                            */
+   extern __shared__ cuda::std::complex<float> s2[];
    kt = kstrt - 1;
    mxv = blockDim.x + 1;
 /* for (n = 0; n < nvp; n++) { */
@@ -4066,7 +3066,7 @@ __global__ void gpuppmtposer(float2 g[], float2 tm[], int ny, int kyp,
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppmtposesn(float2 fn[], float2 sm[], int nx, int kxp,
+__global__ void gpuppmtposesn(cuda::std::complex<float> fn[], cuda::std::complex<float> sm[], int nx, int kxp,
                               int kyps, int kstrt, int nvp, int ndim,
                               int kxyp, int nxv, int kypd) {
 /* extract vector data to send */
@@ -4112,7 +3112,7 @@ __global__ void gpuppmtposesn(float2 fn[], float2 sm[], int nx, int kxp,
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppmtposern(float2 gn[], float2 tm[], int ny, int kyp,
+__global__ void gpuppmtposern(cuda::std::complex<float> gn[], cuda::std::complex<float> tm[], int ny, int kyp,
                               int kxps, int kstrt, int nvp, int ndim,
                               int kxyp, int nyv, int kxpd) {
 /* transpose vector data received */
@@ -4120,8 +3120,8 @@ __global__ void gpuppmtposern(float2 gn[], float2 tm[], int ny, int kyp,
    int kt, mxv, i, j, k, n, nn, id, koff, ld, js, ks, jj, kk;
    int nnyv, nkxyp;
 /* The size of the shared memory array is as follows: */
-/* float2 s2n[ndim*(mx + 1)*mx];                      */
-   extern __shared__ float2 s2n[];
+/* cuda::std::complex<float> s2n[ndim*(mx + 1)*mx];                      */
+   extern __shared__ cuda::std::complex<float> s2n[];
    kt = kstrt - 1;
    mxv = blockDim.x + 1;
    nnyv = ndim*nyv;
@@ -4171,15 +3171,15 @@ __global__ void gpuppmtposern(float2 gn[], float2 tm[], int ny, int kyp,
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppltpose(float2 f[], float2 g[], int nx, int ny,
+__global__ void gpuppltpose(cuda::std::complex<float> f[], cuda::std::complex<float> g[], int nx, int ny,
                             int kxp, int kyp, int kstrt, int nxv,
                             int nyv) {
 /* transpose local data */
 /* local data */
    int mxv, j, k, ks, kxps, kyps, joff, koff, js, jj, kk;
 /* The size of the shared memory array is as follows: */
-/* float2 s2[(mx + 1)*mx];                            */
-   extern __shared__ float2 s2[];
+/* cuda::std::complex<float> s2[(mx + 1)*mx];                            */
+   extern __shared__ cuda::std::complex<float> s2[];
    mxv = blockDim.x + 1;
    ks = kstrt - 1;
    joff = kxp*ks;
@@ -4210,7 +3210,7 @@ __global__ void gpuppltpose(float2 f[], float2 g[], int nx, int ny,
 }
 
 /*--------------------------------------------------------------------*/
-__global__ void gpuppltposen(float2 fn[], float2 gn[], int nx, int ny,
+__global__ void gpuppltposen(cuda::std::complex<float> fn[], cuda::std::complex<float> gn[], int nx, int ny,
                              int kxp, int kyp, int kstrt, int ndim,
                              int nxv, int nyv) {
 /* transpose local vector data */
@@ -4218,8 +3218,8 @@ __global__ void gpuppltposen(float2 fn[], float2 gn[], int nx, int ny,
    int mxv, i, j, k, ks, kxps, kyps, joff, koff, js, jj, kk;
    int nnxv, nnyv;
 /* The size of the shared memory array is as follows: */
-/* float2 s2n[ndim*(mx + 1)*mx];                      */
-   extern __shared__ float2 s2n[];
+/* cuda::std::complex<float> s2n[ndim*(mx + 1)*mx];                      */
+   extern __shared__ cuda::std::complex<float> s2n[];
    mxv = blockDim.x + 1;
    ks = kstrt - 1;
    nnxv = ndim*nxv;
@@ -4319,7 +3319,7 @@ __global__ void gpusum2(float a[], float d[], int nx) {
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuppgbppush23l(float *ppart, float *fxy, float *bxy,
+void cgpuppgbppush23l(float *ppart, float *fxy, float *bxy,
                                  int *kpic, int noff, int nyp, 
                                  float qbm, float dt,  float dtc,
                                  float *ek, int idimp, int nppmx,
@@ -4352,7 +3352,7 @@ extern "C" void cgpuppgbppush23l(float *ppart, float *fxy, float *bxy,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuppgrbppush23l(float *ppart, float *fxy, float *bxy,
+void cgpuppgrbppush23l(float *ppart, float *fxy, float *bxy,
                                   int *kpic, int noff, int nyp,
                                   float qbm, float dt, float dtc,
                                   float ci, float *ek, int idimp,
@@ -4385,7 +3385,7 @@ extern "C" void cgpuppgrbppush23l(float *ppart, float *fxy, float *bxy,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpu2ppgppost2l(float *ppart, float *q, int *kpic,
+void cgpu2ppgppost2l(float *ppart, float *q, int *kpic,
                                 int noff, float qm, int idimp,
                                 int nppmx, int mx, int my, int nxv,
                                 int nypmx, int mx1, int mxyp1) {
@@ -4411,7 +3411,7 @@ extern "C" void cgpu2ppgppost2l(float *ppart, float *q, int *kpic,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpu2ppjppost2l(float *ppart, float *cu, int *kpic,
+void cgpu2ppjppost2l(float *ppart, float *cu, int *kpic,
                                 int noff, float qm, float dt, int nppmx,
                                 int idimp, int nx, int ny, int mx,
                                 int my, int nxv, int nypmx, int mx1,
@@ -4439,7 +3439,7 @@ extern "C" void cgpu2ppjppost2l(float *ppart, float *cu, int *kpic,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpu2pprjppost2l(float *ppart, float *cu, int *kpic,
+void cgpu2pprjppost2l(float *ppart, float *cu, int *kpic,
                                  int noff, float qm, float dt, float ci,
                                  int nppmx, int idimp, int nx, int ny,
                                  int mx, int my, int nxv, int nypmx,
@@ -4467,7 +3467,7 @@ extern "C" void cgpu2pprjppost2l(float *ppart, float *cu, int *kpic,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuppcaguard2xl(float2 *qc, float2 *scs, float *q,
+void cgpuppcaguard2xl(cuda::std::complex<float> *qc, float *scs, float *q,
                                  int nyp, int nx, int nxe, int nypmx,
                                  int nxvh, int kypd) {
 /* Guard Cell Interface for C */
@@ -4487,7 +3487,7 @@ extern "C" void cgpuppcaguard2xl(float2 *qc, float2 *scs, float *q,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuppcaguard2yl(float2 *fc, float2 *scr, int nx,
+void cgpuppcaguard2yl(cuda::std::complex<float> *fc, float *scr, int nx,
                                  int nxvh, int kypd) {
 /* Guard Cell Interface for C */
    int nxh;
@@ -4507,7 +3507,7 @@ extern "C" void cgpuppcaguard2yl(float2 *fc, float2 *scr, int nx,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuppcacguard2xl(float2 *cuc, float2 *scs, float *cu,
+void cgpuppcacguard2xl(cuda::std::complex<float> *cuc, float *scs, float *cu,
                                   int nyp, int nx, int nxe, int nypmx,
                                   int nxvh, int kypd) {
 /* Guard Cell Interface for C */
@@ -4527,7 +3527,7 @@ extern "C" void cgpuppcacguard2xl(float2 *cuc, float2 *scs, float *cu,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuppcacguard2yl(float2 *fvc, float2 *scr, int nx,
+void cgpuppcacguard2yl(cuda::std::complex<float> *fvc, float *scr, int nx,
                                   int nxvh, int kypd) {
 /* Guard Cell Interface for C */
    int nxh;
@@ -4547,7 +3547,7 @@ extern "C" void cgpuppcacguard2yl(float2 *fvc, float2 *scr, int nx,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuppcbguard2xl(float2 *fxyc, float2 *scs, float *fxy,
+void cgpuppcbguard2xl(cuda::std::complex<float> *fxyc, float *scs, float *fxy,
                                  int nyp, int nx, int nxe, int nypmx,
                                  int nxvh, int kypd) {
 /* Guard Cell Interface for C */
@@ -4567,7 +3567,7 @@ extern "C" void cgpuppcbguard2xl(float2 *fxyc, float2 *scs, float *fxy,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuppcbguard2yl(float *fxy, float2 *scr, int nyp,
+void cgpuppcbguard2yl(float *fxy, float *scr, int nyp,
                                  int nx, int nxe, int nxvh, int nypmx) {
 /* Guard Cell Interface for C */
    int nxh;
@@ -4587,7 +3587,7 @@ extern "C" void cgpuppcbguard2yl(float *fxy, float2 *scr, int nyp,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpupppord2la(float *ppart, float *ppbuff, float *sbufl,
+void cgpupppord2la(float *ppart, float *ppbuff, float *sbufl,
                               float *sbufr, int *kpic, int *ncl,
                               int *ihole, int *ncll, int *nclr,
                               int noff, int nyp, int idimp, int nppmx,
@@ -4668,7 +3668,7 @@ extern "C" void cgpupppord2la(float *ppart, float *ppbuff, float *sbufl,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpupppord2lb(float *ppart, float *ppbuff, float *rbufl,
+void cgpupppord2lb(float *ppart, float *ppbuff, float *rbufl,
                               float *rbufr, int *kpic, int *ncl,
                               int *ihole, int *mcll, int *mclr,
                               int idimp, int nppmx, int mx1, int myp1,
@@ -4698,122 +3698,8 @@ extern "C" void cgpupppord2lb(float *ppart, float *ppbuff, float *rbufl,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C"  void cgpuppois23t(float2 *qt, float2 *fxyt, float2 *ffct,
-                              float *we, int nx, int ny, int kstrt,
-                              int nyv, int kxp1, int nyhd) {
-/* Poisson Solver Interface for C */
-   int nxh1, ks, kxpp, ns;
-   dim3 dimBlock(nblock_size);
-   nxh1 = nx/2 + 1;
-   ks = kstrt - 1;
-   kxpp = nxh1 - kxp1*ks;
-   kxpp = 0 > kxpp ? 0 : kxpp;
-   kxpp = kxp1 < kxpp ? kxp1 : kxpp;
-   if (kxpp <= 0)
-      return;
-   dim3 dimGrid(kxpp);
-   ns = nblock_size*sizeof(float);
-   crc = cudaGetLastError();
-   gpuppois23t<<<dimGrid,dimBlock,ns>>>(qt,fxyt,ffct,we,nx,ny,kstrt,nyv,
-                                        kxp1,nyhd);
-   cudaThreadSynchronize();
-   crc = cudaGetLastError();
-   if (crc) {
-      printf("gpuppois23t error=%d:%s\n",crc,cudaGetErrorString(crc));
-      exit(1);
-   }
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C"  void cgpuppcuperp2t(float2 *cut, int nx, int ny, int kstrt,
-                                int nyv, int kxp1) {
-/* Poisson Solver Interface for C */
-   int nxh1, ks, kxpp;
-   dim3 dimBlock(nblock_size);
-   nxh1 = nx/2 + 1;
-   ks = kstrt - 1;
-   kxpp = nxh1 - kxp1*ks;
-   kxpp = 0 > kxpp ? 0 : kxpp;
-   kxpp = kxp1 < kxpp ? kxp1 : kxpp;
-   if (kxpp <= 0)
-      return;
-   dim3 dimGrid(kxpp);
-   crc = cudaGetLastError();
-   gpuppcuperp2t<<<dimGrid,dimBlock>>>(cut,nx,ny,kstrt,nyv,kxp1);
-   cudaThreadSynchronize();
-   crc = cudaGetLastError();
-   if (crc) {
-      printf("gpuppcuperp2t error=%d:%s\n",crc,cudaGetErrorString(crc));
-      exit(1);
-   }
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuippbpoisp23t(float2 *cut, float2 *bxyt,
-                                 float2 *ffct, float ci, float *wm,
-                                 int nx, int ny, int kstrt, int nyv,
-                                 int kxp1, int nyhd) {
-/* Poisson Solver Interface for C */
-   int nxh1, ks, kxpp, ns;
-   dim3 dimBlock(nblock_size);
-   nxh1 = nx/2 + 1;
-   ks = kstrt - 1;
-   kxpp = nxh1 - kxp1*ks;
-   kxpp = 0 > kxpp ? 0 : kxpp;
-   kxpp = kxp1 < kxpp ? kxp1 : kxpp;
-   if (kxpp <= 0)
-      return;
-   dim3 dimGrid(kxpp);
-   ns = nblock_size*sizeof(float);
-   crc = cudaGetLastError();
-   gpuippbpoisp23t<<<dimGrid,dimBlock,ns>>>(cut,bxyt,ffct,ci,wm,nx,ny,
-                                            kstrt,nyv,kxp1,nyhd);
-   cudaThreadSynchronize();
-   crc = cudaGetLastError();
-   if (crc) {
-      printf("gpuippbpoisp23t error=%d:%s\n",crc,
-             cudaGetErrorString(crc));
-      exit(1);
-   }
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppmaxwel2t(float2 *exyt, float2 *bxyt, float2 *cut,
-                               float2 *ffct, float affp, float ci,
-                               float dt, float *wf, float *wm, int nx,
-                               int ny, int kstrt, int nyv, int kxp1,
-                               int nyhd) {
-/* Maxwell Solver Interface for C */
-   int nxh1, ks, kxpp, ns;
-   dim3 dimBlock(nblock_size);
-   nxh1 = nx/2 + 1;
-   ks = kstrt - 1;
-   kxpp = nxh1 - kxp1*ks;
-   kxpp = 0 > kxpp ? 0 : kxpp;
-   kxpp = kxp1 < kxpp ? kxp1 : kxpp;
-   if (kxpp <= 0)
-      return;
-   dim3 dimGrid(kxpp);
-   ns = nblock_size*sizeof(float);
-   crc = cudaGetLastError();
-   gpuppmaxwel2t<<<dimGrid,dimBlock,ns>>>(exyt,bxyt,cut,ffct,affp,ci,dt,
-                                          wf,wm,nx,ny,kstrt,nyv,kxp1,
-                                          nyhd);
-   cudaThreadSynchronize();
-   crc = cudaGetLastError();
-   if (crc) {
-      printf("gpuppmaxwel2t error=%d:%s\n",crc,cudaGetErrorString(crc));
-      exit(1);
-   }
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppemfield2t(float2 *fxyt, float2 *exyt,
-                                float2 *ffct, int isign, int nx, int ny,
+void cgpuppemfield2t(cuda::std::complex<float> *fxyt, cuda::std::complex<float> *exyt,
+                                cuda::std::complex<float> *ffct, int isign, int nx, int ny,
                                 int kstrt, int nyv, int kxp1,
                                 int nyhd) {
 /* Maxwell Solver Interface for C */
@@ -4841,8 +3727,8 @@ extern "C" void cgpuppemfield2t(float2 *fxyt, float2 *exyt,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuwppfft2rcsx(float2 *f, float2 *bsm, int isign,
-                                int *mixup, float2 *sct, int indx,
+void cgpuwppfft2rcsx(cuda::std::complex<float> *f, cuda::std::complex<float> *bsm, int isign,
+                                int *mixup, cuda::std::complex<float> *sct, int indx,
                                 int indy, int kstrt, int nvp, int kxp1,
                                 int kyp, int nxhd, int kypd, int nxhyd,
                                 int nxyhd) {
@@ -4871,7 +3757,7 @@ extern "C" void cgpuwppfft2rcsx(float2 *f, float2 *bsm, int isign,
 /* inverse fourier transform */
    if (isign < 0) {
       nsize = nxh < 1024 ? nxh : 1024;
-      ns = nsize*sizeof(float2);
+      ns = nsize*sizeof(cuda::std::complex<float>);
 /* perform x fft */
       if (kstrt <= ny) {
          crc = cudaGetLastError();
@@ -4900,7 +3786,7 @@ extern "C" void cgpuwppfft2rcsx(float2 *f, float2 *bsm, int isign,
    }
 /* forward fourier transform */
    else if (isign > 0) {
-      ns = (mx+1)*mx*sizeof(float2);
+      ns = (mx+1)*mx*sizeof(cuda::std::complex<float>);
 /* transpose data received */
       crc = cudaGetLastError();
       gpuppmtposer<<<dimGridty,dimBlockt,ns>>>(f,bsm,nxh1,kxp1,kypp,
@@ -4915,7 +3801,7 @@ extern "C" void cgpuwppfft2rcsx(float2 *f, float2 *bsm, int isign,
       }
 /* perform x fft */
       nsize = nxh < 1024 ? nxh : 1024;
-      ns = nsize*sizeof(float2);
+      ns = nsize*sizeof(cuda::std::complex<float>);
       if (kstrt <= ny) {
          gpufft2rcxs<<<dimGridy,dimBlock,ns>>>(f,isign,mixup,sct,indx,
                                                indy,kypi,kypp,nxhd,kypd,
@@ -4933,8 +3819,8 @@ extern "C" void cgpuwppfft2rcsx(float2 *f, float2 *bsm, int isign,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuwppfft2rcsy(float2 *g, float2 *brm, int isign,
-                                int *mixup, float2 *sct, int indx,
+void cgpuwppfft2rcsy(cuda::std::complex<float> *g, cuda::std::complex<float> *brm, int isign,
+                                int *mixup, cuda::std::complex<float> *sct, int indx,
                                 int indy, int kstrt, int nvp, int kxp1,
                                 int kyp, int nyd, int nxhyd,
                                 int nxyhd) {
@@ -4963,7 +3849,7 @@ extern "C" void cgpuwppfft2rcsy(float2 *g, float2 *brm, int isign,
    dim3 dimGridtx((kxp1-1)/mx+1,(kyp-1)/mx+1,nvp);
 /* inverse fourier transform */
    if (isign < 0) {
-      ns = (mx+1)*mx*sizeof(float2);
+      ns = (mx+1)*mx*sizeof(cuda::std::complex<float>);
 /* transpose data received */
       crc = cudaGetLastError();
       gpuppmtposer<<<dimGridtx,dimBlockt,ns>>>(g,brm,ny,kyp,kxpp,kstrt,
@@ -4977,7 +3863,7 @@ extern "C" void cgpuwppfft2rcsy(float2 *g, float2 *brm, int isign,
       }
 /* perform y fft */
       nsize = ny < 1024 ? ny : 1024;
-      ns = nsize*sizeof(float2);
+      ns = nsize*sizeof(cuda::std::complex<float>);
       if (kstrt <= nxh1) {
          crc = cudaGetLastError();
          gpufft2rcys<<<dimGridx,dimBlock,ns>>>(g,isign,mixup,sct,indx,
@@ -4995,7 +3881,7 @@ extern "C" void cgpuwppfft2rcsy(float2 *g, float2 *brm, int isign,
 /* forward fourier transform */
    else if (isign > 0) {
       nsize = ny < 1024 ? ny : 1024;
-      ns = nsize*sizeof(float2);
+      ns = nsize*sizeof(cuda::std::complex<float>);
 /* perform y fft */
       if (kstrt <= nxh1) {
          crc = cudaGetLastError();
@@ -5028,8 +3914,8 @@ extern "C" void cgpuwppfft2rcsy(float2 *g, float2 *brm, int isign,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuwppfft2rcsxn(float2 *fn, float2 *bsm, int isign,
-                                 int *mixup, float2 *sct, int indx,
+void cgpuwppfft2rcsxn(cuda::std::complex<float> *fn, cuda::std::complex<float> *bsm, int isign,
+                                 int *mixup, cuda::std::complex<float> *sct, int indx,
                                  int indy, int ndim, int kstrt, int nvp,
                                  int kxp1, int kyp, int nxhd, int kypd,
                                  int nxhyd, int nxyhd) {
@@ -5061,7 +3947,7 @@ extern "C" void cgpuwppfft2rcsxn(float2 *fn, float2 *bsm, int isign,
 /* inverse fourier transform */
    if (isign < 0) {
       nsize = nxh < 1024 ? nxh : 1024;
-      ns = nsize*sizeof(float2);
+      ns = nsize*sizeof(cuda::std::complex<float>);
 /* perform x fft */
       if (kstrt <= ny) {
          crc = cudaGetLastError();
@@ -5090,7 +3976,7 @@ extern "C" void cgpuwppfft2rcsxn(float2 *fn, float2 *bsm, int isign,
    }
 /* forward fourier transform */
    else if (isign > 0) {
-      ns = ndim*(mx+1)*mx*sizeof(float2);
+      ns = ndim*(mx+1)*mx*sizeof(cuda::std::complex<float>);
 /* transpose data received */
       crc = cudaGetLastError();
       gpuppmtposern<<<dimGridty,dimBlockt,ns>>>(fn,bsm,nxh1,kxp1,kypp,
@@ -5105,7 +3991,7 @@ extern "C" void cgpuwppfft2rcsxn(float2 *fn, float2 *bsm, int isign,
       }
 /* perform x fft */
       nsize = nxh < 1024 ? nxh : 1024;
-      ns = nsize*sizeof(float2);
+      ns = nsize*sizeof(cuda::std::complex<float>);
       if (kstrt <= ny) {
          crc = cudaGetLastError();
          gpufft2rcxs<<<dimGridy,dimBlock,ns>>>(fn,isign,mixup,sct,indx,
@@ -5124,8 +4010,8 @@ extern "C" void cgpuwppfft2rcsxn(float2 *fn, float2 *bsm, int isign,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuwppfft2rcsyn(float2 *gn, float2 *brm, int isign,
-                                 int *mixup, float2 *sct, int indx,
+void cgpuwppfft2rcsyn(cuda::std::complex<float> *gn, cuda::std::complex<float> *brm, int isign,
+                                 int *mixup, cuda::std::complex<float> *sct, int indx,
                                  int indy, int ndim, int kstrt, int nvp,
                                  int kxp1, int kyp, int nyd, int nxhyd,
                                  int nxyhd) {
@@ -5157,7 +4043,7 @@ extern "C" void cgpuwppfft2rcsyn(float2 *gn, float2 *brm, int isign,
    dim3 dimGridtx((kxp1-1)/mx+1,(kyp-1)/mx+1,nvp);
 /* inverse fourier transform */
    if (isign < 0) {
-      ns = ndim*(mx+1)*mx*sizeof(float2);
+      ns = ndim*(mx+1)*mx*sizeof(cuda::std::complex<float>);
 /* transpose data received */
       crc = cudaGetLastError();
       gpuppmtposern<<<dimGridtx,dimBlockt,ns>>>(gn,brm,ny,kyp,kxpp,
@@ -5172,7 +4058,7 @@ extern "C" void cgpuwppfft2rcsyn(float2 *gn, float2 *brm, int isign,
       }
 /* perform y fft */
       nsize = ny < 1024 ? ny : 1024;
-      ns = nsize*sizeof(float2);
+      ns = nsize*sizeof(cuda::std::complex<float>);
       if (kstrt <= nxh1) {
          crc = cudaGetLastError();
          gpufft2rcys<<<dimGridx,dimBlock,ns>>>(gn,isign,mixup,sct,indx,
@@ -5191,7 +4077,7 @@ extern "C" void cgpuwppfft2rcsyn(float2 *gn, float2 *brm, int isign,
    else if (isign > 0) {
 /* perform y fft */
       nsize = ny < 1024 ? ny : 1024;
-      ns = nsize*sizeof(float2);
+      ns = nsize*sizeof(cuda::std::complex<float>);
       if (kstrt <= nxh1) {
          crc = cudaGetLastError();
          gpufft2rcys<<<dimGridx,dimBlock,ns>>>(gn,isign,mixup,sct,indx,
@@ -5221,7 +4107,7 @@ extern "C" void cgpuwppfft2rcsyn(float2 *gn, float2 *brm, int isign,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuppltpose(float2 *f, float2 *g, int nx, int ny,
+void cgpuppltpose(cuda::std::complex<float> *f, cuda::std::complex<float> *g, int nx, int ny,
                              int kxp, int kyp, int kstrt, int nxv,
                              int nyv) {
 /* local complex transpose using blocking algorithm with gaps */
@@ -5232,7 +4118,7 @@ extern "C" void cgpuppltpose(float2 *f, float2 *g, int nx, int ny,
    dim3 dimBlockt(mx,mx);
 /* calculate range of indices */
    dim3 dimGridtx((kxp-1)/mx+1,(kyp-1)/mx+1);
-   ns = (mx+1)*mx*sizeof(float2);
+   ns = (mx+1)*mx*sizeof(cuda::std::complex<float>);
 /* local transpose f to g */
    crc = cudaGetLastError();
    gpuppltpose<<<dimGridtx,dimBlockt,ns>>>(f,g,nx,ny,kxp,kyp,kstrt,nxv,
@@ -5247,7 +4133,7 @@ extern "C" void cgpuppltpose(float2 *f, float2 *g, int nx, int ny,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpuppltposen(float2 *fn, float2 *gn, int nx, int ny,
+void cgpuppltposen(cuda::std::complex<float> *fn, cuda::std::complex<float> *gn, int nx, int ny,
                               int kxp, int kyp, int kstrt, int ndim,
                               int nxv, int nyv) {
 /* local complex vector transpose */
@@ -5258,7 +4144,7 @@ extern "C" void cgpuppltposen(float2 *fn, float2 *gn, int nx, int ny,
    dim3 dimBlockt(mx,mx);
 /* calculate range of indices */
    dim3 dimGridtx((kxp-1)/mx+1,(kyp-1)/mx+1);
-   ns = ndim*(mx+1)*mx*sizeof(float2);
+   ns = ndim*(mx+1)*mx*sizeof(cuda::std::complex<float>);
 /* local transpose f to g */
    crc = cudaGetLastError();
    gpuppltposen<<<dimGridtx,dimBlockt,ns>>>(fn,gn,nx,ny,kxp,kyp,kstrt,
@@ -5273,7 +4159,7 @@ extern "C" void cgpuppltposen(float2 *fn, float2 *gn, int nx, int ny,
 }
 
 /*--------------------------------------------------------------------*/
-extern "C" void cgpusum2(float *a, float *sa, int nx) {
+void cgpusum2(float *a, float *sa, int nx) {
 /* segmented 1d parallel sum reduction of input array a, of length nx */
 /* first reduce individual blocks in parallel, writing result to scr  */
 /* then reduce scr serially, result is written to sa                  */
@@ -5321,444 +4207,3 @@ extern "C" void cgpusum2(float *a, float *sa, int nx) {
    }
    return;
 }
-
-
-/* Interfaces to Fortran */
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppgbppush23l_(unsigned long *gp_ppart,
-                                  unsigned long *gp_fxy,
-                                  unsigned long *gp_bxy,
-                                  unsigned long *gp_kpic, int *noff,
-                                  int *nyp, float *qbm, float *dt,
-                                  float *dtc, unsigned long *gp_ek,
-                                  int *idimp, int *nppmx, int *nx,
-                                  int *ny, int *mx, int *my, int *nxv,
-                                  int *nypmx, int *mx1, int *mxyp1,
-                                  int *ipbc) {
-   float *ppart, *fxy, *bxy, *ek;
-   int *kpic;
-   ppart = (float *)*gp_ppart;
-   fxy = (float *)*gp_fxy;
-   bxy = (float *)*gp_bxy;
-   kpic = (int *)*gp_kpic;
-   ek = (float *)*gp_ek;
-   cgpuppgbppush23l(ppart,fxy,bxy,kpic,*noff,*nyp,*qbm,*dt,*dtc,ek,
-                    *idimp,*nppmx,*nx,*ny,*mx,*my,*nxv,*nypmx,*mx1,
-                    *mxyp1,*ipbc);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppgrbppush23l_(unsigned long *gp_ppart,
-                                   unsigned long *gp_fxy,
-                                   unsigned long *gp_bxy,
-                                   unsigned long *gp_kpic, int *noff,
-                                   int *nyp, float *qbm, float *dt,
-                                   float *dtc, float *ci,
-                                   unsigned long *gp_ek, int *idimp,
-                                   int *nppmx, int *nx, int *ny,
-                                   int *mx, int *my, int *nxv,
-                                   int *nypmx, int *mx1, int *mxyp1,
-                                   int *ipbc) {
-   float *ppart, *fxy, *bxy, *ek;
-   int *kpic;
-   ppart = (float *)*gp_ppart;
-   fxy = (float *)*gp_fxy;
-   bxy = (float *)*gp_bxy;
-   kpic = (int *)*gp_kpic;
-   ek = (float *)*gp_ek;
-   cgpuppgrbppush23l(ppart,fxy,bxy,kpic,*noff,*nyp,*qbm,*dt,*dtc,*ci,ek,
-                     *idimp,*nppmx,*nx,*ny,*mx,*my,*nxv,*nypmx,*mx1,
-                     *mxyp1,*ipbc);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpu2ppgppost2l_(unsigned long *gp_ppart,
-                                 unsigned long *gp_q,
-                                 unsigned long *gp_kpic,
-                                 int *noff, float *qm, int *idimp,
-                                 int *nppmx, int *mx, int *my, int *nxv,
-                                 int *nypmx, int *mx1, int *mxyp1) {
-   float *ppart, *q;
-   int *kpic;
-   ppart = (float *)*gp_ppart;
-   q = (float *)*gp_q;
-   kpic = (int *)*gp_kpic;
-   cgpu2ppgppost2l(ppart,q,kpic,*noff,*qm,*idimp,*nppmx,*mx,*my,*nxv,
-                   *nypmx,*mx1,*mxyp1);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpu2ppjppost2l_(unsigned long *gp_ppart,
-                                 unsigned long *gp_cu, 
-                                 unsigned long *gp_kpic, int *noff,
-                                 float *qm, float *dt, int *nppmx,
-                                 int *idimp, int *nx, int *ny, int *mx,
-                                 int *my, int *nxv, int *nypmx,
-                                 int *mx1, int *mxyp1, int *ipbc) {
-   float *ppart, *cu;
-   int *kpic;
-   ppart = (float *)*gp_ppart;
-   cu = (float *)*gp_cu;
-   kpic = (int *)*gp_kpic;
-   cgpu2ppjppost2l(ppart,cu,kpic,*noff,*qm,*dt,*nppmx,*idimp,*nx,*ny,
-                   *mx,*my,*nxv,*nypmx,*mx1,*mxyp1,*ipbc);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpu2pprjppost2l_(unsigned long *gp_ppart,
-                                  unsigned long *gp_cu, 
-                                  unsigned long *gp_kpic, int *noff,
-                                  float *qm, float *dt, float *ci,
-                                  int *nppmx, int *idimp, int *nx,
-                                  int *ny, int *mx, int *my, int *nxv,
-                                  int *nypmx, int *mx1, int *mxyp1,
-                                  int *ipbc) {
-   float *ppart, *cu;
-   int *kpic;
-   ppart = (float *)*gp_ppart;
-   cu = (float *)*gp_cu;
-   kpic = (int *)*gp_kpic;
-   cgpu2pprjppost2l(ppart,cu,kpic,*noff,*qm,*dt,*ci,*nppmx,*idimp,*nx,
-                    *ny,*mx,*my,*nxv,*nypmx,*mx1,*mxyp1,*ipbc);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppcaguard2xl_(unsigned long *gp_qc,
-                                  unsigned long *gp_scs,
-                                  unsigned long *gp_q, int *nyp,
-                                  int *nx, int *nxe, int *nypmx,
-                                  int *nxvh, int *kypd) {
-   float2 *qc, *scs;
-   float *q;
-   qc = (float2 *)*gp_qc;
-   scs = (float2 *)*gp_scs;
-   q = (float *)*gp_q;
-   cgpuppcaguard2xl(qc,scs,q,*nyp,*nx,*nxe,*nypmx,*nxvh,*kypd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppcaguard2yl_(unsigned long *gp_fc,
-                                  unsigned long *gp_scr, int *nx,
-                                  int *nxvh, int *kypd) {
-   float2 *fc, *scr;
-   fc = (float2 *)*gp_fc;
-   scr = (float2 *)*gp_scr;
-   cgpuppcaguard2yl(fc,scr,*nx,*nxvh,*kypd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppcacguard2xl_(unsigned long *gp_cuc,
-                                   unsigned long *gp_scs,
-                                   unsigned long *gp_cu, int *nyp,
-                                   int *nx, int *nxe, int *nypmx,
-                                   int *nxvh, int *kypd) {
-   float2 *cuc, *scs;
-   float *cu;
-   cuc = (float2 *)*gp_cuc;
-   scs = (float2 *)*gp_scs;
-   cu = (float *)*gp_cu;
-   cgpuppcacguard2xl(cuc,scs,cu,*nyp,*nx,*nxe,*nypmx,*nxvh,*kypd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppcacguard2yl_(unsigned long *gp_fvc,
-                                   unsigned long *gp_scr, int *nx,
-                                   int *nxvh, int *kypd) {
-   float2 *fvc, *scr;
-   fvc = (float2 *)*gp_fvc;
-   scr = (float2 *)*gp_scr;
-   cgpuppcacguard2yl(fvc,scr,*nx,*nxvh,*kypd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppcbguard2xl_(unsigned long *gp_fxyc,
-                                  unsigned long *gp_scs,
-                                  unsigned long *gp_fxy, int *nyp,
-                                  int *nx, int *nxe, int *nypmx,
-                                  int *nxvh, int *kypd) {
-   float2 *fxyc, *scs;
-   float *fxy;
-   fxyc = (float2 *)*gp_fxyc;
-   scs = (float2 *)*gp_scs;
-   fxy = (float *)*gp_fxy;
-   cgpuppcbguard2xl(fxyc,scs,fxy,*nyp,*nx,*nxe,*nypmx,*nxvh,*kypd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppcbguard2yl_(unsigned long *gp_fxy,
-                                  unsigned long *gp_scr, int *nyp,
-                                  int *nx, int *nxe, int *nxvh,
-                                  int *nypmx) {
-   float *fxy;
-   float2 *scr;
-   fxy = (float *)*gp_fxy;
-   scr = (float2 *)*gp_scr;
-   cgpuppcbguard2yl(fxy,scr,*nyp,*nx,*nxe,*nxvh,*nypmx);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpupppord2la_(unsigned long *gp_ppart,
-                               unsigned long *gp_ppbuff,
-                               unsigned long *gp_sbufl,
-                               unsigned long *gp_sbufr,
-                               unsigned long *gp_kpic,
-                               unsigned long *gp_ncl,
-                               unsigned long *gp_ihole,
-                               unsigned long *gp_ncll,
-                               unsigned long *gp_nclr,
-                               int *noff, int *nyp, int *idimp,
-                               int *nppmx, int *nx, int *ny, int *mx,
-                               int *my, int *mx1, int *myp1, int *npbmx,
-                               int *ntmax, int *nbmax,
-                               unsigned long *gp_irc) {
-   float *ppart, *ppbuff, *sbufl, *sbufr;
-   int *kpic, *ncl, *ihole, *ncll, *nclr, *irc;
-   ppart = (float *)*gp_ppart;
-   ppbuff = (float *)*gp_ppbuff;
-   sbufl = (float *)*gp_sbufl;
-   sbufr = (float *)*gp_sbufr;
-   kpic = (int *)*gp_kpic;
-   ncl = (int *)*gp_ncl;
-   ihole = (int *)*gp_ihole;
-   ncll = (int *)*gp_ncll;
-   nclr = (int *)*gp_nclr;
-   irc = (int *)*gp_irc;
-   cgpupppord2la(ppart,ppbuff,sbufl,sbufr,kpic,ncl,ihole,ncll,nclr,
-                 *noff,*nyp,*idimp,*nppmx,*nx,*ny,*mx,*my,*mx1,*myp1,
-                 *npbmx,*ntmax,*nbmax,irc);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpupppord2lb_(unsigned long *gp_ppart,
-                               unsigned long *gp_ppbuff,
-                               unsigned long *gp_rbufl,
-                               unsigned long *gp_rbufr,
-                               unsigned long *gp_kpic,
-                               unsigned long *gp_ncl,
-                               unsigned long *gp_ihole,
-                               unsigned long *gp_mcll,
-                               unsigned long *gp_mclr,
-                               int *idimp, int *nppmx, int *mx1,
-                               int *myp1, int *npbmx, int *ntmax,
-                               int *nbmax, unsigned long *gp_irc) {
-   float *ppart, *ppbuff, *rbufl, *rbufr;
-   int *kpic, *ncl, *ihole, *mcll, *mclr, *irc;
-   ppart = (float *)*gp_ppart;
-   ppbuff = (float *)*gp_ppbuff;
-   rbufl = (float *)*gp_rbufl;
-   rbufr = (float *)*gp_rbufr;
-   kpic = (int *)*gp_kpic;
-   ncl = (int *)*gp_ncl;
-   ihole = (int *)*gp_ihole;
-   mcll = (int *)*gp_mcll;
-   mclr = (int *)*gp_mclr;
-   irc = (int *)*gp_irc;
-   cgpupppord2lb(ppart,ppbuff,rbufl,rbufr,kpic,ncl,ihole,mcll,mclr,
-                 *idimp,*nppmx,*mx1,*myp1,*npbmx,*ntmax,*nbmax,irc);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C"  void cgpuppois23t_(unsigned long *gp_qt, 
-                               unsigned long *gp_fxyt,
-                               unsigned long *gp_ffct,
-                               unsigned long *gp_we, int *nx, int *ny,
-                               int *kstrt, int *nyv, int *kxp1,
-                               int *nyhd) {
-   float2 *qt, *fxyt, *ffct;
-   float *we;
-   qt = (float2 *)*gp_qt;
-   fxyt = (float2 *)*gp_fxyt;
-   ffct = (float2 *)*gp_ffct;
-   we = (float *)*gp_we;
-   cgpuppois23t(qt,fxyt,ffct,we,*nx,*ny,*kstrt,*nyv,*kxp1,*nyhd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C"  void cgpuppcuperp2t_(unsigned long *gp_cut, int *nx,
-                                 int *ny, int *kstrt, int *nyv,
-                                 int *kxp1) {
-   float2 *cut;
-   cut = (float2 *)*gp_cut;
-   cgpuppcuperp2t(cut,*nx,*ny,*kstrt,*nyv,*kxp1);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuippbpoisp23t_(unsigned long *gp_cut, 
-                                  unsigned long *gp_bxyt,
-                                  unsigned long *gp_ffct, float *ci,
-                                  unsigned long *gp_wm, int *nx,
-                                  int *ny, int *kstrt, int *nyv,
-                                  int *kxp1,  int *nyhd) {
-   float2 *cut, *bxyt, *ffct;
-   float *wm;
-   cut = (float2 *)*gp_cut;
-   bxyt = (float2 *)*gp_bxyt;
-   ffct = (float2 *)*gp_ffct;
-   wm = (float *)*gp_wm;
-   cgpuippbpoisp23t(cut,bxyt,ffct,*ci,wm,*nx,*ny,*kstrt,*nyv,*kxp1,
-                    *nyhd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppmaxwel2t_(unsigned long *gp_exyt,
-                                unsigned long *gp_bxyt,
-                                unsigned long *gp_cut,
-                                unsigned long *gp_ffct, float *affp,
-                                float *ci, float *dt,
-                                unsigned long *gp_wf,
-                                unsigned long *gp_wm, int *nx, int *ny,
-                                int *kstrt, int *nyv, int *kxp1,
-                                int *nyhd) {
-   float2 *cut, *exyt, *bxyt, *ffct;
-   float *wf, *wm;
-   cut = (float2 *)*gp_cut;
-   exyt = (float2 *)*gp_exyt;
-   bxyt = (float2 *)*gp_bxyt;
-   ffct = (float2 *)*gp_ffct;
-   wf = (float *)*gp_wf;
-   wm = (float *)*gp_wm;
-   cgpuppmaxwel2t(exyt,bxyt,cut,ffct,*affp,*ci,*dt,wf,wm,*nx,*ny,*kstrt,
-                  *nyv,*kxp1,*nyhd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppemfield2t_(unsigned long *gp_fxyt,
-                                 unsigned long *gp_exyt,
-                                 unsigned long *gp_ffct, int *isign,
-                                 int *nx, int *ny, int *kstrt, int *nyv,
-                                 int *kxp1, int *nyhd) {
-   float2 *fxyt, *exyt, *ffct;
-   fxyt = (float2 *)*gp_fxyt;
-   exyt = (float2 *)*gp_exyt;
-   ffct = (float2 *)*gp_ffct;
-   cgpuppemfield2t(fxyt,exyt,ffct,*isign,*nx,*ny,*kstrt,*nyv,*kxp1,
-                   *nyhd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuwppfft2rcsx_(unsigned long *gp_f,
-                                 unsigned long *gp_bsm, int *isign,
-                                 unsigned long *gp_mixup,
-                                 unsigned long *gp_sct, int *indx,
-                                 int *indy, int *kstrt, int *nvp,
-                                 int *kxp1, int *kyp, int *nxhd,
-                                 int *kypd, int *nxhyd, int *nxyhd) {
-   float2 *f, *bsm, *sct;
-   int *mixup;
-   f = (float2 *)*gp_f;
-   bsm = (float2 *)*gp_bsm;
-   mixup = (int *)*gp_mixup;
-   sct = (float2 *)*gp_sct;
-   cgpuwppfft2rcsx(f,bsm,*isign,mixup,sct,*indx,*indy,*kstrt,*nvp,*kxp1,
-                   *kyp,*nxhd,*kypd,*nxhyd,*nxyhd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuwppfft2rcsy_(unsigned long *gp_g,
-                                 unsigned long *gp_brm, int *isign,
-                                 unsigned long *gp_mixup,
-                                 unsigned long *gp_sct, int *indx,
-                                 int *indy, int *kstrt, int *nvp,
-                                 int *kxp1, int *kyp, int *nyd,
-                                 int *nxhyd, int *nxyhd) {
-   float2 *g, *brm, *sct;
-   int *mixup;
-   g = (float2 *)*gp_g;
-   brm = (float2 *)*gp_brm;
-   mixup = (int *)*gp_mixup;
-   sct = (float2 *)*gp_sct;
-   cgpuwppfft2rcsy(g,brm,*isign,mixup,sct,*indx,*indy,*kstrt,*nvp,*kxp1,
-                   *kyp,*nyd,*nxhyd,*nxyhd);
-   return;
-}/*--------------------------------------------------------------------*/
-extern "C" void cgpuwppfft2rcsxn_(unsigned long *gp_fn,
-                                  unsigned long *gp_bsm, int *isign,
-                                  unsigned long *gp_mixup,
-                                  unsigned long *gp_sct, int *indx,
-                                  int *indy, int *ndim, int *kstrt,
-                                  int *nvp, int *kxp1, int *kyp,
-                                  int *nxhd, int *kypd, int *nxhyd,
-                                  int *nxyhd) {
-   float2 *fn, *bsm, *sct;
-   int *mixup;
-   fn = (float2 *)*gp_fn;
-   bsm = (float2 *)*gp_bsm;
-   mixup = (int *)*gp_mixup;
-   sct = (float2 *)*gp_sct;
-   cgpuwppfft2rcsxn(fn,bsm,*isign,mixup,sct,*indx,*indy,*ndim,*kstrt,
-                    *nvp,*kxp1,*kyp,*nxhd,*kypd,*nxhyd,*nxyhd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuwppfft2rcsyn_(unsigned long *gp_gn,
-                                  unsigned long *gp_brm, int *isign,
-                                  unsigned long *gp_mixup,
-                                  unsigned long *gp_sct, int *indx,
-                                  int *indy, int *ndim, int *kstrt,
-                                  int *nvp, int *kxp1, int *kyp,
-                                  int *nyd, int *nxhyd, int *nxyhd) {
-   float2 *gn, *brm, *sct;
-   int *mixup;
-   gn = (float2 *)*gp_gn;
-   brm = (float2 *)*gp_brm;
-   mixup = (int *)*gp_mixup;
-   sct = (float2 *)*gp_sct;
-   cgpuwppfft2rcsyn(gn,brm,*isign,mixup,sct,*indx,*indy,*ndim,*kstrt,
-                    *nvp,*kxp1,*kyp,*nyd,*nxhyd,*nxyhd);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppltpose_(unsigned long *gp_f, unsigned long *gp_g,
-                              int *nx, int *ny, int *kxp, int *kyp,
-                              int *kstrt, int *nxv, int *nyv) {
-   float2 *f, *g;
-   f = (float2 *)*gp_f;
-   g = (float2 *)*gp_g;
-   cgpuppltpose(f,g,*nx,*ny,*kxp,*kyp,*kstrt,*nxv,*nyv);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpuppltposen_(unsigned long *gp_fn,
-                               unsigned long *gp_gn, int *nx, int *ny,
-                               int *kxp, int *kyp, int *kstrt, int *ndim,
-                               int *nxv, int *nyv) {
-   float2 *fn, *gn;
-   fn = (float2 *)*gp_fn;
-   gn = (float2 *)*gp_gn;
-   cgpuppltposen(fn,gn,*nx,*ny,*kxp,*kyp,*kstrt,*ndim,*nxv,*nyv);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-extern "C" void cgpusum2_(unsigned long *gp_a, unsigned long *gp_sa,
-                          int *nx) {
-   float *a, *sa;
-   a = (float *)*gp_a;
-   sa = (float *)*gp_sa;
-   cgpusum2(a,sa,*nx);
-   return;
-}
-

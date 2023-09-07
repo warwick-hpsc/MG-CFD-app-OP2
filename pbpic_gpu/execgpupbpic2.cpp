@@ -25,22 +25,23 @@ void output_pic(int ntime, int nvp, int ndev, float wt,
                 int kstrt, FILE *fp, double comp_sec,
                 double tot_sec);
 
-int main_gpupbpic(int argc, char *argv[], MPI_Fint custom, int instance_number,
-				  struct unit units[], struct locators relative_positions[]){
-   MPI_Comm pic_comm = MPI_Comm_f2c(custom);
+//int main_gpupbpic(int argc, char *argv[], MPI_Fint custom, int instance_number,
+//				  struct unit units[], struct locators relative_positions[]){
+int main(int argc, char *argv[]){
+   //MPI_Comm pic_comm = MPI_Comm_f2c(custom);
    //open a file to output to.
    char filename[2];
    char default_name[31] = "GPUPBPIC_output_instance_";
-   sprintf(filename, "%d", instance_number);
+   //sprintf(filename, "%d", instance_number);
    strcat(default_name, filename);
    FILE *fp = fopen(default_name, "w");
 
 /* indx/indy = exponent which determines grid points in x/y direction: */
 /* nx = 2**indx, ny = 2**indy */
-   int indx, indy;
+   int indx = 10, indy = 10;
 /* npx/npy = number of electrons distributed in x/y direction */
-   int npx, npy;
-   read_inputs(&indx, &indy, &npx, &npy);
+   int npx= 300, npy = 300;
+   //read_inputs(&indx, &indy, &npx, &npy);
 /* ndim = number of velocity coordinates = 3 */
    int ndim = 3;
 /* dt = time interval between successive calculations */
@@ -199,8 +200,8 @@ int main_gpupbpic(int argc, char *argv[], MPI_Fint custom, int instance_number,
 
 /* nvp = number of MPI ranks */
 /* initialize for distributed memory parallel processing */
-   cppinit2(&idproc,&nvp,argc,argv,pic_comm);
-   
+   //cppinit2(&idproc,&nvp,argc,argv,pic_comm);
+   cppinit2(&idproc,&nvp,argc,argv,MPI_COMM_WORLD);
    kstrt = idproc + 1;
 /* check if too many processors */
    if (nvp > ny) {
@@ -436,8 +437,8 @@ int main_gpupbpic(int argc, char *argv[], MPI_Fint custom, int instance_number,
    double *p_variables_data;
    double *p_variables_recv;
    if(kstrt == 1){ 
-      send_num_data(units, relative_positions, grid_size, &p_variables_data,
-                    &p_variables_recv);
+      //send_num_data(units, relative_positions, grid_size, &p_variables_data,
+      //              &p_variables_recv);
    }
 
 /* * * * start main iteration loop * * * */
@@ -562,9 +563,9 @@ int main_gpupbpic(int argc, char *argv[], MPI_Fint custom, int instance_number,
          if((ntime % pic_conversion_factor == 0) ||
             (hide_search == true &&
             ((ntime % pic_conversion_factor) == pic_conversion_factor - 1))){
-            send_recv_data(units, relative_positions, grid_size, 
-                           ntime, coupler_cycles, p_variables_data, 
-						   p_variables_recv, fp);
+//            send_recv_data(units, relative_positions, grid_size, 
+//                           ntime, coupler_cycles, p_variables_data, 
+//						   p_variables_recv, fp);
          }
       }
    }

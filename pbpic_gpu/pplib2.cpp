@@ -33,7 +33,8 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <complex.h>
+/*#include <complex.h>*/
+#include <cuda/std/complex>
 #include <string.h>
 #include "mpi.h"
 #include "pplib2.h"
@@ -387,7 +388,7 @@ local data */
 }
 
 /*--------------------------------------------------------------------*/
-void cppptpose(std::complex<float> sm[], std::complex<float> tm[], int nx, int ny,
+void cppptpose(cuda::std::complex<float> sm[], cuda::std::complex<float> tm[], int nx, int ny,
                int kxp, int kyp, int kstrt, int nvp) {
 /* this subroutine sends and receives data between MPI nodes to perform
    a transpose of a matrix distributed in y, to another matrix
@@ -440,7 +441,7 @@ local data */
 }
 
 /*--------------------------------------------------------------------*/
-void cppptposen(std::complex<float> sm[], std::complex<float> tm[], int nx, int ny,
+void cppptposen(cuda::std::complex<float> sm[], cuda::std::complex<float> tm[], int nx, int ny,
                 int kxp, int kyp, int kstrt, int nvp, int ndim) {
 /* this subroutine sends and receives data between MPI nodes to perform
    a transpose of an n component matrix distributed in y, to another 
@@ -494,7 +495,7 @@ local data */
 }
 
 /*--------------------------------------------------------------------*/
-void cacsndrec(std::complex<float> stm[], int idproc, int nsize, int ntag,
+void cacsndrec(cuda::std::complex<float> stm[], int idproc, int nsize, int ntag,
                int mode) {
 /* this subroutine is part of a family of procedures for performing
    a transpose by sending and receiving asynchronous data between GPUs
@@ -609,98 +610,5 @@ local data */
          ierr = MPI_Wait(&msid[i+4],&istatus);
       }
    }
-   return;
-}
-
-/* Interfaces to Fortran */
-
-/*--------------------------------------------------------------------*/
-void cppinit2_(int *idproc, int *nvp, int *argc, char *argv[], 
-				MPI_Comm pic_comm) {
-   cppinit2(idproc,nvp,*argc,argv,pic_comm);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cppfndgrp_(int *locl, int *kstrt, int *nvp, int *idev, int *ndev) {
-   cppfndgrp(locl,*kstrt,*nvp,idev,ndev);
-   return;
-}
-
-void cppexit_() {
-   cppexit();
-   return;
-}
-
-void cppabort_() {
-   cppabort();
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cpwtimera_(int *icntrl, float *time, double *dtime) {
-   cpwtimera(*icntrl,time,dtime);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cppsum_(float *f, float *g, int *nxp) {
-   cppsum(f,g,*nxp);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cppdsum_(double *f, double *g, int *nxp) {
-   cppdsum(f,g,*nxp);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cppimax_(int *f, int *g, int *nxp) {
-   cppimax(f,g,*nxp);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cpppncguard2l_(float *scs, float *scr, int *kstrt, int *nvp,
-                    int *nxv) {
-   cpppncguard2l(scs,scr,*kstrt,*nvp,*nxv);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cpppnaguard2l_(float *scs, float *scr, int *kstrt, int *nvp,
-                    int *nxv) {
-   cpppnaguard2l(scs,scr,*kstrt,*nvp,*nxv);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cppptpose_(std::complex<float> *sm, std::complex<float> *tm, int *nx, int *ny,
-                int *kxp, int *kyp, int *kstrt, int *nvp) {
-   cppptpose(sm,tm,*nx,*ny,*kxp,*kyp,*kstrt,*nvp);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cppptposen_(std::complex<float> *sm, std::complex<float> *tm, int *nx, int *ny,
-                 int *kxp, int *kyp, int *kstrt, int *nvp, int *ndim) {
-   cppptposen(sm,tm,*nx,*ny,*kxp,*kyp,*kstrt,*nvp,*ndim);
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cacsndrec_(std::complex<float> *stm, int *idproc, int *nsize, int *ntag,
-                int *mode) {
-   cacsndrec(stm,*idproc,*nsize,*ntag,*mode); 
-   return;
-}
-
-/*--------------------------------------------------------------------*/
-void cpppmove2_(float *sbufr, float *sbufl, float *rbufr, float *rbufl,
-                int *ncll, int *nclr, int *mcll, int *mclr, int *kstrt,
-                int *nvp, int *idimp, int *nbmax, int *mx1) {
-   cpppmove2(sbufr,sbufl,rbufr, rbufl,ncll,nclr,mcll,mclr,*kstrt,*nvp,
-             *idimp,*nbmax,*mx1);
    return;
 }

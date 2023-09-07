@@ -27,9 +27,3 @@ L10: oss = gettimeofday(&nclock,NULL);
    *time = (nclock.tv_sec - jclock.tv_sec) + usec*tick;
    return;
 }
-
-void dtimer_(double *time, unsigned long *itime, int *icntrl) {
-/* in Fortran, itime is an array of two or four integers */
-   dtimer(time,(struct timeval *)itime,*icntrl);
-   return;
-}

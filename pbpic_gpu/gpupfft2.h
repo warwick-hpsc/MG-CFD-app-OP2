@@ -8,26 +8,26 @@ void gpupfft2rrcudel();
 
 void gpupfft2cudel();
 
-void gpupfft2rrcux(std::complex<float> f[], std::complex<float> bsm[], int isign,
+void gpupfft2rrcux(cuda::std::complex<float> f[], cuda::std::complex<float> bsm[], int isign,
                    int indx, int indy, int kstrt, int nvp, int kxp1,
                    int kyp, int nxh1d, int kypd);
 
-void gpupfft2rrcuy(std::complex<float> g[], std::complex<float> brm[], int isign,
+void gpupfft2rrcuy(cuda::std::complex<float> g[], cuda::std::complex<float> brm[], int isign,
                    int indx, int indy, int kstrt, int nvp, int kxp1,
                    int kyp, int nyd);
 
-void gpupfft2rrcuxn(std::complex<float> fn[], std::complex<float> bsm[], int isign,
+void gpupfft2rrcuxn(cuda::std::complex<float> fn[], cuda::std::complex<float> bsm[], int isign,
                     int indx, int indy, int ndim, int kstrt, int nvp,
                     int kxp1, int kyp, int nxh1d, int kypd);
 
-void gpupfft2rrcuyn(std::complex<float> gn[], std::complex<float> brm[], int isign,
+void gpupfft2rrcuyn(cuda::std::complex<float> gn[], cuda::std::complex<float> brm[], int isign,
                     int indx, int indy, int ndim, int kstrt, int nvp,
                     int kxp1, int kyp, int nyd);
 
-void cgpuppsltpose(std::complex<float> f[], std::complex<float> g[], float ani,
+void cgpuppsltpose(cuda::std::complex<float> f[], cuda::std::complex<float> g[], float ani,
                    int nx, int ny, int kxp, int kyp, int kstrt, int nxv,
                    int nyv);
 
-void cgpuppsltposen(std::complex<float> fn[], std::complex<float> gn[], float ani,
+void cgpuppsltposen(cuda::std::complex<float> fn[], cuda::std::complex<float> gn[], float ani,
                     int nx, int ny, int kxp, int kyp, int kstrt,
                     int ndim, int nxv, int nyv);
