@@ -493,6 +493,9 @@ int main(int argc, char** argv){
 				}
 			}
 			
+			//remove effect of setup on timings
+			MPI_Barrier(MPI_COMM_WORLD);
+			
 			std::chrono::duration<double> total_seconds = std::chrono::seconds(0);
 			std::chrono::duration<double> pure_comp_secs = std::chrono::seconds(0);
 			std::chrono::time_point<std::chrono::steady_clock> start;

@@ -723,6 +723,10 @@ int main_mgcfd(int argc, char** argv, MPI_Fint custom, int instance_number, stru
     int coupler_unit_count;
     int coupler_vars;
     int rkCycle;
+
+	//remove effect of setup on timings
+    MPI_Barrier(MPI_COMM_WORLD);
+
     std::chrono::steady_clock::time_point total_start;
     std::chrono::steady_clock::time_point total_end;
     std::chrono::steady_clock::time_point start_comp;

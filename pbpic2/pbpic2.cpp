@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <complex.h>
+#include <chrono>
 #include <sys/time.h>
 #include <stdbool.h>
 #include "pbpush2.h"
@@ -15,12 +16,10 @@
 
 void dtimer(double *time, struct timeval *itime, int icntrl);
 
-void exit_pic(int code);
-
-void output_pic(int ntime, int relativity, int nvp, float we, float wf, float wm,
-                float wt, float tdpost, float tdjpost, float tguard, float tfield,
-                float tfft[], float tpush, float tmov, float tsort, float time,
-                int kstrt, FILE *fp, float wke, int nloop, double np);
+void output_pic(int ntime, int nvp, float wt, float tdpost, 
+				float tdjpost, float tguard, float tfield, float tfft[], 
+				float tpush, float tmov, float tsort, float time,
+                int kstrt, FILE *fp, double comp_sec, double tot_sec);
 
 int main(int argc, char *argv[]) {
    //replace with coupler_config/inputs 
@@ -142,7 +141,7 @@ int main(int argc, char *argv[]) {
       if (kstrt==1) {
          fprintf(fp, "Too many processors requested: ny, nvp=%d,%d\n",ny,nvp);
       }
-	  exit_pic(1);
+	  exit(1);
    }
 
 /* initialize data for MPI code */
@@ -158,7 +157,7 @@ int main(int argc, char *argv[]) {
       if (kstrt==1) {
         fprintf(fp, "combination not supported nvp, ny = %d,%d\n",nvp,ny);
       }
-	  exit_pic(1);
+	  exit(1);
    }
 /* initialize additional scalars for MPI code */
 /* kxp = number of complex grids in each field partition in x direction */
@@ -216,7 +215,7 @@ int main(int argc, char *argv[]) {
       if (kstrt==1) {
 		fprintf(fp, "particle initialization error: ierr=%d\n",ierr);
       }
-	  exit_pic(1);
+	  exit(1);
    }
 
 /* initialize transverse electromagnetic fields */
@@ -231,84 +230,21 @@ int main(int argc, char *argv[]) {
       }
    }
 
-/* set up for send data over */
-   struct unit units[4];
-   units[0].type = 'P';
-   units[0].processes = 10;
-   units[0].coupler_ranks = std::vector<std::vector<int>>{{10,11,12,13,14},{20,21,22,23,24}};
-   units[1].type = 'C';
-   units[1].processes = 5;
-   units[1].coupling_type = 'O';
-   units[2].type = 'M';
-   units[2].processes = 5;
-   units[3].type = 'C';
-   units[3].processes = 5;
-   units[3].coupling_type = 'C';
-   struct locators relative_positions[25];
-   relative_positions[0].typelocator = 'P';
-   relative_positions[0].placelocator = 1;
-   relative_positions[1].typelocator = 'P';
-   relative_positions[1].placelocator = 1;
-   relative_positions[2].typelocator = 'P';
-   relative_positions[2].placelocator = 1;
-   relative_positions[3].typelocator = 'P';
-   relative_positions[3].placelocator = 1;
-   relative_positions[4].typelocator = 'P';
-   relative_positions[4].placelocator = 1;
-   relative_positions[5].typelocator = 'P';
-   relative_positions[5].placelocator = 1;
-   relative_positions[6].typelocator = 'P';
-   relative_positions[6].placelocator = 1;
-   relative_positions[7].typelocator = 'P';
-   relative_positions[7].placelocator = 1;
-   relative_positions[8].typelocator = 'P';
-   relative_positions[8].placelocator = 1;
-   relative_positions[9].typelocator = 'P';
-   relative_positions[9].placelocator = 1;
-   relative_positions[10].typelocator = 'C';
-   relative_positions[10].placelocator = 1;
-   relative_positions[11].typelocator = 'C';
-   relative_positions[11].placelocator = 1;
-   relative_positions[12].typelocator = 'C';
-   relative_positions[12].placelocator = 1;
-   relative_positions[13].typelocator = 'C';
-   relative_positions[13].placelocator = 1;
-   relative_positions[14].typelocator = 'C';
-   relative_positions[14].placelocator = 1;
-   relative_positions[15].typelocator = 'M';
-   relative_positions[15].placelocator = 2;
-   relative_positions[16].typelocator = 'M';
-   relative_positions[16].placelocator = 2;
-   relative_positions[17].typelocator = 'M';
-   relative_positions[17].placelocator = 2;
-   relative_positions[18].typelocator = 'M';
-   relative_positions[18].placelocator = 2;
-   relative_positions[19].typelocator = 'M';
-   relative_positions[19].placelocator = 2;
-   relative_positions[20].typelocator = 'C';
-   relative_positions[20].placelocator = 2;
-   relative_positions[21].typelocator = 'C';
-   relative_positions[21].placelocator = 2;
-   relative_positions[22].typelocator = 'C';
-   relative_positions[22].placelocator = 2;
-   relative_positions[23].typelocator = 'C';
-   relative_positions[23].placelocator = 2;
-   relative_positions[24].typelocator = 'C';
-   relative_positions[24].placelocator = 2;
-   double *p_variables_data;
-   double *p_variables_recv;
-   if(kstrt == 1){ 
-	  send_num_data(units, relative_positions, nx*ny, p_variables_data,
-				    p_variables_recv);
-   }
-
 /* * * * start main iteration loop * * * */
    int number_loops = coupler_cycles * pic_conversion_factor;
+   std::chrono::duration<double> comp_seconds;
+   std::chrono::duration<double> total_seconds;
+   std::chrono::steady_clock::time_point start_comp;
+   std::chrono::steady_clock::time_point end_comp;
+   std::chrono::steady_clock::time_point start_total;
+   std::chrono::steady_clock::time_point end_total;
+   start_total = std::chrono::steady_clock::now();
    for(ntime = 0; ntime < number_loops; ntime++){
 /* output the current iteration and how many we are doing */
 	  if(kstrt==1){
 		fprintf(fp, "performing iteration %d of %d\n", ntime+1, number_loops);
 	  }
+	  start_comp = std::chrono::steady_clock::now();
 /* deposit current with standard procedure: updates part, cue, ihole */
       dtimer(&dtime,&itime,-1);
       for (j = 0; j < ndim*nxe*nypmx; j++) {
@@ -329,10 +265,8 @@ int main(int argc, char *argv[]) {
       if (ihole[0] < 0) {
          ierr = -ihole[0];
 		 fprintf(fp, "ihole overflow error: ntmax,ih=%d,%d\n",ntmax,ierr);
-         cppabort();
-	     exit_pic(1);
+         exit(1);
       }
-
 /* move electrons into appropriate spatial regions: updates part, npp */
       dtimer(&dtime,&itime,-1);
       cppmove2(part,edges,&npp,sbufr,sbufl,rbufr,rbufl,ihole,ny,kstrt,nvp,
@@ -346,18 +280,20 @@ int main(int argc, char *argv[]) {
          if (kstrt==1) {
             fprintf(fp, "current particle manager error: ierr=%d\n",ierr);
          }
-		 exit_pic(1);
+		 exit(1);
       }
 
 /* deposit charge with standard procedure: updates qe */
-      dtimer(&dtime,&itime,-1);
-      for (j = 0; j < nxe*nypmx; j++) {
-         qe[j] = 0.0;
-      }
-      cppgpost2l(part,qe,npp,noff,qme,idimp,npmax,nxe,nypmx);
-      dtimer(&dtime,&itime,1);
-      time = (float) dtime;
-      tdpost += time;
+      for(int i = 0; i < 12; i++){
+	     dtimer(&dtime,&itime,-1);
+         for (j = 0; j < nxe*nypmx; j++) {
+            qe[j] = 0.0;
+         }
+         cppgpost2l(part,qe,npp,noff,qme,idimp,npmax,nxe,nypmx);
+         dtimer(&dtime,&itime,1);
+         time = (float) dtime;
+         tdpost += time;
+	  }
 
 /* add guard cells with standard procedure: updates cue, qe */
       dtimer(&dtime,&itime,-1);
@@ -368,21 +304,20 @@ int main(int argc, char *argv[]) {
       dtimer(&dtime,&itime,1);
       time = (float) dtime;
       tguard += time;
-
 /* transform charge to fourier space with standard procedure: updates qt */
 /* modifies qe */
-      dtimer(&dtime,&itime,-1);
+      /*dtimer(&dtime,&itime,-1);
       isign = -1;
       cwppfft2r((std::complex<float> *)qe,qt,bs,br,isign,ntpose,mixup,sct,&ttp,
                 indx,indy,kstrt,nvp,nxeh,nye,kxp,kyp,nypmx,nxhy,nxyh);
       dtimer(&dtime,&itime,1);
       time = (float) dtime;
       tfft[0] += time;
-      tfft[1] += ttp;
+      tfft[1] += ttp;*/
 
 /* transform current to fourier space with standard procedure: updates cut */
 /* modifies cue */
-      dtimer(&dtime,&itime,-1);
+      /*dtimer(&dtime,&itime,-1);
       isign = -1;
       cwppfft2r3((std::complex<float> *)cue,cut,bs,br,isign,ntpose,mixup,sct,
                  &ttp,indx,indy,kstrt,nvp,nxeh,nye,kxp,kyp,nypmx,nxhy,
@@ -390,19 +325,19 @@ int main(int argc, char *argv[]) {
       dtimer(&dtime,&itime,1);
       time = (float) dtime;
       tfft[0] += time;
-      tfft[1] += ttp;
+      tfft[1] += ttp;*/
 
 /* take transverse part of current with standard procedure: updates cut */
 /* modifies cut */
-      dtimer(&dtime,&itime,-1);
+      /*dtimer(&dtime,&itime,-1);
       cppcuperp2(cut,nx,ny,kstrt,nye,kxp);
       dtimer(&dtime,&itime,1);
       time = (float) dtime;
-      tfield += time;
+      tfield += time;*/
 
 /* calculate electromagnetic fields in fourier space with standard */
 /* procedure: updates exyz, bxyz, wf, wm */
-      dtimer(&dtime,&itime,-1);
+      /*dtimer(&dtime,&itime,-1);
       if (ntime==0) {
          cippbpoisp23(cut,bxyz,ffc,ci,&wm,nx,ny,kstrt,nye,kxp,nyh);
          wf = 0.0;
@@ -414,17 +349,17 @@ int main(int argc, char *argv[]) {
       }
       dtimer(&dtime,&itime,1);
       time = (float) dtime;
-      tfield += time;
+      tfield += time;*/
 
 /* calculate force/charge in fourier space with standard procedure: */
 /* updates fxyt, we */
-      dtimer(&dtime,&itime,-1);
+      /*dtimer(&dtime,&itime,-1);
       isign = -1;
       cppois23(qt,fxyt,isign,ffc,ax,ay,affp,&we,nx,ny,kstrt,nye,kxp,
                nyh);
       dtimer(&dtime,&itime,1);
       time = (float) dtime;
-      tfield += time;
+      tfield += time;*/
 
 /* add longitudinal and transverse electric fields with standard */
 /* procedure: updates fxyt */
@@ -440,7 +375,7 @@ int main(int argc, char *argv[]) {
 
 /* transform force to real space with standard procedure: updates fxyze */
 /* modifies fxyt */
-      dtimer(&dtime,&itime,-1);
+      /*dtimer(&dtime,&itime,-1);
       isign = 1;
       cwppfft2r3((std::complex<float> *)fxyze,fxyt,bs,br,isign,ntpose,mixup,
                  sct,&ttp,indx,indy,kstrt,nvp,nxeh,nye,kxp,kyp,nypmx,
@@ -448,11 +383,11 @@ int main(int argc, char *argv[]) {
       dtimer(&dtime,&itime,1);
       time = (float) dtime;
       tfft[0] += time;
-      tfft[1] += ttp;
+      tfft[1] += ttp;*/
 
 /* transform magnetic field to real space with standard procedure: */
 /* updates bxyze, modifies bxyt */
-      dtimer(&dtime,&itime,-1);
+      /*dtimer(&dtime,&itime,-1);
       isign = 1;
       cwppfft2r3((std::complex<float> *)bxyze,bxyt,bs,br,isign,ntpose,mixup,
                  sct,&ttp,indx,indy,kstrt,nvp,nxeh,nye,kxp,kyp,nypmx,
@@ -460,7 +395,7 @@ int main(int argc, char *argv[]) {
       dtimer(&dtime,&itime,1);
       time = (float) dtime;
       tfft[0] += time;
-      tfft[1] += ttp;
+      tfft[1] += ttp;*/
 
 /* copy guard cells with standard procedure: updates fxyze, bxyze */
       dtimer(&dtime,&itime,-1);
@@ -473,26 +408,27 @@ int main(int argc, char *argv[]) {
       tguard += time;
 
 /* push particles: updates part, wke, and ihole */
-      dtimer(&dtime,&itime,-1);
-      wke = 0.0;
-      if (relativity==1) {
-         cppgrbpush23l(part,fxyze,bxyze,edges,npp,noff,ihole,qbme,dt,
-                       dth,ci,&wke,nx,ny,idimp,npmax,nxe,nypmx,idps,
-                       ntmax,ipbc);
-      }
-      else {
-         cppgbpush23l(part,fxyze,bxyze,edges,npp,noff,ihole,qbme,dt,dth,
-                      &wke,nx,ny,idimp,npmax,nxe,nypmx,idps,ntmax,ipbc);
-      }
-      dtimer(&dtime,&itime,1);
-      time = (float) dtime;
-      tpush += time;
+      for(int i = 0; i < 30; i++){
+	     dtimer(&dtime,&itime,-1);
+         wke = 0.0;
+         if (relativity==1) {
+            cppgrbpush23l(part,fxyze,bxyze,edges,npp,noff,ihole,qbme,dt,
+                          dth,ci,&wke,nx,ny,idimp,npmax,nxe,nypmx,idps,
+                          ntmax,ipbc);
+         }
+         else {
+            cppgbpush23l(part,fxyze,bxyze,edges,npp,noff,ihole,qbme,dt,dth,
+                         &wke,nx,ny,idimp,npmax,nxe,nypmx,idps,ntmax,ipbc);
+         }
+         dtimer(&dtime,&itime,1);
+         time = (float) dtime;
+         tpush += time;
+	  }
 /* check for ihole overflow error */
       if (ihole[0] < 0) {
          ierr = -ihole[0];
          fprintf(fp, "ihole overflow error: ntmax,ih=%d,%d\n",ntmax,ierr);
-         cppabort();
-         exit_pic(1);
+         exit(1);
       }
 
 /* move electrons into appropriate spatial regions: updates part, npp */
@@ -508,7 +444,7 @@ int main(int argc, char *argv[]) {
          if (kstrt==1) {
             fprintf(fp, "push particle manager error: ierr=%d\n",ierr);
          }
-		 exit_pic(1);
+		 exit(1);
       }
 
 /* sort particles for standard code: updates part */
@@ -540,75 +476,34 @@ int main(int argc, char *argv[]) {
       we = wtot[4];
       wf = wtot[5];
       wm = wtot[6];
-      if (ntime==0) {
-         if (kstrt==1) {
-            wt = we + wf + wm;
-			fprintf(fp, "Initial Total Field, Kinetic and Total Energies:\n");
-			fprintf(fp, "%e %e %e\n",wt,wke,wke+wt);
-			fprintf(fp, "Initial Electrostatic, Transverse Electric and \
-Magnetic Field Energies:\n");
-			fprintf(fp, "%e %e %e\n",we,wf,wm);
-         }
-      }
-      if(kstrt==1){
-		 if((ntime % pic_conversion_factor == 0) || 
-			(hide_search == true && 
-			((ntime % pic_conversion_factor) == pic_conversion_factor - 1))){
-			send_recv_data(units, relative_positions, nx*ny, 
-					       ntime, number_loops, p_variables_data, 
-						   p_variables_recv);
-		 }
-      }
+   
+      end_comp = std::chrono::steady_clock::now();
+      comp_seconds += (end_comp - start_comp);
    }
-   output_pic(ntime, relativity, nvp, we, wf, wm, wt, tdpost,
-			  tdjpost, tguard, tfield, tfft, tpush, tmov, tsort,
-			  time, kstrt, fp, wke, number_loops, np);
+   end_total = std::chrono::steady_clock::now();
+   total_seconds = end_total - start_total;
+   output_pic(ntime, nvp, wt, tdpost, tdjpost, tguard, 
+			  tfield, tfft, tpush, tmov, tsort, time, 
+			  kstrt, fp, comp_seconds.count(), 
+			  total_seconds.count());
 }
 /* * * * end main iteration loop * * * */
-void output_pic(int ntime, int relativity, int nvp, float we, float wf, float wm,
-				float wt, float tdpost, float tdjpost, float tguard, float tfield,
-				float tfft[], float tpush, float tmov, float tsort, float time,
-				int kstrt, FILE *fp, float wke, int nloop, double np){
+void output_pic(int ntime, int nvp, float wt, float tdpost, 
+				float tdjpost, float tguard, float tfield, float tfft[], 
+				float tpush, float tmov, float tsort, float time,
+				int kstrt, FILE *fp, double comp_sec, double tot_sec){
    if (kstrt==1) {
-	 fprintf(fp, "ntime, relativity = %i,%i\n",ntime,relativity);
-	 fprintf(fp, "MPI nodes nvp = %i\n",nvp);
-	 wt = we + wf + wm;
-	 fprintf(fp, "Final Total Field, Kinetic and Total Energies:\n");
-	 fprintf(fp, "%e %e %e\n",wt,wke,wke+wt);
-	 fprintf(fp, "Final Electrostatic, Transverse Electric and Magnetic \
-Field Energies:\n");
-	 fprintf(fp, "%e %e %e\n",we,wf,wm);
+	 fprintf(fp, "\n\n\n-----------------------------\n");
+     fprintf(fp, "Number of cycles = %i \n", ntime);
+     fprintf(fp, "MPI nodes = %i\n", nvp); 
 
-	 fprintf(fp, "\n");
-	 fprintf(fp, "deposit time = %f\n",tdpost);
-	 fprintf(fp, "current deposit time = %f\n",tdjpost);
 	 tdpost += tdjpost;
-	 fprintf(fp, "total deposit time = %f\n",tdpost);
-	 fprintf(fp, "guard time = %f\n",tguard);
-	 fprintf(fp, "solver time = %f\n",tfield);
-	 fprintf(fp, "fft and transpose time = %f,%f\n",tfft[0],tfft[1]);
-	 fprintf(fp, "push time = %f\n",tpush);
-	 fprintf(fp, "particle move time = %f\n",tmov);
-	 fprintf(fp, "sort time = %f\n",tsort);
 	 tfield += tguard + tfft[0];
-	 fprintf(fp, "total solver time = %f\n",tfield);
 	 tsort += tmov;
 	 time = tdpost + tpush + tsort;
-	 fprintf(fp, "total particle time = %f\n",time);
 	 wt = time + tfield;
 	 fprintf(fp, "total time = %f\n",wt);
-	 fprintf(fp, "\n");
-
-	 wt = 1.0e+09/(((float) nloop)*((float) np));
-	 fprintf(fp, "Push Time (nsec) = %f\n",tpush*wt);
-	 fprintf(fp, "Deposit Time (nsec) = %f\n",tdpost*wt);
-	 fprintf(fp, "Sort Time (nsec) = %f\n",tsort*wt);
-	 fprintf(fp, "Total Particle Time (nsec) = %f\n",time*wt);
+	 fprintf(fp, "total time in loop = %f\n", tot_sec);
+	 fprintf(fp, "total comp time in loop = %f\n", comp_sec);
    }
-   exit_pic(0);
-}
-
-void exit_pic(int code){
-	cppexit();
-	exit(code);
 }

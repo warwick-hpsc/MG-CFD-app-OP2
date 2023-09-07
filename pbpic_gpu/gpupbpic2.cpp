@@ -440,6 +440,9 @@ int main_gpupbpic(int argc, char *argv[], MPI_Fint custom, int instance_number,
                     &p_variables_recv);
    }
 
+   //remove effect of setup on timings
+   MPI_Barrier(MPI_COMM_WORLD);
+
 /* * * * start main iteration loop * * * */
    int number_loops = coupler_cycles * pic_conversion_factor;
    std::chrono::duration<double> comp_seconds;

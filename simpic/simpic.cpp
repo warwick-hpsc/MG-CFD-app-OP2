@@ -326,6 +326,10 @@ void mainloop(Scalar tmax, Scalar dt, FILE *fp)
       }
     }
   }
+
+  //remove effect of setup on timings
+  MPI_Barrier(MPI_COMM_WORLD);
+
   std::chrono::duration<double> total_seconds;
   std::chrono::duration<double> comp_seconds;
   std::chrono::steady_clock::time_point total_start;

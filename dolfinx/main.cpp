@@ -593,8 +593,11 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
 	}
 	
 	Table first_times = timings({TimingType::wall});
-	
-    //Calculate number of cycles
+
+	//remove effect of setup on timings
+	MPI_Barrier(MPI_COMM_WORLD);	
+    
+	//Calculate number of cycles
     int fenics_cycles = coupler_cycles*fenics_conversion_factor;
     common::Timer t_13th("05 Loop");
 	

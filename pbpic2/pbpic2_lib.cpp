@@ -240,6 +240,9 @@ int main_pbpic(int argc, char *argv[], MPI_Fint custom, int instance_number,
 				    &p_variables_recv);
    }
 
+   //remove effect of setup on timings
+   MPI_Barrier(MPI_COMM_WORLD);
+
 /* * * * start main iteration loop * * * */
    int number_loops = coupler_cycles * pic_conversion_factor;
    std::chrono::duration<double> comp_seconds;
@@ -262,8 +265,8 @@ int main_pbpic(int argc, char *argv[], MPI_Fint custom, int instance_number,
       }
       if (relativity==1) {
          cppgrjpost2l(part,cue,edges,npp,noff,ihole,qme,dth,ci,nx,ny,
-                      idimp,npmax,nxe,nypmx,idps,ntmax,ipbc);
-      }
+					  idimp,npmax,nxe,nypmx,idps,ntmax,ipbc);
+	  }
       else {
          cppgjpost2l(part,cue,edges,npp,noff,ihole,qme,dth,nx,ny,idimp,
                      npmax,nxe,nypmx,idps,ntmax,ipbc);

@@ -5,6 +5,8 @@ CC = cc
 CCOPTS = -O3 -fPIC
 LOPTS = -lm
 
+all: bin lib
+
 bin : cpbpic2.o cpbpush2.o cpplib2.o dtimer.o cpx_utils.o
 	$(MPICC) $(CCOPTS) $(LOPTS) -o cpbpic2 \
         cpbpic2.o cpbpush2.o cpplib2.o dtimer.o cpx_utils.o
