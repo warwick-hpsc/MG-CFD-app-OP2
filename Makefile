@@ -332,6 +332,13 @@ ifeq ($(NV_ARCH),Ampere)
 ifeq ($(OP2_COMPILER),hipsycl)
   SYCL_FLAGS += --hipsycl-gpu-arch=sm_80
 endif
+else
+ifeq ($(NV_ARCH),Hopper)
+  CODE_GEN_CUDA=-gencode arch=compute_90,code=sm_90
+ifeq ($(OP2_COMPILER),hipsycl)
+  SYCL_FLAGS += --hipsycl-gpu-arch=sm_90
+endif
+endif
 endif
 endif
 endif
@@ -596,7 +603,7 @@ $(OBJ_DIR)/mgcfd_kernels_cu.o: $(SRC_DIR)/../cuda/_kernels.cu $(CUDA_KERNELS)
 $(BIN_DIR)/mgcfd_cuda: $(OP2_CUDA_OBJECTS)
 	mkdir -p $(BIN_DIR)
 	$(CPP) $(CFLAGS) $(OPTIMISE) $^ $(MGCFD_LIBS) \
-	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_cuda $(HDF5_LIB) -lop2_hdf5 \
+	    $(CUDA_LIB) -lcudart $(OP2_LIB) -lop2_cuda -lop2_hdf5 $(HDF5_LIB) \
 	    -o $@
 
 
