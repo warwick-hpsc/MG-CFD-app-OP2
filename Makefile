@@ -108,8 +108,8 @@ ifeq ($(COMPILER),gnu)
 else
 ifeq ($(COMPILER),clang)
   CPP := clang++
-  MPICC += -cc=clang
-  MPICPP += -cxx=clang++
+#  MPICC += -cc=clang
+#  MPICPP += -cxx=clang++
 else
 ifeq ($(COMPILER),intel)
   CPP = icpx
@@ -161,19 +161,24 @@ ifeq ($(COMPILER),gnu)
   MPIFLAGS 	= $(CPPFLAGS)
 else
 ifeq ($(COMPILER),clang)
-  CFLAGS	= -fPIC -DUNIX -DVECTORIZE
+  CFLAGS	= -Ofast -fPIC -DUNIX -DVECTORIZE
   OPT_REPORT_OPTIONS := 
-  OPT_REPORT_OPTIONS += -Rpass-missed=loop-vec ## Report vectorisation failures
-  OPT_REPORT_OPTIONS += -Rpass="loop-(unroll|vec)" ## Report loop transformations
+  OPT_REPORT_OPTIONS += #-Rpass-missed=loop-vec ## Report vectorisation failures
+  OPT_REPORT_OPTIONS += #-Rpass="loop-(unroll|vec)" ## Report loop transformations
   # OPT_REPORT_OPTIONS += -Rpass-analysis=loop-vectorize ## Report WHY vectorize failed
-  OPT_REPORT_OPTIONS += -fsave-optimization-record -gline-tables-only -gcolumn-info
+  OPT_REPORT_OPTIONS += #-fsave-optimization-record -gline-tables-only -gcolumn-info
   CFLAGS += $(OPT_REPORT_OPTIONS)
-  CFLAGS += -fno-math-errno ## Disable C math function error checking, as prevents vectorisation
-  OPTIMISE += -fno-unroll-loops ## Loop unrolling interferes with vectorisation
-  OPTIMISE += -mcpu=native
+  CFLAGS += #-fno-math-errno ## Disable C math function error checking, as prevents vectorisation
+  OPTIMISE += #-fno-unroll-loops ## Loop unrolling interferes with vectorisation
+  OPTIMISE += #-mcpu=native
   CPPFLAGS 	= $(CFLAGS)
   OMPFLAGS 	= -fopenmp
+  OMPOFFLOAD = -fopenmp -munsafe-fp-atomics
   MPIFLAGS 	= $(CPPFLAGS)
+  SYCLCXX	= clang++
+  SYCL_FLAGS = -std=c++17 -fsycl -Ofast -munsafe-fp-atomics -ffast-math -fsycl-targets=amdgcn-amd-amdhsa -Xsycl-target-backend --offload-arch=gfx90a #-I$(SYCL_INSTALL_PATH)/include -I$(SYCL_INSTALL_PATH)/include #intel sycl -fsycl-targets=spir64_x86_64 -Xs "-march=avx512"
+  SYCL_LINK_SEQ = $(OP2_INSTALL_PATH)/c/lib/libop2_sycl.a
+  SYCL_LINK_MPI = $(OP2_INSTALL_PATH)/c/lib/libop2_mpi_sycl.a
 else
 ifeq ($(COMPILER),intel)
   CFLAGS = -DMPICH_IGNORE_CXX_SEEK -inline-forceinline -DVECTORIZE -qopt-report=5
@@ -225,6 +230,10 @@ ifeq ($(OP2_COMPILER),clang)
   MPICPP        = $(MPI_INSTALL_PATH)/bin/mpicxx
   MPIFLAGS      = $(CPPFLAGS)
   NVCCFLAGS     = -ccbin=$(NVCC_HOST_COMPILER)
+  SYCLCXX	= clang++
+  SYCL_FLAGS = -std=c++17 -fsycl -Ofast -ffast-math -march=native -fp-model fast -fno-alias -std=c++17 -fsycl-targets=amdgcn-amd-amdhsa -Xsycl-target-backend --offload-arch=gfx90a #-I$(SYCL_INSTALL_PATH)/include -I$(SYCL_INSTALL_PATH)/include #intel sycl -fsycl-targets=spir64_x86_64 -Xs "-march=avx512"
+  SYCL_LINK_SEQ = $(OP2_INSTALL_PATH)/c/lib/libop2_sycl.a
+  SYCL_LINK_MPI = $(OP2_INSTALL_PATH)/c/lib/libop2_mpi_sycl.a
 else
 ifeq ($(OP2_COMPILER),sycl)
   CPP		= g++
