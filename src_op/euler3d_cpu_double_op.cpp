@@ -20,6 +20,10 @@
     #endif
 #endif
 
+#ifdef SCOREP
+#include <scorep/SCOREP_User.h>
+#endif
+
 #ifdef ITT_NOTIFY
 #include <ittnotify.h>
 #endif
@@ -1313,6 +1317,10 @@ int main(int argc, char** argv)
         #ifdef PAPI
             my_papi_start();
         #endif
+        #ifdef SCOREP
+        SCOREP_USER_REGION_DEFINE(testca)
+        SCOREP_USER_REGION_BEGIN(testca, "testca", SCOREP_USER_REGION_TYPE_COMMON)
+        #endif
 
             test_comm_avoid("ca_test_comm_avoid", p_variables[level], p_edge_weights[level], p_dummy_fluxes[level], p_edge_to_nodes[level], op_edges[level],
                     nloops, nchains, DEFAULT_VARIABLE_INDEX);
@@ -1330,6 +1338,9 @@ int main(int argc, char** argv)
         #ifdef PAPI
             my_papi_stop(flux_kernel_event_counts);
         #endif
+        #ifdef SCOREP
+        SCOREP_USER_REGION_END(testca)
+        #endif
 
     #endif  // SLOPE --------------------
 
@@ -1343,6 +1354,10 @@ int main(int argc, char** argv)
         #endif
         #ifdef PAPI
             my_papi_start();
+        #endif
+        #ifdef SCOREP
+        SCOREP_USER_REGION_DEFINE(testca)
+        SCOREP_USER_REGION_BEGIN(testca, "testca", SCOREP_USER_REGION_TYPE_COMMON)
         #endif
 
             for(int nc = 0; nc < nchains; nc++){
@@ -1374,6 +1389,9 @@ int main(int argc, char** argv)
         #endif
         #ifdef PAPI
             my_papi_stop(flux_kernel_event_counts);
+        #endif
+        #ifdef SCOREP
+        SCOREP_USER_REGION_END(testca)
         #endif
 
 #endif  // COMM_AVOID ========================

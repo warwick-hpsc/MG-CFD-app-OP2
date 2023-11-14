@@ -6,6 +6,7 @@
 # directory.
 #
 
+SCOREP = 1
 # LIKWID = 1
 # PAPI = 1
 # DEBUG = 1
@@ -348,6 +349,11 @@ NVCCFLAGS += $(CODE_GEN_CUDA) -m64 -Xptxas -dlcm=ca -Xptxas=-v -use_fast_math -O
 MGCFD_INCS := -Isrc -Isrc/Kernels
 
 # Enable PAPI flag to enable performance counter monitoring with PAPI library:
+
+ifdef SCOREP
+  MGCFD_INCS += -DSCOREP -DSCOREP_USER_ENABLE
+endif
+
 ifdef PAPI
   MGCFD_INCS += $(PAPI_INC) -DPAPI
   MGCFD_LIBS := $(PAPI_LIB) -lpapi -lpfm
