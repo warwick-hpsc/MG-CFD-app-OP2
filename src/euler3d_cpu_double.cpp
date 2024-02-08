@@ -44,6 +44,8 @@ int** events = NULL;
 #include "utils.h"
 #include "io.h"
 #include "timer.h"
+#include "misc.h"
+#include "copy_double_kernel.h"
 
 // Global scalars:
 double smoothing_coefficient = double(0.2f);
