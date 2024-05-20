@@ -468,6 +468,7 @@ int main(int argc, char** argv)
             op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
         #endif
         if (i==1 && level == 0) {
+          op_reset_power_counters();
 #ifdef PROFILE_ITT
           __itt_resume();
 #endif
