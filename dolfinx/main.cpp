@@ -7,6 +7,8 @@
 #include <dolfinx/fem/petsc.h>
 #include <dolfinx/graph/partitioners.h>
 #include <dolfinx/io/XDMFFile.h>
+#include <dolfinx/refinement/plaza.h>
+#include <dolfinx/refinement/utils.h>
 #include "structures.h"
 #include "coupler_config.h"
 #include "const_op.h"
@@ -230,13 +232,10 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
   for (int i = 0; i < argc_fenics; i++)
   {
     std::string arg_str(argv_fenics[i]);
-    if (arg_str.find("Thermal_iterations") == std::string::npos and
-        arg_str.find("Structural_iterations") == std::string::npos and
-        arg_str.find("Thermal_outer_its") == std::string::npos and
-        arg_str.find("Structural_outer_its") == std::string::npos and
-        arg_str.find("Thermomech_simulation") == std::string::npos and
+    if (arg_str.find("Thermomech_simulation") == std::string::npos and
         arg_str.find("num_vertices") == std::string::npos and 
-		arg_str.find("output") == std::string::npos)
+		    arg_str.find("output") == std::string::npos and 
+        arg_str.find("mesh") == std::string::npos)
       argv_petsc.push_back(argv_fenics[i]);
   }
   int argc_ = argv_petsc.size();
@@ -248,20 +247,14 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
 
   po::options_description desc("Allowed options");
   desc.add_options()("help,h", "print usage message")(
-                     "Thermal_iterations", po::value<std::string>(),
-                     "The number of inner thermal Krylov iterations")(
-                     "Structural_iterations", po::value<std::string>(),
-                     "The number of inner structural Krylov iterations")(
-                     "Thermal_outer_its", po::value<std::string>(),
-                     "The number of outer thermal Newton iterations")(
-                     "Structural_outer_its", po::value<std::string>(),
-                     "The number of outer structural Newton iterations")(
+                     "mesh", po::value<std::string>(),
+                     "The absolute path to the mesh file")(
                      "num_vertices", po::value<std::string>(),
                      "The target number of vertices in the mesh")(
                      "Thermomech_simulation", po::value<std::string>(),
                      "Set to 1 for a Thermomech simulation and 0 for a Thermal")(
-					 "output", po::value<std::string>(),
-					 "Set to 1 or 0 to control if the mini-app simulates data output");
+					           "output", po::value<std::string>(),
+					           "Set to 1 or 0 to control if the mini-app simulates data output");
 
   po::variables_map vm;
   po::store(po::command_line_parser(argc_fenics, argv_fenics)
@@ -276,454 +269,570 @@ int main_dolfinx(int argc, char *argv[], MPI_Fint comm_int, int instance_number,
     std::cout << desc << "\n";
     return 0;
   }
+  const std::string mesh_path = vm["mesh"].as<std::string>();
+  const std::string st_num_vertices = vm["num_vertices"].as<std::string>();
+  const std::string st_thermomech = vm["Thermomech_simulation"].as<std::string>();
+  const std::string output_temp = vm["output"].as<std::string>();
+  
+  const int output_tmp = std::stoi(output_temp);
+  const int strut_flag = std::stoi(st_thermomech);
+  const int num_vertices = std::stoi(st_num_vertices);
+  const bool output = (output_tmp == 1);
 
-  {
+  if(dolfinx::MPI::rank(fenics_comm) == 0){
+    printf("Reading Mesh ...\n");
+  }
 
-    const std::string st_thermal_its = vm["Thermal_iterations"].as<std::string>();
-    const std::string st_structural_its = vm["Structural_iterations"].as<std::string>();
-    const std::string st_thermal_outer_its = vm["Thermal_outer_its"].as<std::string>();
-    const std::string st_structural_outer_its = vm["Structural_outer_its"].as<std::string>();
-    const std::string st_num_vertices = vm["num_vertices"].as<std::string>();
-    const std::string st_thermomech = vm["Thermomech_simulation"].as<std::string>();
-	const std::string st_output = vm["output"].as<std::string>();
+  dolfinx::io::XDMFFile file(fenics_comm, mesh_path, "r");
+  auto geometry = file.read_geometry_data("geometry");
+  auto topology = file.read_topology_data("volume markers");
+  dolfinx::graph::AdjacencyList<std::int64_t> cells_adj
+        = dolfinx::graph::regular_adjacency_list(topology.first,
+                                                 topology.second.back());
+  
+  if(dolfinx::MPI::rank(fenics_comm) == 0){
+    printf("Creating Mesh ...\n");
+  }
 
-	const int output_flag = std::stoi(st_output);
-	const int strut_flag = std::stoi(st_thermomech);
-	const int num_vertices = std::stoi(st_num_vertices);
-	int thermal_its;
-	int structural_its;
-	if(strut_flag == 1){
-		if(num_vertices > 400000){
-			structural_its = 0.5*std::stoi(st_structural_its);
-		}else{
-			structural_its = 0.85*std::stoi(st_structural_its);
-		}
-		thermal_its = 0.45*std::stoi(st_thermal_its);
-	}else{
-		thermal_its = 0.45*std::stoi(st_thermal_its);
-		structural_its = std::stoi(st_structural_its);
-	}
-    const int thermal_outer_its = std::stoi(st_thermal_outer_its);
-    const int structural_outer_its = std::stoi(st_structural_outer_its);
+  fem::CoordinateElement cmap
+        = fem::CoordinateElement(mesh::CellType::tetrahedron, 1);
 
-    if (internal_rank == 0)
-      fprintf(fp, "Creating Mesh ...");
+  auto first_mesh
+        = std::make_shared<dolfinx::mesh::Mesh>(dolfinx::mesh::create_mesh(
+            fenics_comm, cells_adj, cmap, geometry.first, geometry.second,
+            dolfinx::mesh::GhostMode::none));
+            //dolfinx::mesh::GhostMode::shared_facet));
+            //dolfinx::mesh::GhostMode::none));
+            
 
-      // Set graph partitioner, e.g. ParMETIS, PT-SCOTCH or Kahip
-#ifdef HAS_PARMETIS
-    auto graph_part = dolfinx::graph::parmetis::partitioner();
-#elif HAS_PTSCOTCH
-    auto graph_part = dolfinx::graph::scotch::partitioner(
-        dolfinx::graph::scotch::strategy::scalability);
-#elif HAS_KAHIP
-    auto graph_part = dolfinx::graph::kahip::partitioner();
-#else
-#error "No mesh partitioner has been selected"
-#endif
+  first_mesh->topology_mutable().create_entities(2);
+  first_mesh->topology_mutable().create_connectivity(2, 3);
 
-    auto cell_part = dolfinx::mesh::create_cell_partitioner(mesh::GhostMode::shared_facet, graph_part);
+  auto domain1 = file.read_meshtags(first_mesh, "volume markers");
+  auto facet1 = file.read_meshtags(first_mesh, "facet markers");
 
-    float tmp = round(std::cbrt(num_vertices));
-	long unsigned int mesh_vertices = int(tmp) - 1;
-    long unsigned int guess = (mesh_vertices+1)*(mesh_vertices+1)*(mesh_vertices+1);
-	double left_corner = 10.0;
-	if (internal_rank == 0 && debug)
-		fprintf(fp, "orginal number is %d, sqrt is %f, mesh vert is %lu, cal we think this %lu\n", num_vertices, tmp, mesh_vertices, guess);
+  auto first_cells = dolfinx::mesh::locate_entities(*first_mesh, 3, [](auto x){ 
+														std::vector<std::int8_t> marker(x.extent(1), true);
+														return marker;
+														});
+  int numcells = first_cells.size();
+  int total_cells;
+  MPI_Allreduce(&numcells, &total_cells, 1, MPI_INT, MPI_SUM, fenics_comm);
+  if (dolfinx::MPI::rank(fenics_comm) == 0){
+    printf("Inital mesh has %d cells\n", total_cells);
+  }
 
-	auto mesh = std::make_shared<dolfinx::mesh::Mesh>(dolfinx::mesh::create_box(
-                                        fenics_comm, {{{0.0, 0.0, 0.0},
-                                        {left_corner, left_corner, left_corner}}},
-                                        {mesh_vertices, mesh_vertices, mesh_vertices},
-                                        mesh::CellType::tetrahedron, cell_part));
+//  auto mesh = first_mesh;
 
-	mesh->topology_mutable().create_entities(2);
-	mesh->topology_mutable().create_connectivity(2, 3);
+  int total_adjusted_cells = total_cells;
+  double diff = num_vertices/total_adjusted_cells;
+  diff = (log(diff)/log(8));
+  double temp_cyc;
+  double decimal = std::modf(diff, &temp_cyc);
+  int cycles = int(temp_cyc);
 
-    int tdim = mesh->topology().dim();
-    auto domain2_indices2 = locate_entities(*mesh, tdim,
-                           [](auto&& x) { 
-										std::vector<std::int8_t> marker(x.extent(1), true);
-										return marker; 
-										});
-    int num_domain_indices = domain2_indices2.size();
-    std::vector<int> domain2_indices(num_domain_indices);
-    std::iota(std::begin(domain2_indices), std::end(domain2_indices), 0);
-    std::vector<int> domain2_values(domain2_indices.size(), 2);
-    auto domain2 = mesh::MeshTags<int>(mesh, tdim, domain2_indices, domain2_values);
+  if (dolfinx::MPI::rank(first_mesh->comm()) == 0){
+    printf("The number of full refine cycles is %d\n", cycles);
+  }
 
-    int fdim = mesh->topology().dim()-1;
-    auto facet2_indices2 = locate_entities(*mesh, fdim,
-                           [](auto&& x) {
-										std::vector<std::int8_t> marker(x.extent(1), true); 
-										return marker;
-										});
-    int num_facet_indices = facet2_indices2.size();
-    std::vector<int> facet2_indices(num_facet_indices);
-    std::iota(std::begin(facet2_indices), std::end(facet2_indices), 0);
-    std::vector<int> facet2_values(facet2_indices.size(), 512);
-    auto facet2 = mesh::MeshTags<int>(mesh, fdim, facet2_indices, facet2_values);
-
-    //============================= Transient Thermal
-    //==============================//
-    // Create function space
-    common::Timer t_11th("03 Transient Thermal: Setup");
-    auto V_th = std::make_shared<fem::FunctionSpace>(fem::create_functionspace(
-        functionspace_form_TransientThermal_F, "T", mesh));
-
-    // Create solution function
-    auto u_th = std::make_shared<fem::Function<PetscScalar>>(V_th);
-    u_th->x()->set(293.15);
-    // Create initial solution function
-
-    auto u0_th = std::make_shared<fem::Function<PetscScalar>>(V_th);
-    u0_th->x()->set(293.15);
-
-    auto t = std::make_shared<fem::Constant<PetscScalar>>(0.0);
-    auto dt = std::make_shared<fem::Constant<PetscScalar>>(100);
-
-    // Define Variational Problem
-    if (internal_rank == 0)
-      fprintf(fp, "Building Thermal Bilinear forms ...\n");
-
-    auto a_th = std::make_shared<fem::Form<PetscScalar>>(
-        fem::create_form<PetscScalar>(
-            *form_TransientThermal_J, {V_th, V_th},
-            {{"T", u_th}, {"T0", u0_th}}, {{"time", t}, {"dt", dt}},
-            {{fem::IntegralType::cell, &domain2},
-             {fem::IntegralType::exterior_facet, &facet2}}));
-
-    if (internal_rank == 0)
-      fprintf(fp, "Building Thermal Linear forms ... \n");
-    auto L_th = std::make_shared<fem::Form<PetscScalar>>(
-        fem::create_form<PetscScalar>(
-            *form_TransientThermal_F, {V_th}, {{"T", u_th}, {"T0", u0_th}},
-            {{"time", t}, {"dt", dt}},
-            {{fem::IntegralType::cell, &domain2},
-             {fem::IntegralType::exterior_facet, &facet2}}));
-
-    if (internal_rank == 0)
-      fprintf(fp, "Create nonlinear problem ... \n");
-
-    // Configure Solver
-    NLProblem problem_th(L_th, a_th, {});
-
-    nls::petsc::NewtonSolver nlth_solver(mesh->comm());
-    nlth_solver.atol = -1.0;
-    nlth_solver.rtol = -1.0;
-    nlth_solver.error_on_nonconvergence = false;
-    nlth_solver.max_it = thermal_outer_its;
-    std::string th_its = std::to_string(thermal_its);
-
-    // To change newtonsolver krylov solver settings
-    const la::petsc::KrylovSolver& kspsolver = nlth_solver.get_krylov_solver();
-    std::string prefix_t = kspsolver.get_options_prefix();
-    la::petsc::options::set(prefix_t + "ksp_type", "cg");
-    la::petsc::options::set(prefix_t + "ksp_max_it", th_its);
-    la::petsc::options::set(prefix_t + "ksp_convergence_test", "skip");
-    la::petsc::options::set(prefix_t + "pc_type", "hypre");
-    la::petsc::options::set(prefix_t + "pc_hypre_type", "boomeramg");
-    la::petsc::options::set(prefix_t + "pc_hypre_boomeramg_strong_threshold", 0.7);
-    la::petsc::options::set(prefix_t + "pc_hypre_boomeramg_agg_nl", 4);
-    la::petsc::options::set(prefix_t + "pc_hypre_boomeramg_agg_num_paths", 2);
-	if(debug == true){
-		la::petsc::options::set(prefix_t + "ksp_monitor", "");
-		la::petsc::options::set(prefix_t + "ksp_view", "");
-	}
-    kspsolver.set_from_options();
-   
-
-	dolfinx::io::XDMFFile xdmf_file_th(fenics_comm, "Temperatures.xdmf", "w"); 
-	if(output_flag == 1){
-		xdmf_file_th.write_mesh(*mesh);
-	}
-
-    t_11th.stop();
-
-    //============================= Steady Structural
-    //==============================//
-
-    common::Timer t_12th("04 Structral: Setup");
-
-    // Create function space and Define variational problem
-    auto V_st = std::make_shared<fem::FunctionSpace>(
-        dolfinx::fem::create_functionspace(functionspace_form_Structural_F, "u",
-                                           mesh));
-
-    // Create solution function
-    auto u_st = std::make_shared<fem::Function<PetscScalar>>(V_st);
-
-    // Define variational problem
-    if (internal_rank == 0)
-      fprintf(fp, "Building Structural Bilinear forms ... \n");
-
-    auto a_st = std::make_shared<fem::Form<PetscScalar>>(
-        fem::create_form<PetscScalar>(
-            *form_Structural_J, {V_st, V_st}, {{"T", u_th}, {"u", u_st}},
-            {{"time", t}},
-            {{fem::IntegralType::cell, &domain2},
-             {fem::IntegralType::exterior_facet, &facet2}}));
-
-    if (internal_rank == 0)
-      fprintf(fp, "Building Structural Linear forms ... \n");
-
-    auto L_st = std::make_shared<fem::Form<PetscScalar>>(
-        fem::create_form<PetscScalar>(
-            *form_Structural_F, {V_st}, {{"T", u_th}, {"u", u_st}},
-            {{"time", t}},
-            {{fem::IntegralType::cell, &domain2},
-             {fem::IntegralType::exterior_facet, &facet2}}));
-    //Set up boundary conditions
-    std::vector<std::shared_ptr<const fem::DirichletBC<PetscScalar>>> bcs_st;
-    auto bound_facets = dolfinx::mesh::locate_entities_boundary(
-         *mesh, mesh->topology().dim() - 1, [left_corner](auto x){
-							constexpr double eps = 1.0e-8;
-							std::vector<std::int8_t> marker(x.extent(1), false);
-							for (std::size_t p = 0; p < x.extent(1); ++p){
-								double x0 = x(0, p);
-								if (std::abs(x0) < eps or std::abs(x0 - left_corner) < eps)
-									marker[p] = true;
-							}
-							return marker;
-							});
-	const auto bdofs = fem::locate_dofs_topological({*V_st}, 
-							mesh->topology().dim() - 1, bound_facets);
-	auto bc_1 = std::make_shared<const fem::DirichletBC<PetscScalar>>(
-											std::vector<PetscScalar>{0, 0, 0}, 
-											std::move(bdofs), V_st);
-    bcs_st.push_back(bc_1);
-
-	NLProblem problem_st(L_st, a_st, bcs_st);
-    // Create near null space basis (required for smoothed aggregation AMG).
-    MatNullSpace ns = build_near_nullspace(*V_st);
-    // Attach near nullspace to matrix
-	MatSetNearNullSpace(problem_st.matrix(), ns);
-	MatSetBlockSize(problem_st.matrix(), 3);
-    MatNullSpaceDestroy(&ns);
-
-    // Configure Solver
-    nls::petsc::NewtonSolver nlst_solver(mesh->comm());
-    nlst_solver.atol = -1.0;
-    nlst_solver.rtol = -1.0;
-    nlst_solver.error_on_nonconvergence = false;
-    nlst_solver.max_it = structural_outer_its;
-    std::string st_its = std::to_string(structural_its);
-
-    // To change newtonsolver krylov solver settings
-    const la::petsc::KrylovSolver& kspsolver2 = nlst_solver.get_krylov_solver();
-    std::string prefix = kspsolver2.get_options_prefix();
-    la::petsc::options::set(prefix + "ksp_type", "cg");
-    if(debug == true){
-		la::petsc::options::set(prefix + "ksp_view", "");
-		la::petsc::options::set(prefix + "ksp_monitor", "");
-	}
-    la::petsc::options::set(prefix + "ksp_max_it", st_its);
-    la::petsc::options::set(prefix + "ksp_convergence_test", "skip");
-    la::petsc::options::set(prefix + "pc_type", "gamg");
-    la::petsc::options::set(prefix + "pc_gamg_coarse_eq_limit", 1000);
-    la::petsc::options::set(prefix + "mg_levels_ksp_type", "chebyshev");
-    la::petsc::options::set(prefix + "mg_levels_pc_type", "jacobi");
-    la::petsc::options::set(prefix + "pc_gamg_esteig_ksp_type", "cg");
-    kspsolver2.set_from_options();
-
-	dolfinx::io::XDMFFile xdmf_file_st(fenics_comm, "Displacements.xdmf", "w");
-	if(output_flag == 1){
-		xdmf_file_st.write_mesh(*mesh);
-	}
-
-    t_12th.stop();
-
-    //Find own structure
-    int fenics_unit_num = relative_positions[world_rank].placelocator;
-    int unit_count = 0;
-    int work_count = 1; //since units start from 1
-    bool found = false;
-    while(!found){
-      if(units[unit_count].type == 'F' && fenics_unit_num == work_count){
-        found=true;
-      }else{
-        if(units[unit_count].type != 'C'){
-          work_count++;
-        }
-        unit_count++;
-      }
-    }
-
-    la::petsc::Vector _u_th(la::petsc::create_vector_wrap(*u_th->x()), false);
-    la::petsc::Vector _u_st(la::petsc::create_vector_wrap(*u_st->x()), false);
-    auto uth_span = u_th->x()->array();
-    auto u0th_span = u0_th->x()->mutable_array();
-    VecScatterCreateToZero(_u_th.vec(),&scat,&send);
-
-    //get and send boundary sizes
-    PetscInt size_u;
-    VecGetSize(_u_th.vec(), &size_u);
-    double nodes_size = round(size_u * 0.03); //TEMP boundary 2.5% of grid.
-    if(internal_rank==0 && debug)
-      fprintf(fp, "boudary size %f\n", nodes_size);
-
-    double *p_variables_data = (double*) malloc(nodes_size * NVAR * sizeof(double));
-    double *p_variables_recv = (double*) malloc(nodes_size * NVAR * sizeof(double));
-
-    int total_coupler_unit_count = units[unit_count].coupler_ranks.size();
-    int ranks_per_coupler;
-    if (internal_rank == 0){
-      for(int z = 0; z < total_coupler_unit_count; z++){
-        ranks_per_coupler = units[unit_count].coupler_ranks[z].size();
-        for(int z2 = 0; z2 < ranks_per_coupler; z2++){
-          //Send the node sizes to each of the coupler ranks of each coupler unit.
-          MPI_Send(&nodes_size, 1, MPI_DOUBLE, units[unit_count].coupler_ranks[z][z2], 0, MPI_COMM_WORLD);
-        }
-      }
-    }
-	
-    if(internal_rank == 0)
-      fprintf(fp, "Entering transient thermo-mechanical iteration loop... \n");
-	
-	//rerun the two solvers since the first time has some overhead
-	nlth_solver.setF(problem_th.F(), problem_th.vector());
-	nlth_solver.setJ(problem_th.J(), problem_th.matrix());
-	nlth_solver.set_form(problem_th.form());
-	nlth_solver.solve(_u_th.vec());
-
-	if(strut_flag == 1){
-		nlst_solver.setF(problem_st.F(), problem_st.vector());
-		nlst_solver.setJ(problem_st.J(), problem_st.matrix());
-		nlst_solver.set_form(problem_st.form());
-		nlst_solver.solve(_u_st.vec());
-	}
-	
-	Table first_times = timings({TimingType::wall});
-
-	//remove effect of setup on timings
-	MPI_Barrier(MPI_COMM_WORLD);	
+  for(int i = 0; i < cycles; i++){
+    first_mesh->topology_mutable().create_entities(1);
+    auto[fine_mesh, parent_cell, parent_facet] = dolfinx::refinement::plaza::refine(
+                                                  *first_mesh, false, 
+                                                  dolfinx::refinement::plaza::RefinementOptions::parent_cell_and_facet);
     
-	//Calculate number of cycles
-    int fenics_cycles = coupler_cycles*fenics_conversion_factor;
-    common::Timer t_13th("05 Loop");
-	
-    for(int i = 0; i < fenics_cycles; i++){
-	  t->value[0] = t->value[0] + dt->value[0];
-      if(internal_rank == 0){
-        fprintf(fp, "Starting FEniCS X cycle %d of %d\n",i+1, fenics_cycles);
-        fprintf(fp, "Solving for temperature at time: %f\n", t->value[0]);
+    domain1 = dolfinx::refinement::transfer_cell_meshtag(domain1,
+                                                         std::make_shared<const dolfinx::mesh::Mesh>(fine_mesh),
+                                                         parent_cell);
+
+    first_mesh->topology_mutable().create_connectivity(3, 2);
+    fine_mesh.topology_mutable().create_connectivity(3, 2);
+
+    facet1 = dolfinx::refinement::transfer_facet_meshtag(facet1, 
+                                                         std::make_shared<const dolfinx::mesh::Mesh>(fine_mesh),
+                                                         parent_cell, parent_facet);
+  
+    facet1.mesh()->topology_mutable().create_connectivity(2, 3);
+
+    first_mesh = std::make_shared<dolfinx::mesh::Mesh>(fine_mesh);
+  }
+
+  first_cells = dolfinx::mesh::locate_entities(*first_mesh, 3, [](auto x){ 
+														std::vector<std::int8_t> marker(x.extent(1), true);
+														return marker;
+														});
+  numcells = first_cells.size();
+  MPI_Allreduce(&numcells, &total_cells, 1, MPI_INT, MPI_SUM, fenics_comm);
+  if (dolfinx::MPI::rank(fenics_comm) == 0){
+    printf("After full refine cycles mesh has %d cells\n", total_cells);
+  }
+
+  double factor = pow(8,decimal);
+  double true_factor = ((factor/10) * pow(0.7,1+cycles));
+
+  if(true_factor > 0.1){
+    first_mesh->topology_mutable().create_entities(1);
+
+    auto part_cell = dolfinx::mesh::locate_entities(*first_mesh, 3, [true_factor](auto x){ 
+                              std::vector<std::int8_t> marker(x.extent(1), false);
+                              for(int i = 0; i < x.extent(1)*true_factor; i++){
+                                marker.at(i) = true;
+                              }
+                              return marker;
+                              });
+
+    auto new_edges = dolfinx::mesh::compute_incident_entities(*first_mesh, part_cell, 3, 1);
+
+    auto[fine_mesh, parent_cell, parent_facet] = dolfinx::refinement::plaza::refine(
+                                                    *first_mesh, new_edges, false, 
+                                                    dolfinx::refinement::plaza::RefinementOptions::parent_cell_and_facet);
+    
+    domain1 = dolfinx::refinement::transfer_cell_meshtag(domain1,
+            std::make_shared<const dolfinx::mesh::Mesh>(fine_mesh),
+                                                          parent_cell);
+
+    first_mesh->topology_mutable().create_connectivity(3, 2);
+    fine_mesh.topology_mutable().create_connectivity(3, 2);
+
+    facet1 = dolfinx::refinement::transfer_facet_meshtag(facet1, 
+                                                      std::make_shared<const dolfinx::mesh::Mesh>(fine_mesh),
+                                                      parent_cell, parent_facet);
+
+    facet1.mesh()->topology_mutable().create_connectivity(2, 3);
+    first_mesh = std::make_shared<dolfinx::mesh::Mesh>(fine_mesh);
+  }
+  auto mesh = first_mesh;
+
+  auto cells = dolfinx::mesh::locate_entities(*mesh, 3, [](auto x){ 
+                          std::vector<std::int8_t> marker(x.extent(1), true);
+                          return marker;
+                          });
+  numcells = cells.size();
+  MPI_Reduce(&numcells, &total_cells, 1, MPI_INT, MPI_SUM, 0, fenics_comm);
+  
+  if (dolfinx::MPI::rank(mesh->comm()) == 0){
+    printf("Final number of cells in the mesh is %d\n", total_cells);
+  }
+
+  //============================= Transient Thermal
+  //==============================//
+  // Create function space
+  common::Timer t_11th("03 Transient Thermal: Setup");
+  auto V_th = std::make_shared<fem::FunctionSpace>(fem::create_functionspace(
+      functionspace_form_TransientThermal_F, "T", mesh));
+
+  // Create solution function
+  auto u_th = std::make_shared<fem::Function<PetscScalar>>(V_th);
+  u_th->x()->set(293.15);
+  // Create initial solution function
+
+  auto u0_th = std::make_shared<fem::Function<PetscScalar>>(V_th);
+  u0_th->x()->set(293.15);
+
+  auto t = std::make_shared<fem::Constant<PetscScalar>>(0.0);
+  auto dt = std::make_shared<fem::Constant<PetscScalar>>(100);
+
+  // Define Variational Problem
+  if (dolfinx::MPI::rank(fenics_comm) == 0)
+    printf( "Building Thermal Bilinear forms ...\n");
+
+  auto a_th = std::make_shared<fem::Form<PetscScalar>>(
+      fem::create_form<PetscScalar>(
+          *form_TransientThermal_J, {V_th, V_th},
+          {{"T", u_th}, {"T0", u0_th}}, {{"time", t}, {"dt", dt}},
+          {{fem::IntegralType::cell, &domain1},
+            {fem::IntegralType::exterior_facet, &facet1}}));
+
+  if (dolfinx::MPI::rank(fenics_comm) == 0)
+    printf( "Building Thermal Linear forms ... \n");
+
+  auto L_th = std::make_shared<fem::Form<PetscScalar>>(
+      fem::create_form<PetscScalar>(
+          *form_TransientThermal_F, {V_th}, {{"T", u_th}, {"T0", u0_th}},
+          {{"time", t}, {"dt", dt}},
+          {{fem::IntegralType::cell, &domain1},
+            {fem::IntegralType::exterior_facet, &facet1}}));
+
+  if (dolfinx::MPI::rank(fenics_comm) == 0)
+    printf( "Create nonlinear problem ... \n");
+
+  // Configure Solver
+  NLProblem problem_th(L_th, a_th, {});
+
+  nls::petsc::NewtonSolver nlth_solver(mesh->comm());
+  nlth_solver.atol = 1e-4;
+
+  // To change newtonsolver krylov solver settings
+  const la::petsc::KrylovSolver& kspsolver = nlth_solver.get_krylov_solver();
+  std::string prefix_t = kspsolver.get_options_prefix();
+  la::petsc::options::set(prefix_t + "ksp_type", "cg");
+  la::petsc::options::set(prefix_t + "ksp_rtol", 1.0e-8);
+  la::petsc::options::set(prefix_t + "pc_type", "hypre");
+  la::petsc::options::set(prefix_t + "pc_hypre_type", "boomeramg");
+  la::petsc::options::set(prefix_t + "pc_hypre_boomeramg_strong_threshold", 0.7);
+  la::petsc::options::set(prefix_t + "pc_hypre_boomeramg_agg_nl", 4);
+  la::petsc::options::set(prefix_t + "pc_hypre_boomeramg_agg_num_paths", 2);
+  kspsolver.set_from_options();
+
+  dolfinx::io::XDMFFile xdmf_file_th(fenics_comm, "Temperatures.xdmf", "w"); 
+  if(output){
+    xdmf_file_th.write_mesh(*mesh);
+  }
+
+  t_11th.stop();
+  //============================= Steady Structural
+  //==============================//
+
+  common::Timer t_12th("04 Structral: Setup");
+
+  // Create function space and Define variational problem
+  auto V_st = std::make_shared<fem::FunctionSpace>(
+      dolfinx::fem::create_functionspace(functionspace_form_Structural_F, "u",
+                                          mesh));
+
+  // Create solution function
+  auto u_st = std::make_shared<fem::Function<PetscScalar>>(V_st);
+
+  // Define variational problem
+  if (dolfinx::MPI::rank(fenics_comm) == 0)
+    printf( "Building Structural Bilinear forms ... \n");
+
+  auto a_st = std::make_shared<fem::Form<PetscScalar>>(
+      fem::create_form<PetscScalar>(
+          *form_Structural_J, {V_st, V_st}, {{"T", u_th}, {"u", u_st}},
+          {{"time", t}},
+          {{fem::IntegralType::cell, &domain1},
+            {fem::IntegralType::exterior_facet, &facet1}}));
+
+  if (dolfinx::MPI::rank(fenics_comm) == 0)
+    printf( "Building Structural Linear forms ... \n");
+
+  auto L_st = std::make_shared<fem::Form<PetscScalar>>(
+      fem::create_form<PetscScalar>(
+          *form_Structural_F, {V_st}, {{"T", u_th}, {"u", u_st}},
+          {{"time", t}},
+          {{fem::IntegralType::cell, &domain1},
+            {fem::IntegralType::exterior_facet, &facet1}}));
+  //Set up boundary conditions
+  auto V0 = std::make_shared<fem::FunctionSpace>(
+      V_st->sub({0})->collapse().first);
+  auto zero_0 = std::make_shared<fem::Function<PetscScalar>>(V0);
+  std::fill(zero_0->x()->mutable_array().begin(),
+            zero_0->x()->mutable_array().end(), 0);
+  auto V1 = std::make_shared<fem::FunctionSpace>(
+      V_st->sub({1})->collapse().first);
+  auto zero_1 = std::make_shared<fem::Function<PetscScalar>>(V1);
+  std::fill(zero_1->x()->mutable_array().begin(),
+            zero_1->x()->mutable_array().end(), 0);
+  auto V2 = std::make_shared<fem::FunctionSpace>(
+      V_st->sub({2})->collapse().first);
+  auto zero_2 = std::make_shared<fem::Function<PetscScalar>>(V2);
+  std::fill(zero_2->x()->mutable_array().begin(),
+            zero_2->x()->mutable_array().end(), 0);
+            
+  // TODO: add comments 1156 added 
+  std::vector<std::int32_t> tag0{459, 460};
+  std::vector<std::int32_t> tag1{803, 804,  805,  813,  814,
+                                  815, 1153, 1154, 1157, 1158};
+  std::vector<std::shared_ptr<const fem::DirichletBC<PetscScalar>>> bcs_st;
+
+  for (auto i : tag0)
+  {
+    auto facets_dim0 = facet1.find(i);
+    auto dofs0 = dolfinx::fem::locate_dofs_topological(
+        {*V_st->sub({0}), *zero_0->function_space()},
+        mesh->topology().dim() - 1, facets_dim0);
+    auto x_bc = std::make_shared<const fem::DirichletBC<PetscScalar>>(
+        zero_0, std::move(dofs0), V_st);
+    bcs_st.push_back(x_bc);
+  }
+  for (auto i : tag1)
+  {
+    auto facets_dim1 = facet1.find(i);
+    auto dofs1 = dolfinx::fem::locate_dofs_topological(
+        {*V_st->sub({1}), *zero_1->function_space()},
+        mesh->topology().dim() - 1, facets_dim1);
+    auto y_bc = std::make_shared<const fem::DirichletBC<PetscScalar>>(
+        zero_1, std::move(dofs1), V_st);
+    bcs_st.push_back(y_bc);
+    auto dofs2 = dolfinx::fem::locate_dofs_topological(
+        {*V_st->sub({2}), *zero_2->function_space()},
+        mesh->topology().dim() - 1, facets_dim1);
+    auto z_bc = std::make_shared<const fem::DirichletBC<PetscScalar>>(
+        zero_2, std::move(dofs2), V_st);
+    bcs_st.push_back(z_bc);
+  }
+
+  NLProblem problem_st(L_st, a_st, bcs_st);
+  // Create near null space basis (required for smoothed aggregation AMG).
+  MatNullSpace ns = build_near_nullspace(*V_st);
+  // Attach near nullspace to matrix
+  MatSetNearNullSpace(problem_st.matrix(), ns);
+  MatSetBlockSize(problem_st.matrix(), 3);
+  MatNullSpaceDestroy(&ns);
+
+  // Configure Solver
+  nls::petsc::NewtonSolver nlst_solver(mesh->comm());
+  nlst_solver.atol = 1e-4;
+
+  // To change newtonsolver krylov solver settings
+  const la::petsc::KrylovSolver& kspsolver2 = nlst_solver.get_krylov_solver();
+  std::string prefix = kspsolver2.get_options_prefix();
+  la::petsc::options::set(prefix + "ksp_type", "cg");
+  la::petsc::options::set(prefix + "pc_type", "gamg");
+  la::petsc::options::set(prefix + "pc_gamg_coarse_eq_limit", 1000);
+  la::petsc::options::set(prefix + "ksp_rtol", 1e-8);
+  la::petsc::options::set(prefix + "mg_levels_ksp_type", "chebyshev");
+  la::petsc::options::set(prefix + "mg_levels_pc_type", "jacobi");
+  la::petsc::options::set(prefix + "pc_gamg_esteig_ksp_type", "cg");
+  kspsolver2.set_from_options();
+
+  dolfinx::io::XDMFFile xdmf_file_st(fenics_comm, "Displacements.xdmf", "w");
+  if(output){
+    xdmf_file_st.write_mesh(*mesh);
+  }
+
+  t_12th.stop();
+
+  //Find own structure
+  int fenics_unit_num = relative_positions[world_rank].placelocator;
+  int unit_count = 0;
+  int work_count = 1; //since units start from 1
+  bool found = false;
+  while(!found){
+    if(units[unit_count].type == 'F' && fenics_unit_num == work_count){
+      found=true;
+    }else{
+      if(units[unit_count].type != 'C'){
+        work_count++;
+      }
+      unit_count++;
+    }
+  }
+
+  la::petsc::Vector _u_th(la::petsc::create_vector_wrap(*u_th->x()), false);
+  la::petsc::Vector _u_st(la::petsc::create_vector_wrap(*u_st->x()), false);
+  auto uth_span = u_th->x()->array();
+  auto u0th_span = u0_th->x()->mutable_array();
+  VecScatterCreateToZero(_u_th.vec(),&scat,&send);
+
+  //get and send boundary sizes
+  PetscInt size_u;
+  VecGetSize(_u_th.vec(), &size_u);
+  double nodes_size = round(size_u * 0.03); //TEMP boundary 2.5% of grid.
+  if(internal_rank==0 && debug)
+    fprintf(fp, "boudary size %f\n", nodes_size);
+
+  double *p_variables_data = (double*) malloc(nodes_size * NVAR * sizeof(double));
+  double *p_variables_recv = (double*) malloc(nodes_size * NVAR * sizeof(double));
+
+  int total_coupler_unit_count = units[unit_count].coupler_ranks.size();
+  int ranks_per_coupler;
+  if (internal_rank == 0){
+    for(int z = 0; z < total_coupler_unit_count; z++){
+      ranks_per_coupler = units[unit_count].coupler_ranks[z].size();
+      for(int z2 = 0; z2 < ranks_per_coupler; z2++){
+        //Send the node sizes to each of the coupler ranks of each coupler unit.
+        MPI_Send(&nodes_size, 1, MPI_DOUBLE, units[unit_count].coupler_ranks[z][z2], 0, MPI_COMM_WORLD);
+      }
+    }
+  }
+
+  if(dolfinx::MPI::rank(fenics_comm) == 0)
+    printf("Entering transient thermo-mechanical iteration loop... \n");
+  //rerun the two solvers since the first time has some overhead
+  nlth_solver.setF(problem_th.F(), problem_th.vector());
+  nlth_solver.setJ(problem_th.J(), problem_th.matrix());
+  nlth_solver.set_form(problem_th.form());
+  nlth_solver.solve(_u_th.vec());
+
+  if(strut_flag == 1){
+    nlst_solver.setF(problem_st.F(), problem_st.vector());
+    nlst_solver.setJ(problem_st.J(), problem_st.matrix());
+    nlst_solver.set_form(problem_st.form());
+    nlst_solver.solve(_u_st.vec());
+    u_st->x()->set(0.0);
+  }
+
+  u_th->x()->set(293.15);
+
+  //remove effect of setup on timings
+  MPI_Barrier(MPI_COMM_WORLD);	
+
+  //Calculate number of cycles
+  int fenics_cycles = coupler_cycles*fenics_conversion_factor;
+  //int fenics_cycles = 12;
+  common::Timer t_13th("05 Loop");
+
+  std::chrono::duration<double> total_seconds;
+  std::chrono::duration<double> total_seconds1;
+  std::chrono::time_point<std::chrono::steady_clock> start;
+  std::chrono::time_point<std::chrono::steady_clock> end;
+
+  double total_time = 0.0;
+  double strut_time = 0.0;
+  double therm_time = 0.0;
+  int strut_its = 0;
+  int therm_its = 0; 
+
+  for(int i = 0; i < fenics_cycles; i++)
+  {
+    start = std::chrono::steady_clock::now();
+    t->value[0] = t->value[0] + dt->value[0];
+    if(dolfinx::MPI::rank(fenics_comm) == 0){
+      //printf( "Starting FEniCS X cycle %d of %d\n",i+1, fenics_cycles);
+      printf( "Solving for temperature at time: %f\n", t->value[0]);
+    }
+
+    common::Timer t_15th("07 Compute in Loop");
+    // Solving for thermal
+    nlth_solver.setF(problem_th.F(), problem_th.vector());
+    nlth_solver.setJ(problem_th.J(), problem_th.matrix());
+    nlth_solver.set_form(problem_th.form());
+    auto [th_its, converged1] = nlth_solver.solve(_u_th.vec());
+
+    if(output){
+    xdmf_file_th.write_function(*u_th, t->value[0]);
+    }
+
+    // Copy solution from this time step to previous time step
+    std::copy(uth_span.begin(), uth_span.end(), u0th_span.begin());
+
+    end = std::chrono::steady_clock::now();
+    total_seconds = (end-start);
+    start = std::chrono::steady_clock::now();
+
+    if(strut_flag == 1){
+      if(dolfinx::MPI::rank(fenics_comm) == 0){
+        printf( "Solving displacement for time: %f\n", t->value[0]);
       }
 
-      common::Timer t_15th("07 Compute in Loop");
-      // Solving for thermal
-      nlth_solver.setF(problem_th.F(), problem_th.vector());
-      nlth_solver.setJ(problem_th.J(), problem_th.matrix());
-	  nlth_solver.set_form(problem_th.form());
-      nlth_solver.solve(_u_th.vec());
+      // Solving for structural
+      nlst_solver.setF(problem_st.F(), problem_st.vector());
+      nlst_solver.setJ(problem_st.J(), problem_st.matrix());
+      nlst_solver.set_form(problem_st.form());
+      auto [st_its, converged2] = nlst_solver.solve(_u_st.vec());
 
-	  if(output_flag == 1){
-		xdmf_file_th.write_function(*u_th, t->value[0]);
-	  }
-
-      // Copy solution from this time step to previous time step
-      std::copy(uth_span.begin(), uth_span.end(), u0th_span.begin());
-
-	  if(strut_flag == 1){
-        if(internal_rank == 0){
-          fprintf(fp, "Solving displacement for time: %f\n", t->value[0]);
-        }
-
-        // Solving for structural
-        nlst_solver.setF(problem_st.F(), problem_st.vector());
-        nlst_solver.setJ(problem_st.J(), problem_st.matrix());
-        nlst_solver.set_form(problem_st.form());
-        nlst_solver.solve(_u_st.vec());
-		if(output_flag == 1){
-			xdmf_file_st.write_function(*u_st, t->value[0]);
-		}
+      if(output){
+        xdmf_file_st.write_function(*u_st, t->value[0]);
       }
-      t_15th.stop();
-      //Send data
-      if((i % fenics_conversion_factor == 0) || (hide_search == true && ((i % fenics_conversion_factor) == fenics_conversion_factor - 1))){
-		if(internal_rank == 0){
+
+      end = std::chrono::steady_clock::now();
+      total_seconds1 = (end-start);
+      double max_time1 = 0.0, min_time1 = 0.0, avg_time1 = 0.0;
+      double max_time2 = 0.0, min_time2 = 0.0, avg_time2 = 0.0;
+      double temp = total_seconds.count();
+      MPI_Reduce(&temp, &max_time1, 1, MPI_DOUBLE, MPI_MAX, 0, fenics_comm);
+      MPI_Reduce(&temp, &min_time1, 1, MPI_DOUBLE, MPI_MIN, 0, fenics_comm);
+      MPI_Reduce(&temp, &avg_time1, 1, MPI_DOUBLE, MPI_SUM, 0, fenics_comm);
+      temp = total_seconds1.count();
+      MPI_Reduce(&temp, &max_time2, 1, MPI_DOUBLE, MPI_MAX, 0, fenics_comm);
+      MPI_Reduce(&temp, &min_time2, 1, MPI_DOUBLE, MPI_MIN, 0, fenics_comm);
+      MPI_Reduce(&temp, &avg_time2, 1, MPI_DOUBLE, MPI_SUM, 0, fenics_comm);
+      avg_time1 /= dolfinx::MPI::size(fenics_comm);
+      avg_time2 /= dolfinx::MPI::size(fenics_comm);
+      if(dolfinx::MPI::rank(fenics_comm) == 0){
+        total_time += max_time1;
+        total_time += max_time2;
+        strut_time += max_time2;
+        therm_time += max_time1;
+        strut_its += nlst_solver.krylov_iterations();
+        therm_its += nlth_solver.krylov_iterations();
+        printf("cycle %d results:\n\tThermal time: %f (Max %f, Min %f) iterations: %d (%d inner)\n\tStrucutral time: %f (Max %f, Min %f) iterations %d (%d inner)\n", i, avg_time1, max_time1, min_time1, th_its, nlth_solver.krylov_iterations(), avg_time2, max_time2, min_time2, st_its, nlst_solver.krylov_iterations());
+      }
+    }
+    t_15th.stop();
+    //Send data
+    if((i % fenics_conversion_factor == 0) || (hide_search == true && ((i % fenics_conversion_factor) == fenics_conversion_factor - 1)))
+    {
+      VecScatterBegin(scat, _u_th.vec(), send, INSERT_VALUES, SCATTER_FORWARD);
+      VecScatterEnd(scat, _u_th.vec(), send, INSERT_VALUES, SCATTER_FORWARD);
+      if(internal_rank == 0)
+      {
+        PetscScalar *send_array;
+        VecGetArray(send, &send_array);
+        for(int j = 0; j < nodes_size; j++)
+        {
+          p_variables_data[j] = send_array[j];
         }
-		VecScatterBegin(scat, _u_th.vec(), send, INSERT_VALUES, SCATTER_FORWARD);
-        VecScatterEnd(scat, _u_th.vec(), send, INSERT_VALUES, SCATTER_FORWARD);
-        if(internal_rank == 0){
-          PetscScalar *send_array;
-          VecGetArray(send, &send_array);
-          for(int j = 0; j < nodes_size; j++){
-            p_variables_data[j] = send_array[j];
-          }
-          VecRestoreArray(send, &send_array);
-          fprintf(fp, "FEniCS X coupler cycle %d of %d comms starting\n", (i/fenics_conversion_factor)+1, coupler_cycles);
-          for(int j = 0; j < total_coupler_unit_count; j++){
-            int coupler_rank = units[unit_count].coupler_ranks[j][0];
-            int coupler_position = relative_positions[coupler_rank].placelocator;
-            found = false;
-            int unit_count_2 = 0;
-            int coupler_unit_count = 1;
-            while(!found){//this is used to find out the unit index of the coupler unit
-              if(units[unit_count_2].type == 'C' && coupler_unit_count == coupler_position){
-                found=true;
-              }else{
-                if(units[unit_count_2].type == 'C'){
-                  coupler_unit_count++;
-                }
-                unit_count_2++;
-              }
+        VecRestoreArray(send, &send_array);
+        fprintf(fp, "FEniCS X coupler cycle %d of %d comms starting\n", (i/fenics_conversion_factor)+1, coupler_cycles);
+        for(int j = 0; j < total_coupler_unit_count; j++)
+        {
+          int coupler_rank = units[unit_count].coupler_ranks[j][0];
+          int coupler_position = relative_positions[coupler_rank].placelocator;
+          found = false;
+          int unit_count_2 = 0;
+          int coupler_unit_count = 1;
+          while(!found)
+          {//this is used to find out the unit index of the coupler unit
+            if(units[unit_count_2].type == 'C' && coupler_unit_count == coupler_position)
+            {
+              found=true;
             }
-            int coupler_vars = 0;
-            if(units[unit_count_2].coupling_type == 'C'){
-              coupler_vars = 1;
-			}
-            if(hide_search == true && fenics_conversion_factor != 1){
-              if((i % (search_freq*fenics_conversion_factor)) == 0){
-                MPI_Send(p_variables_data, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-              }else if((i % fenics_conversion_factor) == fenics_conversion_factor - 1){
-                MPI_Recv(p_variables_recv, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-              }else{
-                MPI_Send(p_variables_data, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
-                MPI_Recv(p_variables_recv, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			  }
-            }else{
+            else
+            {
+              if(units[unit_count_2].type == 'C')
+              {
+                coupler_unit_count++;
+              }
+              unit_count_2++;
+            }
+          }
+          int coupler_vars = 0;
+          if(units[unit_count_2].coupling_type == 'C')
+          {
+            coupler_vars = 1;
+			    }
+          if(hide_search == true && fenics_conversion_factor != 1)
+          {
+            if((i % (search_freq*fenics_conversion_factor)) == 0)
+            {
               MPI_Send(p_variables_data, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+            }
+            else if((i % fenics_conversion_factor) == fenics_conversion_factor - 1)
+            {
               MPI_Recv(p_variables_recv, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
+            else
+            {
+              MPI_Send(p_variables_data, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+              MPI_Recv(p_variables_recv, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			      }
+          }
+          else
+          {
+            MPI_Send(p_variables_data, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD);
+            MPI_Recv(p_variables_recv, nodes_size * coupler_vars, MPI_DOUBLE, coupler_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
           }
         }
-		if(internal_rank == 0){
-			fprintf(fp, "FEniCS X coupler cycle %d of %d comms ending\n", (i/fenics_conversion_factor)+1, coupler_cycles);
-		}
       }
-      if(internal_rank == 0){
-        fprintf(fp, "Ending FEniCS X cycle %d of %d\n", i+1, fenics_cycles);
+      if(internal_rank == 0)
+      {
+        fprintf(fp, "FEniCS X coupler cycle %d of %d comms ending\n", (i/fenics_conversion_factor)+1, coupler_cycles);
       }
     }
-    t_13th.stop();
-
-	if(output_flag == 1){
-      if(strut_flag == 1){
-        xdmf_file_st.close();
-      }
-      xdmf_file_th.close();
-	}
-    Table times = timings({TimingType::wall});
-	times.set("PETSc Krylov solver", "wall tot",
-				(std::get<double>(times.get("PETSc Krylov solver", "wall tot"))
-				-std::get<double>(first_times.get("PETSc Krylov solver", "wall tot"))));
-	times.set("PETSc Krylov solver", "reps",
-				(std::get<int>(times.get("PETSc Krylov solver", "reps"))
-				-std::get<int>(first_times.get("PETSc Krylov solver", "reps"))));
-	times.set("PETSc Krylov solver", "wall avg",
-				(std::get<double>(times.get("PETSc Krylov solver", "wall tot"))
-				/std::get<int>(times.get("PETSc Krylov solver", "reps"))));
-	double loop = std::get<double>(times.get("05 Loop", "wall tot"));
-	double pure_compute = std::get<double>(times.get(
-							"07 Compute in Loop", "wall tot"));
-    if(internal_rank == 0 && debug){
-      fprintf(fp,"%s\n\n\n\n" ,times.str().c_str());
+    if(internal_rank == 0)
+    {
+      fprintf(fp, "Ending FEniCS X cycle %d of %d\n", i+1, fenics_cycles);
     }
-	if(internal_rank == 0){
-	  fprintf(fp, "-------------------------------------\n");
-	  fprintf(fp, "total time in loop = %f\n", loop);
-	  fprintf(fp, "total compute in loop = %f\n", pure_compute);
-	}
   }
+  t_13th.stop();
+
+  if(dolfinx::MPI::rank(fenics_comm) == 0)
+  {
+    printf("Total program time is %f (T: %f + S: %f)\nTotal its %d (T: %d + S: %d)\n", total_time, therm_time, strut_time, strut_its + therm_its, therm_its, strut_its);
+  }
+
+  if(output)
+  {
+    if(strut_flag == 1)
+    {
+      xdmf_file_st.close();
+    }
+    xdmf_file_th.close();
+  }
+
   MPI_Barrier(fenics_comm);
   PetscFinalize();
   MPI_Finalize();

@@ -5,11 +5,15 @@
 #ifdef defsimpic
     #include "simpic_lib.h"
 #endif
+//TODO: because of cpx_utils you get a repeat symbol with pbpic and combust together.
 #ifdef defpbpic
 	#include "pbpic_lib.h"
 #endif
 #ifdef defgpupbpic
 	#include "gpupbpic_lib.h"
+#endif
+#ifdef defcombust
+	#include "minicombust_lib.h"
 #endif
 #include <stdio.h>
 #include <mpi.h>
@@ -41,6 +45,7 @@ int main(int argc, char** argv){
 	char simpic[] = "SIMPIC";
 	char pbpic[] = "PBPIC";
 	char gpupb[] = "GPUPBPIC";
+	char combust[] = "COMBUST";
 	char unit_1[] = "UNIT_1";
 	char unit_2[] = "UNIT_2";
 	char total[] = "TOTAL";
@@ -57,6 +62,7 @@ int main(int argc, char** argv){
 	int simpic_count = 0;//used to count the number of SIMPIC units
 	int pbpic_count = 0;//used to count the number of PBPIC units
 	int gpupbpic_count = 0;//used to count the number of GPUPBPIC units
+	int combust_count = 0;//used to count the number of Mini-Combust units
 
 	fscanf(ifp, "%s %d", keyword, &temp_unit);
 	if(strcmp(keyword, total) == 0){
@@ -133,6 +139,16 @@ int main(int argc, char** argv){
             temp_count++;
             gpupbpic_count++;
             mpi_ranks += temp_unit;
+		}else if(strcmp(keyword, combust) == 0){
+			#ifndef defcombust
+				fprintf(stderr, "Error: CPX has not been compiled with Mini-Combust support.\n");
+				exit(1);
+			#endif
+			units[temp_count].type = 'S';
+			units[temp_count].processes = temp_unit;
+			temp_count++;
+			combust_count++;
+			mpi_ranks += temp_unit;
 		}else if(strcmp(keyword, unit_1) == 0 || strcmp(keyword, unit_2) == 0){
 			units[temp_count-1].mgcfd_units.push_back(temp_unit);
 		}
@@ -192,7 +208,7 @@ int main(int argc, char** argv){
 			temp_marker += units[i].processes;
 		}       
 		if(units[i].type == 'C'){
-			if(units[i].coupling_type == 'O'){
+			/*if(units[i].coupling_type == 'O'){
 				if((units[units[i].mgcfd_units[0] - 1].type == 'F') or (units[units[i].mgcfd_units[1] - 1].type == 'F')){
 					if(rank == 0){
 						fprintf(stderr, "Error: OVERSET boundaries cannot contain FEniCS units.\n");
@@ -214,7 +230,7 @@ int main(int argc, char** argv){
 					}
 					exit(1);
 				}
-			}
+			}*/
 			temp_coupler++;
 			temp_coupler_position.push_back(temp_coupler);
 			for(int j=temp_marker; j < temp_marker + units[i].processes; j++){
@@ -302,6 +318,7 @@ int main(int argc, char** argv){
 	bool is_simpic = false;
 	bool is_pbpic = false;
 	bool is_gpupb = false;
+	bool is_combust = false;
 	int instance_number = 0;
 
 	for(int i=0; i<num_of_units;i++){
@@ -336,6 +353,8 @@ int main(int argc, char** argv){
 						is_pbpic = true;
 					} else if(units[i].type == 'G'){
 						is_gpupb = true;
+					}else if(units[i].type == 'S'){
+						is_combust = true;
 					}
 					instance_number = relative_positions[rank].placelocator;
 				}
@@ -365,6 +384,11 @@ int main(int argc, char** argv){
 		}else if(is_gpupb){
 			#ifdef defgpupbpic
 				main_gpupbpic(argc, argv, comms_shell, instance_number, units, relative_positions);
+			#endif
+			MPI_Finalize();
+		}else if(is_combust){
+			#ifdef defcombust
+				main_minicombust(argc, argv, comms_shell, instance_number, units, relative_positions);
 			#endif
 			MPI_Finalize();
 		}
@@ -420,28 +444,44 @@ int main(int argc, char** argv){
 
 			int left_right_size = (int) ((left_nodes_size + right_nodes_size)/2);
 
-			double adjusted_sizes_left = ceil((left_nodes_size/34000)/4);
-			double adjusted_sizes_right = ceil((right_nodes_size/34000)/4);
-
 			//set the scaling for the search and interpolation routines
+			double adjusted_sizes_left = 0;
+            double adjusted_sizes_right = 0;
 			double left_search_scaling = 0;
 			double right_search_scaling = 0;
-			double search_repeats = 10;
-            double interp_scaling = 90;
+			double search_repeats = 0;
+            double interp_scaling = 0;
             int coupler_vars = 0;
+			double fixed_scaling = 0;
             if(units[unit_count].coupling_type == 'S'){
+				search_repeats = 10;
 				if(ultrafastsearch)
 					search_repeats = 0.25;
+				adjusted_sizes_left = ceil((left_nodes_size/34000)/4);
+                adjusted_sizes_right = ceil((right_nodes_size/34000)/4);
                 left_search_scaling = search_repeats * adjusted_sizes_left;
                 right_search_scaling = search_repeats * adjusted_sizes_right;
+				interp_scaling = (90/((adjusted_sizes_left + adjusted_sizes_right)/2));
                 coupler_vars = 5;
             }else if(units[unit_count].coupling_type == 'O'){
+				search_repeats = 10;
+				adjusted_sizes_left = ceil((left_nodes_size/34000)/4);
+                adjusted_sizes_right = ceil((right_nodes_size/34000)/4);
 				left_search_scaling = search_repeats * adjusted_sizes_left;
                 right_search_scaling = search_repeats * adjusted_sizes_right;
-                coupler_vars = 1;
+                interp_scaling = (90/((adjusted_sizes_left + adjusted_sizes_right)/2));
+				coupler_vars = 1;
 			}else if(units[unit_count].coupling_type == 'C'){
-                left_search_scaling = 3;
-                right_search_scaling = 2;
+				if(left_right_size > 450000){
+					fixed_scaling = 1.5;
+					interp_scaling = 30;
+				}else{
+					fixed_scaling = 0.5;
+					interp_scaling = 110;
+				}
+				search_repeats = 2;
+                left_search_scaling = search_repeats;
+                right_search_scaling = search_repeats;
                 coupler_vars = 1;
             }
 
@@ -475,23 +515,6 @@ int main(int argc, char** argv){
 			std::vector<double> node_state_vars_left;
 			std::vector<double> node_state_vars_right;
 			std::vector<double> node_state_vars_temp;
-		
-			//set up some random data for cht interpolation
-			double **data_ran;
-			int ar_size_max = left_right_size*0.9;
-			if(units[unit_count].coupling_type == 'C'){
-				if(rank == root_rank && debug == true){
-					fprintf(fp, "size is %d\n", ar_size_max);
-				}
-				srand((unsigned)time(NULL));
-				data_ran = new double*[ar_size_max];
-				for(int i = 0; i < ar_size_max; i++){
-					data_ran[i] = new double[4];
-					for(int k = 0; k < 4; k++){
-						data_ran[i][k] = rand()/1000;
-					}
-				}
-			}
 			
 			//remove effect of setup on timings
 			MPI_Barrier(MPI_COMM_WORLD);
@@ -658,58 +681,35 @@ int main(int argc, char** argv){
 				//rendezvous routines end
 				
 				//interpolate routine start
-				if(units[unit_count].coupling_type == 'S' || units[unit_count].coupling_type == 'O'){
-					node_state_vars_left.clear();
-					node_state_vars_right.clear();
-					node_state_vars_temp.clear();
+				node_state_vars_left.clear();
+				node_state_vars_right.clear();
+				node_state_vars_temp.clear();
+				vector_counter = 0;
+				sub_count = 0;
+				vector_counter_max = left_right_size_chunks;//this is size of mesh recieved from scatter
+				while(sub_count < (total_ranks*interp_scaling)){
+					while(vector_counter < vector_counter_max/total_ranks){
+						node_state_vars_left = left_vector_of_state_vars.at(vector_counter);
+						node_state_vars_right = right_vector_of_state_vars.at(vector_counter);
+						node_state_vars_temp = node_state_vars_right;
+						for(int i = 0; i<coupler_vars; i++){
+							node_state_vars_right.at(i) = (node_state_vars_left.at(i) + node_state_vars_right.at(i))/2;
+							node_state_vars_left.at(i) = (node_state_vars_left.at(i) + node_state_vars_temp.at(i))/2;
+						}
+						vector_counter++;
+					}
 					vector_counter = 0;
-					sub_count = 0;
-					vector_counter_max = left_right_size_chunks;//this is size of mesh recieved from scatter
-					while(sub_count < (total_ranks*(interp_scaling/((adjusted_sizes_left + adjusted_sizes_right)/2)))){//TODO: changes the adjusted_sizes to whichever is lower
-						while(vector_counter < vector_counter_max/total_ranks){
-							node_state_vars_left = left_vector_of_state_vars.at(vector_counter);
-							node_state_vars_right = right_vector_of_state_vars.at(vector_counter);
-							node_state_vars_temp = node_state_vars_right;
-							for(int i = 0; i<coupler_vars; i++){
-								node_state_vars_right.at(i) = (node_state_vars_left.at(i) + node_state_vars_right.at(i))/2;
-								node_state_vars_left.at(i) = (node_state_vars_left.at(i) + node_state_vars_temp.at(i))/2;
-							}
-							vector_counter++;
-						}
-						vector_counter = 0;
-						sub_count++;
-					}
-				}else if(units[unit_count].coupling_type == 'C'){
-					std::vector<double> quad_array_rt;
-					std::vector<double> quad_array_lt;
-					for(int l = 0; l < 1; l++){
-						quad_array_rt.clear();
-						quad_array_lt.clear();
-						for(int i = 0; i < ar_size_max*0.7; i++){
-							quad_array_rt.push_back(0.0);
-							quad_array_lt.push_back(0.0);
-							for(int k = 0; k < 4; k++){
-								quad_array_rt.at(i) = (quad_array_rt.at(i) + data_ran[i][k]);
-								quad_array_lt.at(i) = (quad_array_lt.at(i) + data_ran[i][k]);
-							}
-							quad_array_rt.at(i) = (quad_array_rt.at(i)/4);
-							quad_array_lt.at(i) = (quad_array_lt.at(i)/4);
-						}
-					}
-					vector_counter_max = left_right_size_chunks;//this is size of mesh recieved from scatter
-					for(int l = 0; l < 7; l++){
-						for(int b = 0; b < vector_counter_max/5; b++){
-							int temp = 0;
-							for(int i = 0; i < 3; i++){
-								if(data_ran[b][i] != data_ran[b][i % 3 + 1]){
-									temp = temp + 1;
-									quad_array_rt.at(b % (std::max(ar_size_max/20,1))) = data_ran[b][temp];
-								}
-							}
-						}
-					}
+					sub_count++;
 				}
-				
+				if(units[unit_count].coupling_type == 'C'){
+					sub_count = 0;
+                    while(sub_count < left_right_size*fixed_scaling){
+                        node_state_vars_temp.insert(node_state_vars_temp.end(),
+                                                    ((left_vector_of_state_vars.at(sub_count % (std::max((int) left_right_size_chunks/total_ranks,1))).at(0)+
+                                                    right_vector_of_state_vars.at(sub_count % (std::max((int) left_right_size_chunks/total_ranks,1))).at(0))/2));
+                        sub_count++;
+                    }
+				}
 				end = std::chrono::steady_clock::now();
 				pure_comp_secs += (end-start1);	
 				//interpolate routine end

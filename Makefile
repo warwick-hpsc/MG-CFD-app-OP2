@@ -43,7 +43,7 @@ PTSCOTCH_LIB += -lptscotch -lscotch -lptscotcherr
 
 ifdef PETSC_INSTALL_PATH
     PETSC_INC = -I$(PETSC_INSTALL_PATH)/include
-    PETSC_LIB = -L$(PETSC_INSTALL_PATH)/lib
+    PETSC_LIB = -L$(PETSC_INSTALL_PATH)/lib -lpetsc
 endif
 
 ifdef DOLFINX_INSTALL_PATH
@@ -75,9 +75,7 @@ ifdef FENICS
     DOLFINX_LIB += -ldolfinx
     FENICS_LIB = $(FENICS_INSTALL_PATH)/libdolfinx_cpx.a
     PETSC_INC += -DHAVE_PETSC
-    PETSC_LIB += -lpetsc
     BOOST_LIB += -lboost_filesystem -lboost_program_options -lboost_timer
-
 endif
 
 ifdef SIMPIC
@@ -93,7 +91,12 @@ endif
 ifdef GPUPB
     GPUPB_DEF = -Ddefgpupbpic
     GPUPB_LIB = $(GPUPB_INSTALL_PATH)/libgpupbpic.a
-endif 
+endif
+
+ifdef COMBUST
+	COMBUST_DEF = -Ddefcombust
+	COMBUST_LIB = $(COMBUST_INSTALL_PATH)/bin/libminicombust.a
+endif
 
 ifdef DEBUG
   OPTIMISE := -g -O0
@@ -421,8 +424,8 @@ $(BIN_DIR)/mgcfd_cpx_runtime: $(OP2_MPI_CPX_MAIN) $(BIN_DIR)/mgcfd_cpx.a $(FENIC
 	mkdir -p $(BIN_DIR)
 	$(MPICPP) $(CPPFLAGS) $(OPTIMISE) $^ $(BIN_DIR)/mgcfd_cpx.a $(SIMPIC_LIB) $(MGCFD_LIBS) \
         -lm $(OP2_LIB) -lop2_mpi $(PARMETIS_LIB) $(DOLFINX_LIB) $(PETSC_LIB) $(BOOST_LIB)\
-		$(PBPIC_LIB) $(GPUPB_LIB) $(SQLITE_LIB) $(TREETIMER_INC) $(TREETIMER_LIB) -L${MPI_HOME}/lib -lmpi\
-        $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) $(SIMPIC_DEF) $(PBPIC_DEF) $(GPUPB_DEF) -o $@ 
+		$(PBPIC_LIB) $(GPUPB_LIB) $(COMBUST_LIB) $(SQLITE_LIB) $(TREETIMER_INC) $(TREETIMER_LIB) -L${MPI_HOME}/lib -lmpi\
+        $(PTSCOTCH_LIB) $(HDF5_LIB) $(FENICS_DEF) $(SIMPIC_DEF) $(PBPIC_DEF) $(GPUPB_DEF) $(COMBUST_DEF) -o $@ 
 
 
 ## MPI_CPX CUDA
