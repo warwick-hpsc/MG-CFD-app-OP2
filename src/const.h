@@ -28,7 +28,7 @@
 
 #define NDIM 3
 
-#define RK 3	// 3rd order RK
+#define RK 3
 #define ff_mach 1.2
 #define deg_angle_of_attack 0.0
 
