@@ -435,9 +435,9 @@ int main(int argc, char** argv)
     // Fudge the weights to delay occurrence of negative densities in HDF5 meshes:
     for (int l=0; l<levels; l++) {
         op_par_loop(dampen_ewt, "dampen_ewt", op_edges[l], 
-                    op_arg_dat(p_edge_weights[l], -1, OP_ID, NDIM, "double", OP_INC));
+                    op_arg_dat(p_edge_weights[l], -1, OP_ID, NDIM, "double", OP_RW));
         op_par_loop(dampen_ewt, "dampen_ewt", op_bnd_nodes[l], 
-                    op_arg_dat(p_bnd_node_weights[l], -1, OP_ID, NDIM, "double", OP_INC));
+                    op_arg_dat(p_bnd_node_weights[l], -1, OP_ID, NDIM, "double", OP_RW));
     }
 
     char* h5_out_name = alloc<char>(100);
@@ -458,7 +458,7 @@ int main(int argc, char** argv)
     while(i < conf.num_cycles)
     {
         #ifdef LOG_PROGRESS
-            op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
+            op_printf("Performing MG cycle %d / %d level %d", i+1, conf.num_cycles, level);
         #else
             if (level==0)
             op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
@@ -492,7 +492,7 @@ int main(int argc, char** argv)
         for (rkCycle=0; rkCycle<RK; rkCycle++)
         {
             #ifdef LOG_PROGRESS
-                op_printf(" RK cycle %d / %d\n", rkCycle+1, RK);
+                op_printf(" RK cycle %d / %d level %d\n", rkCycle+1, RK, level);
             #endif
 
             op_par_loop(compute_flux_edge_kernel, "compute_flux_edge_kernel", op_edges[level],
@@ -511,7 +511,7 @@ int main(int argc, char** argv)
             op_par_loop(time_step_kernel, "time_step_kernel", op_nodes[level], 
                         op_arg_gbl(&rkCycle, 1, "int", OP_READ),
                         op_arg_dat(p_step_factors[level],  -1, OP_ID, 1,    "double", OP_READ), 
-                        op_arg_dat(p_fluxes[level],        -1, OP_ID, NVAR, "double", OP_INC),
+                        op_arg_dat(p_fluxes[level],        -1, OP_ID, NVAR, "double", OP_RW),
                         op_arg_dat(p_old_variables[level], -1, OP_ID, NVAR, "double", OP_READ),
                         op_arg_dat(p_variables[level],     -1, OP_ID, NVAR, "double", OP_WRITE));
 
@@ -541,13 +541,11 @@ int main(int argc, char** argv)
                         op_arg_dat(p_variables[level], -1, OP_ID, NVAR, "double", OP_READ), 
                         op_arg_gbl(&bad_val_count, 1, "int", OP_INC));
             
-            op_printf("Bad variable values detected: %d\n", bad_val_count);
-
-            // if (bad_val_count > 0) {
-            //     op_printf("Bad variable values detected, aborting\n");
-            //     op_exit();
-            //     return 1;
-            // }
+            if (bad_val_count > 0) {
+                op_printf("Bad variable values detected, aborting\n");
+                op_exit();
+                return 1;
+            }
             op_printf("\n");
         }
 
@@ -590,7 +588,7 @@ int main(int argc, char** argv)
                             op_arg_dat(p_up_scratch[level],   0, p_node_to_mg_node[level-1], 1, "int", OP_INC));
 
                 op_par_loop(up_post_kernel, "up_post_kernel", op_nodes[level], 
-                            op_arg_dat(p_variables[level],  -1, OP_ID, NVAR, "double", OP_INC), 
+                            op_arg_dat(p_variables[level],  -1, OP_ID, NVAR, "double", OP_RW), 
                             op_arg_dat(p_up_scratch[level], -1, OP_ID, 1, "int", OP_READ));
 
                 if(level == levels-1)
