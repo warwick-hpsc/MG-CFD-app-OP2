@@ -549,26 +549,26 @@ int main(int argc, char** argv)
             op_printf("\n");
         }
 
-        // if (conf.output_flow_interval > 0 &&
-        //     ((i+1) % conf.output_flow_interval) == 0 &&
-        //     level == 0)
-        // {
-        //     const char* old_name = p_variables[level]->name;
-        //     sprintf(op_name, "p_variables");
-        //     p_variables[level]->name = strdup(op_name);
-        //     suffix = std::string(".L") + number_to_string(level) + "." + "cycle=" + number_to_string(i+1);
-        //     sprintf(h5_out_name, "%svariables%s.h5", prefix.c_str(), suffix.c_str());
+        if (conf.output_flow_interval > 0 &&
+            ((i+1) % conf.output_flow_interval) == 0 &&
+            level == 0)
+        {
+            const char* old_name = p_variables[level]->name;
+            sprintf(op_name, "p_variables");
+            p_variables[level]->name = strdup(op_name);
+            suffix = std::string(".L") + number_to_string(level) + "." + "cycle=" + number_to_string(i+1);
+            sprintf(h5_out_name, "%svariables%s.h5", prefix.c_str(), suffix.c_str());
 
-        //     double cpu_tmp1, wall_tmp1;
-        //     op_timers(&cpu_tmp1, &wall_tmp1);
-        //     op_fetch_data_hdf5_file(p_variables[level], h5_out_name);
-        //     double cpu_tmp2, wall_tmp2;
-        //     op_timers(&cpu_tmp2, &wall_tmp2);
-        //     file_io_times[level] += wall_tmp2 - wall_tmp1;
-        //     number_of_file_io_writes++;
+            double cpu_tmp1, wall_tmp1;
+            op_timers(&cpu_tmp1, &wall_tmp1);
+            op_fetch_data_hdf5_file(p_variables[level], h5_out_name);
+            double cpu_tmp2, wall_tmp2;
+            op_timers(&cpu_tmp2, &wall_tmp2);
+            file_io_times[level] += wall_tmp2 - wall_tmp1;
+            number_of_file_io_writes++;
 
-        //     p_variables[level]->name = old_name;
-        // }
+            p_variables[level]->name = old_name;
+        }
 
         if (levels <= 1) {
             i++;
@@ -717,107 +717,107 @@ int main(int argc, char** argv)
         }
     }
 
-    // if (conf.output_final_anything) {
-    //     op_printf("-----------------------------------------------------\n");
-    //     op_printf("Writing out data...\n");
-    //     for (int l=0; l<levels; l++)
-    //     {
-    //         suffix = std::string(".L") + number_to_string(l) 
-    //                            + "." + "cycles=" + number_to_string(conf.num_cycles);
+    if (conf.output_final_anything) {
+        op_printf("-----------------------------------------------------\n");
+        op_printf("Writing out data...\n");
+        for (int l=0; l<levels; l++)
+        {
+            suffix = std::string(".L") + number_to_string(l) 
+                               + "." + "cycles=" + number_to_string(conf.num_cycles);
 
-    //         int number_of_edges = op_get_size(op_edges[l]);
-    //         int nel     = op_get_size(op_nodes[l]);
+            int number_of_edges = op_get_size(op_edges[l]);
+            int nel     = op_get_size(op_nodes[l]);
 
-    //         double cpu_tmp1, wall_tmp1;
-    //         op_timers(&cpu_tmp1, &wall_tmp1);
+            double cpu_tmp1, wall_tmp1;
+            op_timers(&cpu_tmp1, &wall_tmp1);
             
-    //         // Dump volumes:
-    //         if (conf.output_volumes) {
-    //             const char* old_name = p_volumes[l]->name;
-    //             sprintf(op_name, "p_volumes_result_L%d", l);
-    //             p_volumes[l]->name = strdup(op_name);
-    //             sprintf(h5_out_name, "%svolumes%s.h5", prefix.c_str(), suffix.c_str());
-    //             op_fetch_data_hdf5_file(p_volumes[l], h5_out_name);
-    //             p_volumes[l]->name = old_name;
-    //         }
+            // Dump volumes:
+            if (conf.output_volumes) {
+                const char* old_name = p_volumes[l]->name;
+                sprintf(op_name, "p_volumes_result_L%d", l);
+                p_volumes[l]->name = strdup(op_name);
+                sprintf(h5_out_name, "%svolumes%s.h5", prefix.c_str(), suffix.c_str());
+                op_fetch_data_hdf5_file(p_volumes[l], h5_out_name);
+                p_volumes[l]->name = old_name;
+            }
 
-    //         // Dump step factors:
-    //         if (conf.output_step_factors) {
-    //             const char* old_name = p_step_factors[l]->name;
-    //             sprintf(op_name, "p_step_factors_result_L%d", l);
-    //             p_step_factors[l]->name = strdup(op_name);
-    //             sprintf(h5_out_name, "%sstep_factors%s.h5", prefix.c_str(), suffix.c_str());
-    //             op_fetch_data_hdf5_file(p_step_factors[l], h5_out_name);
-    //             p_step_factors[l]->name = old_name;
-    //         }
+            // Dump step factors:
+            if (conf.output_step_factors) {
+                const char* old_name = p_step_factors[l]->name;
+                sprintf(op_name, "p_step_factors_result_L%d", l);
+                p_step_factors[l]->name = strdup(op_name);
+                sprintf(h5_out_name, "%sstep_factors%s.h5", prefix.c_str(), suffix.c_str());
+                op_fetch_data_hdf5_file(p_step_factors[l], h5_out_name);
+                p_step_factors[l]->name = old_name;
+            }
 
-    //         // Dump fluxes:
-    //         if (conf.output_fluxes) {
-    //             const char* old_name = p_fluxes[l]->name;
-    //             sprintf(op_name, "p_fluxes_result_L%d", l);
-    //             p_fluxes[l]->name = strdup(op_name);
-    //             sprintf(h5_out_name, "%sfluxes%s.h5", prefix.c_str(), suffix.c_str());
-    //             op_fetch_data_hdf5_file(p_fluxes[l], h5_out_name);
-    //             p_fluxes[l]->name = old_name;
-    //         }
+            // Dump fluxes:
+            if (conf.output_fluxes) {
+                const char* old_name = p_fluxes[l]->name;
+                sprintf(op_name, "p_fluxes_result_L%d", l);
+                p_fluxes[l]->name = strdup(op_name);
+                sprintf(h5_out_name, "%sfluxes%s.h5", prefix.c_str(), suffix.c_str());
+                op_fetch_data_hdf5_file(p_fluxes[l], h5_out_name);
+                p_fluxes[l]->name = old_name;
+            }
             
-    //         // Dump variables:
-    //         if (conf.output_variables) {
-    //             const char* old_name = p_variables[l]->name;
-    //             sprintf(op_name, "p_variables_result_L%d", l);
-    //             p_variables[l]->name = strdup(op_name);
-    //             sprintf(h5_out_name, "%svariables%s.h5", prefix.c_str(), suffix.c_str());
-    //             op_fetch_data_hdf5_file(p_variables[l], h5_out_name);
-    //             p_variables[l]->name = old_name;
-    //         }
+            // Dump variables:
+            if (conf.output_variables) {
+                const char* old_name = p_variables[l]->name;
+                sprintf(op_name, "p_variables_result_L%d", l);
+                p_variables[l]->name = strdup(op_name);
+                sprintf(h5_out_name, "%svariables%s.h5", prefix.c_str(), suffix.c_str());
+                op_fetch_data_hdf5_file(p_variables[l], h5_out_name);
+                p_variables[l]->name = old_name;
+            }
 
-    //         double cpu_tmp2, wall_tmp2;
-    //         op_timers(&cpu_tmp2, &wall_tmp2);
-    //         file_io_times[level] += wall_tmp2 - wall_tmp1;
-    //         number_of_file_io_writes++;
-    //     }
-    // }
+            double cpu_tmp2, wall_tmp2;
+            op_timers(&cpu_tmp2, &wall_tmp2);
+            file_io_times[level] += wall_tmp2 - wall_tmp1;
+            number_of_file_io_writes++;
+        }
+    }
 
-    // int my_rank=0;
-    // #ifdef MPI_ON
-    // op_rank(&my_rank);
-    // #endif
-    // #ifdef PAPI
-    //     dump_papi_counters_to_file(
-    //         my_rank, 
-    //         flux_kernel_event_counts, 
-    //         ustream_kernel_event_counts,
-    //         conf.output_file_prefix);
-    // #endif
+    int my_rank=0;
+    #ifdef MPI_ON
+    op_rank(&my_rank);
+    #endif
+    #ifdef PAPI
+        dump_papi_counters_to_file(
+            my_rank, 
+            flux_kernel_event_counts, 
+            ustream_kernel_event_counts,
+            conf.output_file_prefix);
+    #endif
 
-    // #ifdef DUMP_EXT_PERF_DATA
-    //     dump_perf_data_to_file(
-    //         my_rank, 
-    //         levels, 
-    //         #ifdef VERIFY_OP2_TIMING
-    //             flux_kernel_compute_times, 
-    //             flux_kernel_sync_times,
-    //         #endif
-    //         flux_kernel_iter_counts, 
-    //         conf.output_file_prefix);
-    // #endif
+    #ifdef DUMP_EXT_PERF_DATA
+        dump_perf_data_to_file(
+            my_rank, 
+            levels, 
+            #ifdef VERIFY_OP2_TIMING
+                flux_kernel_compute_times, 
+                flux_kernel_sync_times,
+            #endif
+            flux_kernel_iter_counts, 
+            conf.output_file_prefix);
+    #endif
 
-    // #ifndef DUMP_EXT_PERF_DATA
-    //     // Should only need file IO performance data for 
-    //     // one rank; in my brief experience, all ranks report 
-    //     // the same time.
-    //     if (my_rank == 0) {
-    // #endif
-    // dump_file_io_perf_data_to_file(
-    //     my_rank, 
-    //     levels, 
-    //     walltime, 
-    //     file_io_times, 
-    //     number_of_file_io_writes, 
-    //     conf.output_file_prefix);
-    // #ifndef DUMP_EXT_PERF_DATA
-    //     }
-    // #endif
+    #ifndef DUMP_EXT_PERF_DATA
+        // Should only need file IO performance data for 
+        // one rank; in my brief experience, all ranks report 
+        // the same time.
+        if (my_rank == 0) {
+    #endif
+    dump_file_io_perf_data_to_file(
+        my_rank, 
+        levels, 
+        walltime, 
+        file_io_times, 
+        number_of_file_io_writes, 
+        conf.output_file_prefix);
+    #ifndef DUMP_EXT_PERF_DATA
+        }
+    #endif
 
     op_printf("-----------------------------------------------------\n");
     op_printf("Winding down OP2\n");

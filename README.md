@@ -1,15 +1,12 @@
 MG-CFD OP2
 ==========================================
 
-OP2 port of [MG-CFD](https://github.com/warwick-hpsc/MG-CFD-app-plain). Provides MPI, full OpenMP, SIMD, CUDA, OpenACC, OpenMP 4, and some pairings of them.
+OP2 port of [MG-CFD](https://github.com/warwick-hpsc/MG-CFD-app-plain). Includes all accelerations provided by OP2.
 
 Dependencies
 ==========================================
 
-* [OP2](https://github.com/OP-DSL/OP2-Common)
-* HDF5
-* For MPI variants of MG-CFD: ParMETIS and PT-Scotch
-* For CUDA variants of MG-CFD CUDA library
+* [OP2](https://github.com/OP-DSL/OP2-Common) including HDF5 support.
 
 Compiling and executing
 ==========================================
@@ -17,43 +14,34 @@ Compiling and executing
 ### Building dependencies:
 
 #### OP2
-Several distinct libraries can be compiled, depending on the mix of parallelism and performance portability desired. Similary for MG-CFD, and so it is likely that you only need to compile a subset of the OP2 libraries. All MG-CFD variants need two particular OP2 libraries, created by executing these two OP2 make rules: `core`, `hdf5`. Variant-specific dependencies are listed in table below.
 
-#### HDF5
-All variants of MG-CFD require HDF5, but only the MPI variants require HDF5 compiled with MPI support (i.e. with --enable-parallel)
+Follow the OP2 documentation to install the OP2 library. Building the HDF5 variants of OP2 is required.
 
-#### MPI-specific
-MPI variants of MG-CFD require these additional libraries:
-
-- ParMETIS
-
-- PT-Scotch - Follow their build instructions, but edit `Makefile.inc` to remove the flag `-DSCOTCH_PTHREAD` from `CFLAGS`.
+Several backends can be compiled, depending on the desired combination of parallelism and performance portability.
 
 ### Compiling MG-CFD
 
-Different binaries can be generated, depending on the mix of parallelism and performance portability desired:
+Different binaries can be generated depending on the desired combination of parallelism and performance portability.
 
-Intent       | MG-CFD make rule | OP2 make rule
-------       | ---------------- | -------------
-Sequential   | seq              | seq
-OpenMP       | openmp           | openmp
-MPI          | mpi              | mpi_seq
-MPI + OpenMP | mpi_openmp       | mpi_seq
-MPI + SIMD   | mpi_vec          | mpi_seq
-CUDA         | cuda             | cuda
-MPI + CUDA   | mpi_cuda         | mpi_cuda
+Simply run `make` within the repository folder to compile all available MG-CFD variants.
 
-In future, OpenACC and OpenMP 4.5 ports will be available
+Note: You must set the environment variable `OP2_INSTALL_PATH` to point to the OP2 installation directory.
+
+If you have just compiled OP2, you can set it as follows:
+
+```
+export OP2_INSTALL_PATH=<path-to-op2-common>/op2
+```
 
 ### Quick run:
 
-Want to execute immediately? Navigate to a folder containing input HDF5 files and execute:
+To run immediately, navigate to a directory containing input HDF5 files and execute:
 
 ```Shell
      $ ./path/to/mgcfd_* -i input.dat
 ```
 
-MG-CFD has more command-line arguments to ease file/directory interaction, and control execution parameters. View the help page for more information:
+MG-CFD provides additional command-line arguments for file/directory handling and execution control. See the help page for more details:
 
 ```Shell
      $ ./path/to/mgcfd_* --help
@@ -108,7 +96,7 @@ Datasets
 
 A [release](https://github.com/warwick-hpsc/MG-CFD-app-OP2/releases) is provided that includes the [Onera M6 wing](https://www.grc.nasa.gov/WWW/wind/valid/m6wing/m6wing.html). It consists of 300K nodes (930K edges), and three additional multigrid meshes with respective node counts of 165K, 111K, and 81K. 
 
-Additional larger meshes are available at [our research groups's homepage](https://warwick.ac.uk/fac/sci/dcs/research/systems/hpsc/software):
+Additional larger meshes are available at [our research group's homepage](https://warwick.ac.uk/fac/sci/dcs/research/systems/hpsc/software):
 * Rotor 37 1M cells (multigrid)
 * Rotor 37 8M cells (multigrid)
 * Rotor 37 25M cells (multigrid)
@@ -117,6 +105,7 @@ Additional larger meshes are available at [our research groups's homepage](https
 Major updates since release
 ==========================================
 12/Jun/2019: added MPI + SIMD variant
+18/March/2026: Support OP2 new code-generator
 
 Authorship
 ==========================================
