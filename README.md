@@ -38,13 +38,13 @@ export OP2_INSTALL_PATH=<path-to-op2-common>/op2
 To run immediately, navigate to a directory containing input HDF5 files and execute:
 
 ```Shell
-     $ ./path/to/mgcfd_* -i input.dat
+     $ ./<mgcfd-repo-path>/euler3d_* -i input.dat
 ```
 
 MG-CFD provides additional command-line arguments for file/directory handling and execution control. See the help page for more details:
 
 ```Shell
-     $ ./path/to/mgcfd_* --help
+     $ ./<mgcfd-repo-path>/euler3d_* --help
 ```
 
 ### Performance counters:
@@ -80,13 +80,13 @@ Validating result
 MG-CFD can verify the final flow state against a precomputed solution file, useful for assuring correctness of code changes. To perform this use the `-v` parameter, and set the number of multigrid cycles `-g` to match the solution file (inspect its filename).
 
 ```Shell
-     $ mgcfd_* ... -v -g 10
+     $ <mgcfd-repo-path>/euler3d_* ... -v -g 10
 ```
 
 You can also generate your own solution file:
 
 ```Shell
-     $ mgcfd_* ... --output-variables --output-file-prefix "solution."
+     $ <mgcfd-repo-path>/euler3d_* ... --output-variables --output-file-prefix "solution."
 ```
 
 This will generate a solution file for each multigrid level, e.g. `solution.variables.L0.cycles=10.h5`
@@ -104,7 +104,9 @@ Additional larger meshes are available at [our research group's homepage](https:
 
 Major updates since release
 ==========================================
+
 12/Jun/2019: added MPI + SIMD variant
+
 18/March/2026: Support OP2 new code-generator
 
 Authorship
