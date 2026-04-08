@@ -17,8 +17,6 @@
 #include <vector>
 #include <limits>
 
-#include "hdf5.h"
-
 #ifdef PAPI
 #include <papi.h>
 long_long** flux_kernel_event_counts = NULL;
@@ -65,6 +63,8 @@ config conf;
 #include "compute_node_area_kernel.h"
 #include "validation.h"
 #include "unstructured_stream.h"
+#include "misc.h"
+#include "copy_double_kernel.h"
 
 int main(int argc, char** argv)
 {
@@ -435,9 +435,9 @@ int main(int argc, char** argv)
     // Fudge the weights to delay occurrence of negative densities in HDF5 meshes:
     for (int l=0; l<levels; l++) {
         op_par_loop(dampen_ewt, "dampen_ewt", op_edges[l], 
-                    op_arg_dat(p_edge_weights[l], -1, OP_ID, NDIM, "double", OP_INC));
+                    op_arg_dat(p_edge_weights[l], -1, OP_ID, NDIM, "double", OP_RW));
         op_par_loop(dampen_ewt, "dampen_ewt", op_bnd_nodes[l], 
-                    op_arg_dat(p_bnd_node_weights[l], -1, OP_ID, NDIM, "double", OP_INC));
+                    op_arg_dat(p_bnd_node_weights[l], -1, OP_ID, NDIM, "double", OP_RW));
     }
 
     char* h5_out_name = alloc<char>(100);
@@ -458,7 +458,7 @@ int main(int argc, char** argv)
     while(i < conf.num_cycles)
     {
         #ifdef LOG_PROGRESS
-            op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
+            op_printf("Performing MG cycle %d / %d level %d", i+1, conf.num_cycles, level);
         #else
             if (level==0)
             op_printf("Performing MG cycle %d / %d", i+1, conf.num_cycles);
@@ -478,9 +478,9 @@ int main(int argc, char** argv)
                     op_arg_dat(p_step_factors[level], -1, OP_ID, 1, "double", OP_READ), 
                     op_arg_gbl(&min_dt,                1,           "double", OP_MIN));
         if (min_dt < 0.0f) {
-          op_printf("Fatal error during 'step factor' calculation, min_dt = %.5e\n", min_dt);
-          op_exit();
-          return 1;
+            op_printf("Fatal error during 'step factor' calculation, min_dt = %.5e\n", min_dt);
+            op_exit();
+            return 1;
         }
         op_par_loop(compute_step_factor_kernel, "compute_step_factor_kernel", op_nodes[level], 
                     op_arg_dat(p_variables[level],    -1, OP_ID, NVAR, "double", OP_READ), 
@@ -492,7 +492,7 @@ int main(int argc, char** argv)
         for (rkCycle=0; rkCycle<RK; rkCycle++)
         {
             #ifdef LOG_PROGRESS
-                op_printf(" RK cycle %d / %d\n", rkCycle+1, RK);
+                op_printf(" RK cycle %d / %d level %d\n", rkCycle+1, RK, level);
             #endif
 
             op_par_loop(compute_flux_edge_kernel, "compute_flux_edge_kernel", op_edges[level],
@@ -511,7 +511,7 @@ int main(int argc, char** argv)
             op_par_loop(time_step_kernel, "time_step_kernel", op_nodes[level], 
                         op_arg_gbl(&rkCycle, 1, "int", OP_READ),
                         op_arg_dat(p_step_factors[level],  -1, OP_ID, 1,    "double", OP_READ), 
-                        op_arg_dat(p_fluxes[level],        -1, OP_ID, NVAR, "double", OP_INC),
+                        op_arg_dat(p_fluxes[level],        -1, OP_ID, NVAR, "double", OP_RW),
                         op_arg_dat(p_old_variables[level], -1, OP_ID, NVAR, "double", OP_READ),
                         op_arg_dat(p_variables[level],     -1, OP_ID, NVAR, "double", OP_WRITE));
 
@@ -535,16 +535,12 @@ int main(int argc, char** argv)
                         op_arg_dat(p_residuals[level], -1, OP_ID, NVAR, "double", OP_READ), 
                         op_arg_gbl(&rms, 1, "double", OP_INC));
             rms = sqrt(rms / double(op_get_size(op_nodes[level])));
-            // op_printf(" (RMS = %.3e)", rms);
-            // Until I get the HDF5 meshes working correctly, no point displaying incorrect RMS.
 
-            #ifdef OPENACC
-              // count_bad_vals() invokes isnan(), unsupported with OpenACC.
-            #else
-                op_par_loop(count_bad_vals, "count_bad_vals", op_nodes[level], 
-                            op_arg_dat(p_variables[level], -1, OP_ID, NVAR, "double", OP_READ), 
-                            op_arg_gbl(&bad_val_count, 1, "int", OP_INC));
-            #endif
+            bad_val_count = 0;
+            op_par_loop(count_bad_vals, "count_bad_vals", op_nodes[level], 
+                        op_arg_dat(p_variables[level], -1, OP_ID, NVAR, "double", OP_READ), 
+                        op_arg_gbl(&bad_val_count, 1, "int", OP_INC));
+            
             if (bad_val_count > 0) {
                 op_printf("Bad variable values detected, aborting\n");
                 op_exit();
@@ -592,7 +588,7 @@ int main(int argc, char** argv)
                             op_arg_dat(p_up_scratch[level],   0, p_node_to_mg_node[level-1], 1, "int", OP_INC));
 
                 op_par_loop(up_post_kernel, "up_post_kernel", op_nodes[level], 
-                            op_arg_dat(p_variables[level],  -1, OP_ID, NVAR, "double", OP_INC), 
+                            op_arg_dat(p_variables[level],  -1, OP_ID, NVAR, "double", OP_RW), 
                             op_arg_dat(p_up_scratch[level], -1, OP_ID, 1, "int", OP_READ));
 
                 if(level == levels-1)
@@ -608,8 +604,8 @@ int main(int argc, char** argv)
                     // NOTE: Because I have not yet generated the mapping 'p_edge_to_mg_nodes', I have not 
                     // tested these 'down_v2_kernel' loops at all. I have simply ported it from MG-CFD-app-plain
                     op_par_loop(down_v2_kernel_pre, "down_v2_kernel_pre", op_nodes[level],
-                                op_arg_dat(p_residuals_prolonged[level],      -1, OP_ID, NVAR, "double", OP_WRITE),
-                                op_arg_dat(p_residuals_prolonged_wsum[level], -1, OP_ID, 1,    "double", OP_WRITE));
+                                op_arg_dat(p_residuals_prolonged_wsum[level], -1, OP_ID, 1,    "double", OP_WRITE),
+                                op_arg_dat(p_residuals_prolonged[level],      -1, OP_ID, NVAR, "double", OP_WRITE));
                     op_par_loop(down_v2_kernel, "down_v2_kernel", op_edges[level],
                                 op_arg_dat(p_node_coords[level],   0, p_edge_to_nodes[level],    NDIM , "double", OP_READ),
                                 op_arg_dat(p_node_coords[level],   1, p_edge_to_nodes[level],    NDIM , "double", OP_READ),
@@ -651,13 +647,13 @@ int main(int argc, char** argv)
     op_printf("Max total runtime = %f\n", walltime);
 
     // Write summary performance data to stdout:
-    op_timing_output();
+    // op_timing_output();
 
     // Write full performance data to file:
-    std::string csv_out_filepath(conf.output_file_prefix);
-    csv_out_filepath += "op2_performance_data.csv";
-    op_printf("Writing OP2 timings to file: %s\n", csv_out_filepath.c_str());
-    op_timings_to_csv(csv_out_filepath.c_str());
+    // std::string csv_out_filepath(conf.output_file_prefix);
+    // csv_out_filepath += "op2_performance_data.csv";
+    // op_printf("Writing OP2 timings to file: %s\n", csv_out_filepath.c_str());
+    // op_timings_to_csv(csv_out_filepath.c_str());
 
     if (conf.validate_result) {
         op_printf("-----------------------------------------------------\n");

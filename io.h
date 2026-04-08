@@ -23,8 +23,6 @@
 #ifndef IO_H
 #define IO_H
 
-#include "hdf5.h"
-
 #include "global.h"
 
 void read_input_dat(
